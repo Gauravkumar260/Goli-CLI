@@ -1,0 +1,30 @@
+{
+  "name": "apex-—-open-core-model-agnostic-cli-coding-agent",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/bun": "latest",
+    "@types/diff": "^8.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.100.1",
+    "@google/generative-ai": "^0.24.1",
+    "@lancedb/lancedb": "^0.30.0",
+    "@types/dockerode": "^4.0.1",
+    "better-sqlite3": "^12.10.0",
+    "commander": "^15.0.0",
+    "diff": "^9.0.0",
+    "dockerode": "^5.0.0",
+    "dotenv": "^17.4.2",
+    "glob": "^13.0.6",
+    "tree-sitter-go": "^0.25.0",
+    "tree-sitter-python": "^0.25.0",
+    "tree-sitter-typescript": "^0.23.2",
+    "web-tree-sitter": "^0.26.9"
+  }
+}
