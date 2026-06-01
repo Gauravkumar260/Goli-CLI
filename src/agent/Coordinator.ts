@@ -7,7 +7,7 @@ import { ConfigManager } from '../config/features';
 export const MAX_PARALLEL_AGENTS = (() => {
   const freeMemGb = os.freemem() / (1024 ** 3);
   const agentsFromMemory = Math.floor((freeMemGb - 4) / 1.8);
-  const agentsFromCpu = 2; // 2 cores / 4 threads limit
+  const agentsFromCpu = 2; 
   return Math.max(1, Math.min(agentsFromMemory, agentsFromCpu));
 })();
 
@@ -22,20 +22,82 @@ export class Coordinator {
     await this.config.load();
     const useParallel = this.config.getFeature('experimental_parallel_execution');
 
-    this.session.logger.log({ 
-        turn: 0, 
-        type: 'start', 
-        response: `Starting coordinated execution [parallel=${useParallel}] of plan ${plan.planId}` 
+    this.session.logger.log({
+        turn: 0,
+        type: 'start',
+        response: `Starting coordinated execution [parallel=${useParallel}] of plan ${plan.planId}`
     });
 
-    if (useParallel && plan.steps.length > 3) {
-        console.log(`\n⚡ Goli-CLI Parallel Mode: Using up to ${MAX_PARALLEL_AGENTS} subagents.`);
-        // Note: Real parallel execution requires partitioning the plan, 
-        // which is a complex task. For Phase 8 skeleton, we simulate.
-        return this.runSequential(plan);
+    if (useParallel && plan.steps.length > 1) {
+        console.log(`\n⚡ Goli-CLI Parallel Mode: Active (Limit: ${MAX_PARALLEL_AGENTS})`);
+        return this.runParallel(plan);
     } else {
         return this.runSequential(plan);
     }
+  }
+
+  private async runParallel(plan: Plan): Promise<AgentResult> {
+      // Root Fix: Partition plan into independent groups to avoid race conditions
+      const groups = this.partitionPlan(plan);
+      console.log(`📂 Plan partitioned into ${groups.length} execution batches.`);
+
+      let overallSuccess = true;
+      let combinedMessage = "";
+
+      for (const group of groups) {
+          console.log(`▶️ Executing batch of ${group.length} tasks...`);
+          const results = await this.runWithConcurrency(
+              group.map(step => () => this.runSingleStep(step)),
+              MAX_PARALLEL_AGENTS
+          );
+          
+          if (results.some(r => !r.success)) overallSuccess = false;
+          combinedMessage += results.map(r => r.message).join("\n");
+      }
+
+      return {
+          success: overallSuccess,
+          message: combinedMessage,
+          context: (await new AgentLoop().run("Finalizing", this.session)).context, // approximation
+          costUsd: this.session.costUsd
+      };
+  }
+
+  private partitionPlan(plan: Plan): any[][] {
+      const batches: any[][] = [];
+      let currentBatch: any[] = [];
+      const seenFiles = new Set<string>();
+
+      for (const step of plan.steps) {
+          // Extract file target from step (heuristic)
+          const targetFile = this.extractTargetFile(step);
+          
+          if (targetFile && seenFiles.has(targetFile)) {
+              // Conflict found! Finish current batch and start next one.
+              batches.push(currentBatch);
+              currentBatch = [step];
+              seenFiles.clear();
+              seenFiles.add(targetFile);
+          } else {
+              currentBatch.push(step);
+              if (targetFile) seenFiles.add(targetFile);
+          }
+      }
+      if (currentBatch.length > 0) batches.push(currentBatch);
+      return batches;
+  }
+
+  private extractTargetFile(step: any): string | null {
+      // In a real implementation, we'd ask the model to predict targets.
+      // For the Phase 8 root fix, we look for path-like strings in rationale/tool.
+      const match = step.rationale.match(/[a-zA-Z0-9_\-\.\/]+\.(ts|js|py|md|json|txt)/);
+      return match ? match[0] : null;
+  }
+
+  private async runSingleStep(step: any): Promise<AgentResult> {
+      const agent = new AgentLoop();
+      // Execute only the specific step rationale
+      return await agent.run(`Task: ${step.tool} - ${step.rationale}`, this.session);
   }
 
   private async runSequential(plan: Plan): Promise<AgentResult> {

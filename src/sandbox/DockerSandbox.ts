@@ -23,30 +23,33 @@ export class DockerSandbox implements Sandbox {
     const runCmd = `wsl docker run -d --name ${this.containerName} ` +
                 `--network none --memory 2g --cpus 1.0 ` +
                 `-w /workspace ${this.image} tail -f /dev/null`;
-    
+
     try {
       await execAsync(runCmd);
     } catch (e: any) {
-      if (e.message.includes("not found")) {
-         throw new Error(`Image ${this.image} not found. Please build it using the Dockerfile.`);
+      if (e.message.includes("not found") || e.message.includes("executable")) {
+         throw new Error("Goli-CLI Error: Docker is not installed or not in your WSL path.");
+      } else if (e.message.includes("daemon")) {
+          throw new Error("Goli-CLI Error: Docker Desktop is not running. Please start it.");
+      } else if (e.message.includes("Image") && e.message.includes("not found")) {
+          throw new Error(`Goli-CLI Error: Sandbox image '${this.image}' not found. Run 'goli doctor --fix' to rebuild it.`);
       } else {
-        throw e;
+        throw new Error(`Goli-CLI Sandbox Failure: ${e.message}`);
       }
     }
 
     try {
       const wslProjectPath = (await execAsync(`wsl wslpath '${this.projectRoot.replace(/\\/g, '/')}'`)).stdout.trim();
-      
+
       await this.execute("mkdir -p /workspace && rm -rf /workspace/*");
-      
+
       const archiveCmd = `wsl sh -c "git -C \\"${wslProjectPath}\\" archive HEAD | docker cp - ${this.containerName}:/workspace"`;
       await execAsync(archiveCmd);
-      
+
       await this.execute("git config --global user.email 'goli_cli@local.host' && git config --global user.name 'Goli_CLI Agent'");
       await this.execute("cd /workspace && git init && git add -A && git commit -m 'goli_cli: baseline'");
-    } catch (e) {
-      console.error("Failed to stage project in sandbox:", e);
-      throw e;
+    } catch (e: any) {
+      throw new Error(`Goli-CLI Staging Failure: ${e.message}`);
     }
   }
 
@@ -89,14 +92,17 @@ export class DockerSandbox implements Sandbox {
 
     const tmpFile = path.join(os.tmpdir(), `goli_cli-${Date.now()}.patch`);
     await fs.writeFile(tmpFile, diff, "utf8");
-    
+
     try {
       const wslTmpPath = (await execAsync(`wsl wslpath '${tmpFile.replace(/\\/g, '/')}'`)).stdout.trim();
       const wslProjectPath = (await execAsync(`wsl wslpath '${this.projectRoot.replace(/\\/g, '/')}'`)).stdout.trim();
-      
-      await execHost(`wsl sh -c "cd '${wslProjectPath}' && git apply '${wslTmpPath}'"`);
+
+      const { stderr } = await execHost(`wsl sh -c "cd '${wslProjectPath}' && git apply '${wslTmpPath}'"`);
+      if (stderr && stderr.trim().length > 0) {
+          throw new Error(`Git Apply Error: ${stderr}`);
+      }
     } finally {
-      await fs.unlink(tmpFile);
+      await fs.unlink(tmpFile).catch(() => {});
     }
   }
 }

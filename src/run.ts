@@ -110,9 +110,17 @@ export async function run(task: string, options: RunOptions = {}) {
 
     if (diff && diff.trim() !== "" && diff.trim() !== "(no changes)") {
       if (options.apply) {
-          console.log("⚡ Auto-applying changes to host machine...");
-          await sandbox.applyDiffToHost(diff);
-          console.log("✅ Task completed and applied directly.");
+          try {
+              console.log("⚡ Auto-applying changes to host machine...");
+              await sandbox.applyDiffToHost(diff);
+              console.log("✅ Task completed and applied directly.");
+          } catch (e: any) {
+              if (e.message?.includes("No valid patches")) {
+                  console.warn("⚠️  Direct apply skipped: No valid git patch generated (this usually happens with Mock providers or non-textual changes).");
+              } else {
+                  throw e;
+              }
+          }
       } else {
           const patchPath = path.join(projectRoot, ".goli_cli", "latest.patch");
           const metaPath = path.join(projectRoot, ".goli_cli", "session-meta.json");
