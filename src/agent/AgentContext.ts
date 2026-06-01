@@ -1,11 +1,17 @@
 import type { Message } from "../providers/ModelProvider";
 import type { ToolCall, ToolResult } from "../tools/ToolRegistry";
 
+export interface ContextChunk {
+    file: string;
+    text: string;
+}
+
 export class AgentContext {
   public messages: Message[] = [];
   public systemPrompt: string = "";
   public tokenCount: number = 0;
-  public windowSize: number = 128000; // Default for Sonnet
+  public windowSize: number = 128000; 
+  public retrievedChunks: ContextChunk[] = [];
 
   constructor(messages: Message[] = []) {
     this.messages = messages;

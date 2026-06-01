@@ -61,6 +61,8 @@ export async function runTask(
       diffManager,
       logger,
       costUsd: 0,
+      task: task.task_description,
+      language: task.language
     };
 
     const agent = new AgentLoop({

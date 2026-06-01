@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { Command } from "commander";
 import { run } from "./run";
 import { init } from "./commands/init";
@@ -11,7 +12,9 @@ import { verifyAudit } from "./commands/audit";
 import { safetyStatus } from "./commands/safety";
 import { evalStatus } from "./commands/eval-status";
 import { runDoctor } from "./commands/doctor";
-import { runFeatureCommand } from "./config/features";
+import { runFeatureCommand, runConfigCommand } from "./config/features";
+import { runFeedbackCommand } from "./commands/feedback";
+import { checkMaturity } from "./commands/maturity";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -19,8 +22,8 @@ dotenv.config();
 const program = new Command();
 
 program
-  .name("goli_cli")
-  .description("Goli_CLI — Open-Core Model-Agnostic CLI Coding Agent")
+  .name("goli")
+  .description("Goli-CLI — Open-Core Model-Agnostic CLI Coding Agent")
   .version("0.1.0");
 
 program
@@ -29,6 +32,7 @@ program
   .argument("<task>", "The task to execute")
   .option("--plan", "Force execution planning")
   .option("--auto", "Skip confirmation prompts (YOLO mode)")
+  .option("--apply", "Automatically apply changes to host on success")
   .option("--model <name>", "Override primary model (haiku|sonnet|flash)")
   .option("--mock", "Use mock provider for testing")
   .action(async (task, options) => {
@@ -65,11 +69,38 @@ program
   });
 
 program
+  .command("maturity")
+  .description("Check project maturity and road to Level 2")
+  .action(async () => {
+    try {
+      await checkMaturity();
+    } catch (error: any) {
+      console.error(`Error: ${error.message}`);
+      process.exit(1);
+    }
+  });
+
+program
   .command("doctor")
   .description("Check system health and dependencies")
   .action(async () => {
       try {
           await runDoctor();
+      } catch (error: any) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+      }
+  });
+
+program
+  .command("config")
+  .description("Manage global configuration and API keys")
+  .argument("[action]", "set")
+  .argument("[provider]", "gemini|anthropic|ollama_cloud")
+  .argument("[key]", "API key value")
+  .action(async (action, provider, key) => {
+      try {
+          await runConfigCommand([action, provider, key]);
       } catch (error: any) {
           console.error(`Error: ${error.message}`);
           process.exit(1);
@@ -84,6 +115,18 @@ program
   .action(async (action, name) => {
       try {
           await runFeatureCommand([action, name]);
+      } catch (error: any) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+      }
+  });
+
+program
+  .command("feedback")
+  .description("Provide feedback on recent agent performance")
+  .action(async () => {
+      try {
+          await runFeedbackCommand();
       } catch (error: any) {
           console.error(`Error: ${error.message}`);
           process.exit(1);

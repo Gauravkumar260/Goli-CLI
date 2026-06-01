@@ -7,12 +7,18 @@ export interface ToolCall {
   input: any;
 }
 
+export interface ContextChunk {
+    file: string;
+    text: string;
+}
+
 export interface ToolResult {
   success: boolean;
   output?: string;
   error?: string;
   exitCode?: number;
   isError?: boolean;
+  retrievedChunks?: ContextChunk[];
 }
 
 export class ToolRegistry {
@@ -103,7 +109,11 @@ export class ToolRegistry {
       case "search_code": {
         const { query, topK = 5 } = toolCall.input;
         const chunks = await this.retriever.search(query, topK);
-        return { success: true, output: this.formatChunksForContext(chunks) };
+        return { 
+            success: true, 
+            output: this.formatChunksForContext(chunks),
+            retrievedChunks: chunks.map(c => ({ file: c.file, text: c.text }))
+        };
       }
 
       case "git_diff": {
@@ -125,16 +135,15 @@ export class ToolRegistry {
 
       case "git_commit": {
         const { message } = toolCall.input;
-        
-        // Root fix: Enforce git isolation - only allow commits to goli_cli/* branches
+
         const branchResult = await this.sandbox.execute("git rev-parse --abbrev-ref HEAD");
         const currentBranch = branchResult.trim();
-        
+
         if (!currentBranch.startsWith("goli_cli/")) {
-            return { 
-                success: false, 
-                isError: true, 
-                error: `Git Isolation Breach: Cannot commit to branch '${currentBranch}'. Please create an 'goli_cli/*' branch first.` 
+            return {
+                success: false,
+                isError: true,
+                error: `Git Isolation Breach: Cannot commit to branch '${currentBranch}'. Please create an 'goli_cli/*' branch first.`
             };
         }
 

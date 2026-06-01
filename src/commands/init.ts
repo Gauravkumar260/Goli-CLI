@@ -4,10 +4,33 @@ import * as path from "path";
 import { CodeParser } from "../indexer/parser";
 import { Embedder } from "../indexer/embedder";
 import { Store, type Chunk } from "../indexer/store";
+import { ConfigManager } from "../config/features";
+import * as readline from "readline/promises";
 
 export async function init(projectRoot: string) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
+
+  const config = new ConfigManager();
+  await config.load();
+
+  if (!config.isTelemetryPromptShown()) {
+      console.log("\n📊 Telemetry & Privacy");
+      console.log("──────────────────────────────────────────────────────────");
+      console.log("Goli-CLI can collect anonymous usage data to improve agent performance.");
+      console.log("This is OPT-IN only. No code, file names, or diffs are ever sent.");
+      console.log("Details: docs/TELEMETRY.md");
+      
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      const answer = await rl.question("\nEnable anonymous telemetry? [y/N]: ");
+      rl.close();
+      
+      const enabled = answer.trim().toLowerCase() === 'y';
+      config.setFeature('enable_telemetry', enabled);
+      config.setTelemetryPromptShown(true);
+      await config.save();
+      console.log(`Telemetry ${enabled ? 'ENABLED' : 'DISABLED'}. You can change this anytime with 'goli-cli feature'.\n`);
+  }
 
   const parser = new CodeParser();
   const embedder = new Embedder(apiKey);
@@ -36,7 +59,7 @@ export async function init(projectRoot: string) {
       const embeddings = await embedder.embedBatch(texts);
 
       const storeChunks: Chunk[] = chunks.map((c, i) => ({
-        vector: embeddings[i] || [], // Root fix: handle potential undefined
+        vector: embeddings[i] || [],
         text: c.text,
         file: file,
         startLine: c.startLine,

@@ -6,6 +6,7 @@ import { Command } from "commander";
 import { ModelGrader } from "./graders/ModelGrader";
 import { FailureAnalysis } from "./failure-analysis";
 import { GeminiProvider } from "../src/providers/GeminiProvider";
+import { detectModelDrift } from "./drift-monitor";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -13,8 +14,8 @@ dotenv.config();
 const program = new Command();
 
 program
-  .name("goli_cli-eval")
-  .description("Goli_CLI Evaluation Harness v2")
+  .name("goli-cli-eval")
+  .description("Goli-CLI Evaluation Harness v2")
   .option("--split <name>", "Split to run (train|held-out)", "train")
   .option("--model <name>", "Model to evaluate", "gemini-flash-latest")
   .option("--limit <number>", "Limit number of tasks", "100")
@@ -66,14 +67,17 @@ program
 
     const records: EvalRecord[] = [];
     let successCount = 0;
+    let totalLatency = 0;
 
     for (const task of tasksToRun) {
         try {
+            const t0 = Date.now();
             const record = await runTask(task, {
                 model: options.model,
                 maxTurns: 10,
                 sessionCostCap: 0.10
             });
+            totalLatency += (Date.now() - t0);
 
             if (task.oracle_type !== 'test_suite' && record.result) {
                 record.grade = await grader.grade(task, record.result);
@@ -93,10 +97,35 @@ program
         }
     }
 
+    const currentPassRate = successCount / tasksToRun.length;
+    const avgLatency = totalLatency / tasksToRun.length;
+
     console.log("\n──────────────────────────────────────────────────────────");
     console.log(`🏁 Eval Complete: ${successCount}/${tasksToRun.length} passed.`);
-    console.log(`📈 Pass Rate: ${((successCount / tasksToRun.length) * 100).toFixed(1)}%`);
+    console.log(`📈 Pass Rate: ${(currentPassRate * 100).toFixed(1)}%`);
+    
+    // Drift Monitoring
+    const baselinePassRate = 0.65; // Phase 7 Baseline
+    const report = await detectModelDrift(baselinePassRate, currentPassRate, 2000, avgLatency, 1.0);
+    
+    if (report.drifts.length > 0) {
+        console.log("\n📡 Drift Alerts Detected:");
+        report.drifts.forEach(d => {
+            console.log(`- [${d.severity.toUpperCase()}] ${d.type}: ${d.message}`);
+            console.log(`  └─ Action: ${d.action}`);
+        });
+    }
+
     console.log("──────────────────────────────────────────────────────────\n");
   });
+
+async function fileExists(p: string) {
+    try {
+        await fs.access(p);
+        return true;
+    } catch {
+        return false;
+    }
+}
 
 program.parse();

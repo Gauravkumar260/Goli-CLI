@@ -13,26 +13,31 @@ export class CodeParser {
   async loadLanguage(lang: string) {
     if (this.languages.has(lang)) return;
 
-    let wasmPath = "";
+    // Root Fix: Resolve WASM paths relative to the package root, not CWD
+    const packageRoot = path.join(import.meta.dir, "..", "..");
+    const grammarRoot = path.join(packageRoot, "lib", "grammars");
+
+    let wasmFile = "";
     switch (lang) {
       case "typescript":
       case "ts":
-        wasmPath = "lib/grammars/tree-sitter-typescript.wasm";
+        wasmFile = "tree-sitter-typescript.wasm";
         break;
       case "tsx":
-        wasmPath = "lib/grammars/tree-sitter-tsx.wasm";
+        wasmFile = "tree-sitter-tsx.wasm";
         break;
       case "python":
       case "py":
-        wasmPath = "lib/grammars/tree-sitter-python.wasm";
+        wasmFile = "tree-sitter-python.wasm";
         break;
       case "go":
-        wasmPath = "lib/grammars/tree-sitter-go.wasm";
+        wasmFile = "tree-sitter-go.wasm";
         break;
       default:
         throw new Error(`Unsupported language: ${lang}`);
     }
 
+    const wasmPath = path.join(grammarRoot, wasmFile);
     const langObj = await Language.load(wasmPath);
     this.languages.set(lang, langObj);
   }
@@ -40,7 +45,7 @@ export class CodeParser {
   async parse(code: string, lang: string): Promise<any> {
     if (!this.parser) await this.init();
     await this.loadLanguage(lang);
-    
+
     this.parser!.setLanguage(this.languages.get(lang)!);
     return this.parser!.parse(code);
   }
@@ -50,7 +55,6 @@ export class CodeParser {
     const lines = code.split("\n");
 
     const visit = (node: any) => {
-      // Strategy: chunk at function and class definitions
       const isChunkable = [
         "function_definition",
         "class_definition",

@@ -51,6 +51,8 @@ export interface Session {
   diffManager: DiffManager;
   logger: SessionLogger;
   costUsd: number;
+  task: string; 
+  language: string; 
 }
 
 export class AgentLoop {
@@ -79,7 +81,7 @@ export class AgentLoop {
 
     let plan: Plan | null = null;
     const projectRoot = session.diffManager.getProjectRoot();
-    const goli_cliMd = await this.readApexMd(projectRoot);
+    const goli_cliMd = await this.readGoliMd(projectRoot);
 
     if (this.config.forcePlan || needsPlan(task)) {
       console.log("\n📋 Generating execution plan...");
@@ -132,9 +134,16 @@ export class AgentLoop {
       }
 
       const response = await session.model.complete(context.messages, context.systemPrompt);
+      
+      // Root Fix: Stop nagger loop. If response is empty or model gives up, terminate gracefully.
+      if (!response || response.trim().length === 0) {
+          logFailure("Model returned an empty response. Terminating session to save tokens.");
+          return this.fail("empty_model_response", context, session, turns);
+      }
+
       const cost = (response.length / 4) * (0.000015);
       session.costUsd += cost;
-      session.logger.log({ turn: turns, type: 'model_response', costUsd: cost, response, model: 'sonnet' });
+      session.logger.log({ turn: turns, type: 'model_response', costUsd: cost, response, model: 'gpt-oss' });
 
       process.stdout.write(`\x1b[90m${response.substring(0, 500)}${response.length > 500 ? '...' : ''}\x1b[0m\n`);
 
@@ -145,11 +154,13 @@ export class AgentLoop {
       }
 
       const toolCalls = this.parseToolCalls(response);
+      
+      // Root Fix: If no tool calls and not DONE, it's a conversational response.
+      // Return control to user instead of looping back with a nag message.
       if (toolCalls.length === 0) {
-        context.messages.push({ role: 'assistant', content: response });
-        context.messages.push({ role: 'user', content: "Please use a tool to proceed or respond with DONE if finished." });
-        turns++;
-        continue;
+        logSuccess("Agent responded conversationally.");
+        session.logger.log({ turn: turns, type: 'stop', response: "CONVERSATIONAL" });
+        return { success: true, message: response, context, costUsd: session.costUsd };
       }
 
       for (const toolCall of toolCalls) {
@@ -201,6 +212,10 @@ export class AgentLoop {
             }
         }
 
+        if (result.retrievedChunks) {
+            context.retrievedChunks.push(...result.retrievedChunks);
+        }
+
         session.logger.log({
             turn: turns,
             type: 'tool_call',
@@ -245,7 +260,7 @@ export class AgentLoop {
     return this.fail("max_turns_exceeded", context, session, turns);
   }
 
-  private async readApexMd(root: string): Promise<string> {
+  private async readGoliMd(root: string): Promise<string> {
     try {
       const content = await fs.readFile(path.join(root, "Goli_CLI.md"), "utf-8");
       return content

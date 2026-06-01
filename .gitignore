@@ -35,3 +35,10 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # phase folder
 phase/
+
+# Goli-CLI metadata
+.goli_cli/
+.goli-cli/
+.test-db/
+.test-lancedb/
+success.txt
