@@ -4,7 +4,7 @@ export async function status() {
   const metrics = new TelemetryMetrics();
   const overview = metrics.getOverview();
   
-  console.log("\n📊 APEX Health Dashboard");
+  console.log("\n📊 Goli-CLI Health Dashboard");
   console.log("──────────────────────────────────────────────────────────");
   console.log(`Total Sessions:    ${overview.total_sessions || 0}`);
   console.log(`Tasks Completed:   ${overview.completed || 0}`);

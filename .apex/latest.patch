@@ -1,9 +1,0 @@
-Command failed: Command failed: wsl docker exec apex-sandbox-yianew /bin/sh -c "cd /workspace && git diff HEAD"
-fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.
-Use '--' to separate paths from revisions, like this:
-'git <command> [<revision>...] -- [<file>...]'
-
-Output: 
-Errors: fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.
-Use '--' to separate paths from revisions, like this:
-'git <command> [<revision>...] -- [<file>...]'

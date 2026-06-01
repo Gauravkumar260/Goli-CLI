@@ -1,0 +1,5 @@
+Command failed: Command failed: wsl docker exec goli_cli-sandbox-eaxvh bash -c "echo Y2QgL3dvcmtzcGFjZSAmJiBnaXQgZGlmZiAtLWNhY2hlZCBIRUFE | base64 -d | bash"
+Error response from daemon: container b848af02fd16e6002c94c5bebe820ed9fa1400891cb2daf2257c26b98251b0fd is not running
+
+Output: 
+Errors: Error response from daemon: container b848af02fd16e6002c94c5bebe820ed9fa1400891cb2daf2257c26b98251b0fd is not running

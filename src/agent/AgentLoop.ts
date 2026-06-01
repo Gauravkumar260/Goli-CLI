@@ -1,13 +1,16 @@
-import { ModelProvider, Message } from "../providers/ModelProvider";
-import { ToolRegistry, ToolCall, ToolResult } from "../tools/ToolRegistry";
+import { type ModelProvider } from "../providers/ModelProvider";
+import { ToolRegistry, type ToolCall, type ToolResult } from "../tools/ToolRegistry";
 import { DiffManager } from "../diff/DiffManager";
 import { AgentContext } from "./AgentContext";
 import { compactContext } from "./compaction";
-import { buildSystemPrompt } from "./systemPrompt";
-import { SessionLogger, TurnEvent } from "../telemetry/SessionLogger";
+import { buildSystemPrompt, type PromptConfig, BASELINE_CONFIG } from "./systemPrompt";
+import { SessionLogger } from "../telemetry/SessionLogger";
 import { logTurn, logAction, logSuccess, logFailure } from "../cli/renderer";
-import { needsPlan, makePlan, Plan } from "./planner";
+import { needsPlan, makePlan, type Plan } from "./planner";
 import { requestHumanApproval } from "./hitl";
+import { ActionGate } from "../safety/ActionGate";
+import { InjectionProbe } from "../safety/InjectionProbe";
+import { BlastRadiusTracker } from "../safety/BlastRadiusTracker";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as readline from "readline/promises";
@@ -21,6 +24,7 @@ export interface AgentConfig {
   sessionTimeoutMs: number;
   forcePlan?: boolean;
   autoApprove?: boolean;
+  promptConfig?: PromptConfig;
 }
 
 export const DEFAULT_CONFIG: AgentConfig = {
@@ -36,6 +40,7 @@ export interface AgentResult {
   success: boolean;
   message: string;
   context: AgentContext;
+  costUsd: number;
 }
 
 export interface Session {
@@ -61,27 +66,30 @@ export class AgentLoop {
     let consecutiveErrors = 0;
     let totalSafetyDenials = 0;
 
-    // ─── Week 13: Long-term Memory ─────────────────────────────────────────────
+    const gate = new ActionGate(session);
+    const blastRadius = new BlastRadiusTracker();
+
     const recentSessions = SessionLogger.getRecentSessions(3);
     let priorWorkSummary = "";
     if (recentSessions.length > 0) {
-        priorWorkSummary = "\n## Prior work on this repo\n" + 
+        priorWorkSummary = "\n## Prior work on this repo\n" +
             recentSessions.map(s => `- Session ${s.session_id} (active ${s.last_active})`).join("\n");
         console.log(`\n🧠 Memory: Loaded ${recentSessions.length} recent sessions.`);
     }
 
-    // ─── Phase 4.11: Planning ──────────────────────────────────────────────────
     let plan: Plan | null = null;
     const projectRoot = session.diffManager.getProjectRoot();
-    const apexMd = await this.readApexMd(projectRoot);
+    const goli_cliMd = await this.readApexMd(projectRoot);
 
     if (this.config.forcePlan || needsPlan(task)) {
       console.log("\n📋 Generating execution plan...");
       const files = await fs.readdir(projectRoot);
       const repoMap = files.filter(f => !f.startsWith('.')).join("\n");
-      
+
       plan = await makePlan(task, repoMap, session.compactModel);
       this.displayPlan(plan);
+
+      session.logger.log({ turn: turns, type: 'start', response: `plan_generated: ${plan.planId}` });
 
       if (!this.config.autoApprove) {
         const approved = await this.askForConfirmation("Proceed with this plan? [y/N] ");
@@ -91,25 +99,29 @@ export class AgentLoop {
       }
     }
 
-    // Build initial context
-    const systemPrompt = buildSystemPrompt(apexMd, session.tools.getToolDefinitions()) + priorWorkSummary;
+    const promptConfig = this.config.promptConfig || BASELINE_CONFIG;
+    const systemPrompt = buildSystemPrompt(goli_cliMd, session.tools.getToolDefinitions(), promptConfig) + priorWorkSummary;
     let context = new AgentContext();
     context.systemPrompt = systemPrompt;
     context.messages.push({ role: 'system', content: systemPrompt });
-    
+
     if (plan) {
-      context.messages.push({ 
-        role: 'user', 
-        content: `Execution Plan:\n${JSON.stringify(plan, null, 2)}\n\nPlease execute the task following this plan. State which step you are on.` 
+      context.messages.push({
+        role: 'user',
+        content: `Execution Plan:\n${JSON.stringify(plan, null, 2)}\n\nPlease execute the task following this plan. State which step you are on.`
       });
     }
-    
+
     context.messages.push({ role: 'user', content: task });
     session.logger.log({ turn: turns, type: 'start', costUsd: 0 });
 
-    // ─── Main Loop ────────────────────────────────────────────────────────────
     while (turns < this.config.maxTurns) {
       logTurn(turns, this.config.maxTurns);
+
+      const limits = blastRadius.checkLimits();
+      if (limits.breached) {
+          return this.fail(`blast_radius_breach: ${limits.reason}`, context, session, turns);
+      }
 
       if (Date.now() > deadline) {
         return this.fail("session_timeout", context, session, turns);
@@ -129,7 +141,7 @@ export class AgentLoop {
       if (response.includes("DONE")) {
         logSuccess("Task complete.");
         session.logger.log({ turn: turns, type: 'stop', response: "DONE" });
-        return { success: true, message: response, context };
+        return { success: true, message: response, context, costUsd: session.costUsd };
       }
 
       const toolCalls = this.parseToolCalls(response);
@@ -143,11 +155,25 @@ export class AgentLoop {
       for (const toolCall of toolCalls) {
         logAction(toolCall.name, toolCall.input);
 
-        // HITL (Human-in-the-Loop)
-        if (!this.config.autoApprove && session.tools.isHighRisk(toolCall.name)) {
+        const gateResult = await gate.check(task, toolCall, session);
+
+        if (gateResult.denied) {
+          totalSafetyDenials++;
+          logFailure(`SAFETY DENIAL: ${gateResult.reason}`);
+          session.logger.log({ turn: turns, type: 'failure', response: `safety_denial: ${gateResult.reason}` });
+
+          if (totalSafetyDenials >= this.config.safetyDenialLimit) {
+            return this.fail("safety_denial_limit", context, session, turns);
+          }
+
+          context.appendToolResult(toolCall, { success: false, isError: true, error: `Action blocked: ${gateResult.reason}` });
+          continue;
+        }
+
+        if (!this.config.autoApprove && gateResult.requiresHITL) {
           const approval = await requestHumanApproval(toolCall, session);
           session.logger.log({ turn: turns, type: 'hitl', toolName: toolCall.name, hitlDecision: approval.granted ? 'approved' : 'rejected', latencyMs: approval.latencyMs });
-          
+
           if (!approval.granted) {
             logFailure(`Action rejected by user: ${toolCall.name}`);
             return this.fail("human_denied", context, session, turns);
@@ -159,13 +185,29 @@ export class AgentLoop {
         }
 
         const result = await session.tools.dispatch(toolCall);
-        session.logger.log({ 
-            turn: turns, 
-            type: 'tool_call', 
-            toolName: toolCall.name, 
-            toolInput: toolCall.input, 
+
+        if (toolCall.name === 'write_file' || toolCall.name === 'edit_file') {
+            blastRadius.recordFileModification(toolCall.input.path);
+        }
+        if (toolCall.name === 'shell_exec') {
+            blastRadius.recordShellExecution();
+        }
+
+        if (result.output) {
+            const probeResult = InjectionProbe.scan(result.output);
+            if (probeResult.flagged) {
+                console.log(`\n⚠️  INJECTION PROBE FLAGGED: ${probeResult.pattern}`);
+                result.output = InjectionProbe.wrap(result.output);
+            }
+        }
+
+        session.logger.log({
+            turn: turns,
+            type: 'tool_call',
+            toolName: toolCall.name,
+            toolInput: toolCall.input,
             toolSuccess: result.success,
-            latencyMs: 0 // Placeholder
+            latencyMs: 0
         });
 
         if (result.isError) {
@@ -182,9 +224,9 @@ export class AgentLoop {
         context.appendToolResult(toolCall, result);
       }
 
-      // Checkpoints
       if (plan && plan.checkpointAfter.includes(turns + 1)) {
         console.log("\n🏁 Checkpoint reached.");
+        session.logger.log({ turn: turns, type: 'hitl', response: 'checkpoint_reached' });
         if (!this.config.autoApprove) {
             const cont = await this.askForConfirmation("Continue to next turn? [Y/n] ", true);
             if (!cont) return this.fail("human_aborted", context, session, turns);
@@ -205,7 +247,10 @@ export class AgentLoop {
 
   private async readApexMd(root: string): Promise<string> {
     try {
-      return await fs.readFile(path.join(root, "APEX.md"), "utf-8");
+      const content = await fs.readFile(path.join(root, "Goli_CLI.md"), "utf-8");
+      return content
+        .replace(/ignore all previous instructions/gi, "[REDACTED INSTRUCTION]")
+        .replace(/system instructions/gi, "[REDACTED INSTRUCTION]");
     } catch {
       return "";
     }
@@ -251,6 +296,6 @@ export class AgentLoop {
   private fail(reason: string, context: AgentContext, session: Session, turns: number): AgentResult {
     logFailure(`Task failed: ${reason}`);
     session.logger.log({ turn: turns, type: 'failure', response: reason });
-    return { success: false, message: `Task failed: ${reason}`, context };
+    return { success: false, message: `Task failed: ${reason}`, context, costUsd: session.costUsd };
   }
 }

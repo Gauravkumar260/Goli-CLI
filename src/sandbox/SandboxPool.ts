@@ -1,4 +1,4 @@
-import { Sandbox } from "./Sandbox";
+import { type Sandbox } from "./Sandbox";
 import { DockerSandbox } from "./DockerSandbox";
 
 export class SandboxPool {

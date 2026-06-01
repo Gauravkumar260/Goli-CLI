@@ -7,6 +7,11 @@ import { commit } from "./commands/commit";
 import { status } from "./commands/status";
 import { usage } from "./commands/usage";
 import { replay } from "./commands/replay";
+import { verifyAudit } from "./commands/audit";
+import { safetyStatus } from "./commands/safety";
+import { evalStatus } from "./commands/eval-status";
+import { runDoctor } from "./commands/doctor";
+import { runFeatureCommand } from "./config/features";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -14,8 +19,8 @@ dotenv.config();
 const program = new Command();
 
 program
-  .name("apex")
-  .description("APEX — Open-Core Model-Agnostic CLI Coding Agent")
+  .name("goli_cli")
+  .description("Goli_CLI — Open-Core Model-Agnostic CLI Coding Agent")
   .version("0.1.0");
 
 program
@@ -53,6 +58,70 @@ program
   .action(async () => {
     try {
       await status();
+    } catch (error: any) {
+      console.error(`Error: ${error.message}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("doctor")
+  .description("Check system health and dependencies")
+  .action(async () => {
+      try {
+          await runDoctor();
+      } catch (error: any) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+      }
+  });
+
+program
+  .command("feature")
+  .description("Manage experimental feature flags")
+  .argument("[action]", "list|enable|disable")
+  .argument("[name]", "Feature flag name")
+  .action(async (action, name) => {
+      try {
+          await runFeatureCommand([action, name]);
+      } catch (error: any) {
+          console.error(`Error: ${error.message}`);
+          process.exit(1);
+      }
+  });
+
+const evalCmd = program.command("eval").description("Evaluation and benchmarking tools");
+
+evalCmd
+  .command("status")
+  .description("Show evaluation dashboard and trajectory metrics")
+  .action(async () => {
+    try {
+      await evalStatus();
+    } catch (error: any) {
+      console.error(`Error: ${error.message}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("safety")
+  .description("Show safety dashboard and audit integrity")
+  .action(async () => {
+    try {
+      await safetyStatus();
+    } catch (error: any) {
+      console.error(`Error: ${error.message}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("audit")
+  .description("Verify the integrity of the audit trail")
+  .action(async () => {
+    try {
+      await verifyAudit();
     } catch (error: any) {
       console.error(`Error: ${error.message}`);
       process.exit(1);

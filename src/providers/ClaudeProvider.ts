@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { Message, ModelProvider } from "./ModelProvider";
+import { type Message, type ModelProvider } from "./ModelProvider";
 
 export class ClaudeProvider implements ModelProvider {
   private anthropic: Anthropic;
@@ -18,14 +18,14 @@ export class ClaudeProvider implements ModelProvider {
       model: this.model,
       system: system,
       messages: filteredMessages.map(m => ({
-        role: m.role === 'user' ? 'user' : 'assistant',
+        role: m.role === 'user' ? 'user' : 'assistant' as 'user' | 'assistant',
         content: m.content,
       })),
       max_tokens: 4096,
     });
 
     const content = response.content[0];
-    if (content.type === 'text') {
+    if (content && content.type === 'text') {
       return content.text;
     }
     return "";

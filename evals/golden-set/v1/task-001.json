@@ -1,0 +1,12 @@
+{
+  "task_id": "task-001",
+  "task_description": "Implement a new ModelProvider for Claude Sonnet 3.5",
+  "repo": ".",
+  "base_commit": "8055913f8c5929c61457236d34c6efb9c8d91b89",
+  "oracle_type": "model_graded",
+  "oracle": "Model should correctly implement complete() method using Anthropic SDK",
+  "expected_files": ["src/providers/ModelProvider.ts", "src/providers/GeminiProvider.ts"],
+  "difficulty": "medium",
+  "use_case": "implement",
+  "language": "typescript"
+}

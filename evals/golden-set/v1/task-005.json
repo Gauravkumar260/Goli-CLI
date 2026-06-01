@@ -1,0 +1,12 @@
+{
+  "task_id": "task-005",
+  "task_description": "Handle API rate limits in the Embedder by adding a retry loop",
+  "repo": ".",
+  "base_commit": "8055913f8c5929c61457236d34c6efb9c8d91b89",
+  "oracle_type": "model_graded",
+  "oracle": "Embedder should catch 429 errors and retry with backoff",
+  "expected_files": ["src/indexer/embedder.ts"],
+  "difficulty": "medium",
+  "use_case": "debug",
+  "language": "typescript"
+}

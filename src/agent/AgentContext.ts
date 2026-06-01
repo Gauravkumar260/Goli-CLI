@@ -1,5 +1,5 @@
-import { Message } from "../providers/ModelProvider";
-import { ToolCall, ToolResult } from "../tools/ToolRegistry";
+import type { Message } from "../providers/ModelProvider";
+import type { ToolCall, ToolResult } from "../tools/ToolRegistry";
 
 export class AgentContext {
   public messages: Message[] = [];
@@ -18,7 +18,6 @@ export class AgentContext {
     });
   }
 
-  // Token counting placeholder - would use a library in a real implementation
   updateTokenCount() {
     this.tokenCount = this.messages.reduce((acc, m) => acc + (m.content?.length || 0) / 4, 0);
   }

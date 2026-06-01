@@ -2,13 +2,13 @@ import { Database } from 'bun:sqlite';
 import * as path from 'path';
 import * as os from 'os';
 
-const APEX_HOME = process.env.APEX_HOME || path.join(os.homedir(), '.apex');
+const GOLI_CLI_HOME = process.env.GOLI_CLI_HOME || path.join(os.homedir(), '.goli_cli');
 
 export class TelemetryMetrics {
   private db: Database;
 
   constructor() {
-    const dbPath = path.join(APEX_HOME, 'telemetry.sqlite');
+    const dbPath = path.join(GOLI_CLI_HOME, 'telemetry.sqlite');
     this.db = new Database(dbPath);
   }
 

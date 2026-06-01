@@ -1,9 +1,9 @@
 import * as readline from "readline/promises";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { ToolCall } from "../tools/ToolRegistry";
-import { Session } from "./AgentLoop";
-import { createHash } from "crypto";
+import { type ToolCall } from "../tools/ToolRegistry";
+import { type Session } from "./AgentLoop";
+import { AuditLog } from "../safety/AuditLog";
 
 export interface HITLApproval {
   granted: boolean;
@@ -22,7 +22,7 @@ export async function requestHumanApproval(
 
   process.stdout.write(`
 ┌──────────────────────────────────────────────────────────┐
-│  APEX — Action requires your approval ${riskLabel}
+│  Goli-CLI — Action requires your approval ${riskLabel}
 ├──────────────────────────────────────────────────────────┤
 │  Tool:    ${toolCall.name}
 │  Action:  ${description}
@@ -34,21 +34,26 @@ export async function requestHumanApproval(
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-  const answer = await Promise.race([
-    rl.question(""),
-    new Promise<string>((resolve) =>
-      setTimeout(() => {
+  let timer: any;
+  const timeoutPromise = new Promise<string>((resolve) => {
+      timer = setTimeout(() => {
         process.stdout.write("\nTimed out. Auto-rejecting...\n");
         resolve("r");
-      }, timeoutMs)
-    ),
+      }, timeoutMs);
+  });
+
+  const answer = await Promise.race([
+    rl.question(""),
+    timeoutPromise,
   ]);
 
+  clearTimeout(timer);
   rl.close();
   const latencyMs = Date.now() - t0;
   const decision = (answer as string).trim().toLowerCase();
 
-  await logAudit(toolCall, session.sessionId, decision, latencyMs);
+  // Root fix: Use Chain-Hash Audit Log
+  await AuditLog.log(session.sessionId, toolCall.name, toolCall.input, decision, latencyMs);
 
   switch (decision) {
     case "a":
@@ -58,7 +63,9 @@ export async function requestHumanApproval(
       const modifiedInput = await rl2.question("Modified parameters (JSON): ");
       rl2.close();
       try {
-        return { granted: true, modified: JSON.parse(modifiedInput), latencyMs };
+        const modified = JSON.parse(modifiedInput);
+        await AuditLog.log(session.sessionId, toolCall.name, modified, "modified_approval", latencyMs);
+        return { granted: true, modified, latencyMs };
       } catch {
         process.stdout.write("Invalid JSON. Rejecting.\n");
         return { granted: false, latencyMs };
@@ -70,26 +77,5 @@ export async function requestHumanApproval(
       return requestHumanApproval(toolCall, session, timeoutMs); // Re-prompt
     default:
       return { granted: false, latencyMs };
-  }
-}
-
-async function logAudit(toolCall: ToolCall, sessionId: string, decision: string, latencyMs: number) {
-  const auditPath = path.join(process.cwd(), ".apex", "audit.jsonl");
-  const payloadHash = createHash("sha256").update(JSON.stringify(toolCall.input)).digest("hex");
-  
-  const entry = {
-    ts: new Date().toISOString(),
-    session: sessionId,
-    tool: toolCall.name,
-    payload_hash: payloadHash,
-    decision: decision === "a" ? "approved" : decision === "r" ? "rejected" : decision,
-    latency_ms: latencyMs,
-  };
-
-  try {
-    await fs.mkdir(path.dirname(auditPath), { recursive: true });
-    await fs.appendFile(auditPath, JSON.stringify(entry) + "\n", "utf8");
-  } catch (e) {
-    console.error("Failed to write audit log:", e);
   }
 }

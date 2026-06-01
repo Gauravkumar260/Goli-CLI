@@ -1,5 +1,5 @@
 import { AgentContext } from "./AgentContext";
-import { ModelProvider } from "../providers/ModelProvider";
+import { type ModelProvider } from "../providers/ModelProvider";
 
 export async function compactContext(
   context: AgentContext,
@@ -14,8 +14,11 @@ export async function compactContext(
     { role: 'user', content: 'Summarize the technical progress, decisions made, and current diff state in 300 words.' }
   ], 'You are a context compaction agent. Summarize concisely.');
 
+  const systemMsg = context.messages[0];
+  if (!systemMsg) return context;
+
   const newContext = new AgentContext([
-    context.messages[0], // system prompt
+    systemMsg,
     { role: 'assistant', content: `Summary of prior turns: ${response}` },
     ...context.messages.slice(-2) // last 2 turns
   ]);

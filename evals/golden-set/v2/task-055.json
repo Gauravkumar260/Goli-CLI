@@ -1,0 +1,12 @@
+{
+  "task_id": "task-055",
+  "task_description": "Implement a 'cat' tool for the sandbox",
+  "repo": ".",
+  "base_commit": "8055913f8c5929c61457236d34c6efb9c8d91b89",
+  "oracle_type": "model_graded",
+  "oracle": "Cat tool should read and return file contents using sandbox.readFile",
+  "expected_files": ["src/tools/ToolRegistry.ts"],
+  "difficulty": "low",
+  "use_case": "implement",
+  "language": "typescript"
+}

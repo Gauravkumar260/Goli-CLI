@@ -1,4 +1,4 @@
-# APEX Backlog
+# Goli-CLI Backlog
 
 ## Phase 3
 - [ ] Docker sandbox integration

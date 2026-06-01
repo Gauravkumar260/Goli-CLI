@@ -1,9 +1,9 @@
-﻿import { glob } from "glob";
+import { glob } from "glob";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { CodeParser } from "../indexer/parser";
 import { Embedder } from "../indexer/embedder";
-import { Store, Chunk } from "../indexer/store";
+import { Store, type Chunk } from "../indexer/store";
 
 export async function init(projectRoot: string) {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -15,7 +15,7 @@ export async function init(projectRoot: string) {
 
   const files = await glob("**/*.{ts,py,go,tsx}", {
     cwd: projectRoot,
-    ignore: ["node_modules/**", ".apex/**", "dist/**", "build/**"],
+    ignore: ["node_modules/**", ".goli_cli/**", "dist/**", "build/**"],
   });
 
   console.log(`Found ${files.length} files to index.`);
@@ -36,7 +36,7 @@ export async function init(projectRoot: string) {
       const embeddings = await embedder.embedBatch(texts);
 
       const storeChunks: Chunk[] = chunks.map((c, i) => ({
-        vector: embeddings[i],
+        vector: embeddings[i] || [], // Root fix: handle potential undefined
         text: c.text,
         file: file,
         startLine: c.startLine,
@@ -49,7 +49,6 @@ export async function init(projectRoot: string) {
     }
   }
 
-  // Create FTS index for hybrid search
   await store.createFTSIndex();
 
   console.log("Indexing complete.");

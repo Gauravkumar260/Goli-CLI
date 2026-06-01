@@ -1,0 +1,12 @@
+{
+  "task_id": "task-003",
+  "task_description": "Change the vector database storage path from .goli_cli/lancedb to .goli_cli/vectors",
+  "repo": ".",
+  "base_commit": "8055913f8c5929c61457236d34c6efb9c8d91b89",
+  "oracle_type": "test_suite",
+  "oracle": "ls .goli_cli/vectors",
+  "expected_files": ["src/indexer/store.ts"],
+  "difficulty": "low",
+  "use_case": "refactor",
+  "language": "typescript"
+}

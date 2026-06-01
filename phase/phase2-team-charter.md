@@ -1,4 +1,4 @@
-# Phase 2: APEX Solo Operating Model
+# Phase 2: Goli_CLI Solo Operating Model
 
 **Date:** 2026-05-30 | **Status:** 🟢 Green  
 **Model:** Solo student developer  
@@ -27,7 +27,7 @@ You wear all hats. Here's how to think about the time split across a typical wee
 |---|---|---|
 | Agent / Context Engineer | 60% | Writing the actual code |
 | Eval Engineer | 20% | Writing and running evals — never skip this |
-| Product (yourself as PM) | 10% | Using APEX on a real task; noticing what's broken |
+| Product (yourself as PM) | 10% | Using Goli_CLI on a real task; noticing what's broken |
 | Safety (yourself as reviewer) | 5% | Read every diff the agent produces before committing |
 | DevRel (social / README) | 5% | Not until you have something worth showing (Week 6+) |
 
@@ -56,7 +56,7 @@ You will hit moments at 11pm where you need to decide something fast without a t
 | "Should I add a feature that's out of scope?" | Write it in `BACKLOG.md` and close the tab. Do not implement. |
 | "The context engine isn't working perfectly, should I move on?" | Only if retrieval Precision@5 > 0.65 on your golden set. Below that: fix retrieval, not the loop. |
 | "Should I add a new model provider this week?" | Not until the Gemini path is production-quality. One working path beats two half-working ones. |
-| "Should I publish/share what I have?" | Not until you can run `apex run "add input validation to the User model"` on a real repo and get a correct diff. |
+| "Should I publish/share what I have?" | Not until you can run `goli_cli run "add input validation to the User model"` on a real repo and get a correct diff. |
 
 ---
 
@@ -68,7 +68,7 @@ This is the most important output of Phase 2. The order is non-negotiable — ea
 
 ### Week 1 — Skeleton: ModelProvider + GeminiProvider + CLI (Days 1–7)
 
-**Goal**: `apex run "write a function that reverses a string"` works on your machine using the Gemini API.
+**Goal**: `goli_cli run "write a function that reverses a string"` works on your machine using the Gemini API.
 
 **What to build:**
 ```
@@ -92,7 +92,7 @@ src/
 **Week 1 end-gate** — must pass before Week 2:
 ```bash
 # This command must work on your machine (requires GEMINI_API_KEY env var)
-apex run "write a function that reverses a string in Python"
+goli_cli run "write a function that reverses a string in Python"
 # Expected: model returns a Python function. No hallucination about its own tool layer.
 ```
 
@@ -102,7 +102,7 @@ apex run "write a function that reverses a string in Python"
 
 ### Week 2 — Context Retrieval Engine (Days 8–14)
 
-**Goal**: `apex init` indexes a repo; `apex search "auth module"` returns correct files in top-3 results.
+**Goal**: `goli_cli init` indexes a repo; `goli_cli search "auth module"` returns correct files in top-3 results.
 
 This is where you build the actual moat. Spend more time here than anywhere else.
 
@@ -117,7 +117,7 @@ src/
     search.ts          # Vector similarity search: query → top-N chunks with scores
   commands/
     init.ts            # Walk repo, parse, embed, index. Shows progress.
-    search.ts          # CLI command: apex search "query"
+    search.ts          # CLI command: goli_cli search "query"
 ```
 
 **Technology decisions:**
@@ -126,15 +126,15 @@ src/
 - Embedding model: `text-embedding-004` via Gemini API (same `GEMINI_API_KEY`; free tier: 1,500 req/day)
 - Chunk target: 200–400 tokens per chunk (larger = less precision; smaller = loses context)
 
-**Free tier note on embeddings**: indexing `expressjs/express` (~30k LOC) produces ~500–800 chunks — one `apex init` run uses roughly half the daily quota. After initial index, only re-index changed files. Daily cost in normal dev flow: near zero.
+**Free tier note on embeddings**: indexing `expressjs/express` (~30k LOC) produces ~500–800 chunks — one `goli_cli init` run uses roughly half the daily quota. After initial index, only re-index changed files. Daily cost in normal dev flow: near zero.
 
 **Critical implementation note**: Do NOT chunk by line count. Parse with Tree-sitter, find function/class boundaries, split there. A function that spans lines 45–120 is one chunk. Two functions on lines 1–44 and 121–180 are two chunks. If you chunk by lines, you split functions mid-body and retrieval quality collapses.
 
 **Week 2 end-gate** — must pass before Week 3:
 ```bash
 # On a real repo (clone expressjs/express or fastapi/fastapi)
-apex init
-apex search "route handler middleware"
+goli_cli init
+goli_cli search "route handler middleware"
 # Expected: returns the actual middleware file(s) in top-3, not random utility files
 # If it returns obviously wrong files: do not proceed to Week 3. Fix the chunking.
 ```
@@ -198,7 +198,7 @@ This threshold is lower than the Phase 1 target (0.80) because your golden set i
 
 ### Week 4 — Core Agent Loop (Days 22–28)
 
-**Goal**: `apex run "add input validation to the createUser function"` on your golden set repo produces a correct multi-file diff.
+**Goal**: `goli_cli run "add input validation to the createUser function"` on your golden set repo produces a correct multi-file diff.
 
 You now have: (a) working inference, (b) working retrieval, (c) a baseline to measure against. Now build the loop.
 
@@ -219,9 +219,9 @@ src/
   diff/
     DiffManager.ts     # Track all writes; produce unified diff on request
   commands/
-    run.ts             # apex run: entry point for the agent loop
-    diff.ts            # apex diff: show pending changes
-    commit.ts          # apex commit: apply pending diff and git commit
+    run.ts             # goli_cli run: entry point for the agent loop
+    diff.ts            # goli_cli diff: show pending changes
+    commit.ts          # goli_cli commit: apply pending diff and git commit
 ```
 
 **Key agent loop design:**
@@ -248,7 +248,7 @@ function agentLoop(task: string): Diff {
 }
 ```
 
-**No sandbox in Week 4.** Run `git checkout -b apex/task-xxx` before every task, do all writes in that branch. Full Docker sandbox is Phase 3. Sandboxing before you have a working loop adds 3 days of complexity for no quality benefit.
+**No sandbox in Week 4.** Run `git checkout -b goli_cli/task-xxx` before every task, do all writes in that branch. Full Docker sandbox is Phase 3. Sandboxing before you have a working loop adds 3 days of complexity for no quality benefit.
 
 **shell_exec restriction until Phase 3 sandbox is live:** Limit to `git`, test runners (`pytest`, `jest`, `go test`, `cargo test`), and read-only commands (`grep`, `find`, `cat`). Do not enable arbitrary shell execution. One destructive command on your own codebase before the sandbox exists will cost you more time than the sandbox would have taken to build.
 
@@ -273,9 +273,9 @@ Diagnose from your trajectory logs before concluding "the model is too weak." 7B
 
 ## Dogfooding Trigger
 
-**Start using APEX to build APEX at the beginning of Week 4.**
+**Start using Goli_CLI to build Goli_CLI at the beginning of Week 4.**
 
-Not earlier — you need a working loop before you can dogfood the loop. Once `apex run` produces diffs, use it for:
+Not earlier — you need a working loop before you can dogfood the loop. Once `goli_cli run` produces diffs, use it for:
 - Writing tests
 - Refactoring utility functions
 - Debugging your own retrieval engine
@@ -294,7 +294,7 @@ This replaces the standup/sprint structure from the team template.
 |---|---|
 | **Monday** | Review eval results from last week. Write the task for this week in one sentence. |
 | **Tue–Thu** | Build. Eval gate runs on Thursday before you continue. |
-| **Friday** | Use APEX on a real task. Log what broke. Update golden set if a new failure mode appeared. |
+| **Friday** | Use Goli_CLI on a real task. Log what broke. Update golden set if a new failure mode appeared. |
 | **Weekend** | Optional. Don't burn out. If you're stuck, write an ADR about the decision you can't make — the writing often resolves it. |
 
 **ADR rule**: Any architectural decision that you debate with yourself for >20 minutes becomes an `docs/adr/ADR-NNN-title.md`. Template:
@@ -333,14 +333,14 @@ None carried from Phase 1. All three exit conditions (C1, C2, C3) are closed as 
 
 - [ ] Week 4 end-gate passes: `pass@1 > 30%` on 15-task golden set
 - [ ] `ModelProvider` interface exists; `GeminiProvider` is the only concrete adapter (adding Claude/GPT-4o is Phase 3)
-- [ ] LanceDB embedding index is working; `apex init` and `apex search` are functional
+- [ ] LanceDB embedding index is working; `goli_cli init` and `goli_cli search` are functional
 - [ ] 15-task golden set exists in `evals/golden-set.json`
 - [ ] Retrieval Precision@5 > 0.65 on the golden set
 - [ ] Eval runner exists and is wired into commit hook (or at minimum `npm run eval` runs it)
 - [ ] At least one ADR written (the LanceDB vs. pgvector decision is a good first one)
-- [ ] `apex run`, `apex diff`, `apex commit` commands are functional
-- [ ] APEX.md (project context file) format is documented, even if not yet consumed by the agent
-- [ ] You have successfully used APEX to make at least one real change to APEX's own codebase
+- [ ] `goli_cli run`, `goli_cli diff`, `goli_cli commit` commands are functional
+- [ ] Goli_CLI.md (project context file) format is documented, even if not yet consumed by the agent
+- [ ] You have successfully used Goli_CLI to make at least one real change to Goli_CLI's own codebase
 
 **Status: 🟢 Green** — proceed to Phase 3 when all exit criteria pass.
 

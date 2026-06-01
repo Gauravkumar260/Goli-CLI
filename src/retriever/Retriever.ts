@@ -1,5 +1,5 @@
-import { Store, Chunk } from "../indexer/store";
-import { Embedder } from "../indexer/embedder";
+import { type Store, type Chunk } from "../indexer/store";
+import { type Embedder } from "../indexer/embedder";
 
 export interface RetrievedChunk extends Chunk {}
 

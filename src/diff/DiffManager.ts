@@ -1,13 +1,14 @@
-﻿import * as fs from "fs/promises";
-import * as path from "path";   
+import * as fs from "fs/promises";
+import * as path from "path";
+import { createTwoFilesPatch } from 'diff';
 
-export interface PendingChange {
+export interface PendingChange {  
   file: string;
-  originalContent: string;      
+  originalContent: string;        
   newContent: string;
 }
 
-export class DiffManager {      
+export class DiffManager {        
   private changes: Map<string, PendingChange> = new Map();
   private projectRoot: string;
 
@@ -45,6 +46,14 @@ export class DiffManager {
 
   getChanges(): PendingChange[] {
     return Array.from(this.changes.values());
+  }
+
+  getDiff(): string {
+    let diff = "";
+    for (const change of this.changes.values()) {
+        diff += createTwoFilesPatch(change.file, change.file, change.originalContent, change.newContent) + "\n";
+    }
+    return diff || "(no changes)";
   }
 
   async applyAll() {

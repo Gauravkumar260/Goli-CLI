@@ -4,7 +4,7 @@
 Accepted (2026-05-31)
 
 ## Context
-APEX has direct filesystem and shell access within a sandboxed environment. However, destructive actions (e.g., `git commit`, `delete_file`) and potentially escaping shell commands pose a risk to user data and system stability. We need a consistent policy for when the agent must stop and wait for human confirmation.
+Goli-CLI has direct filesystem and shell access within a sandboxed environment. However, destructive actions (e.g., `git commit`, `delete_file`) and potentially escaping shell commands pose a risk to user data and system stability. We need a consistent policy for when the agent must stop and wait for human confirmation.
 
 ## Decision
 1. **Mandatory Triggers**: HITL is required for all tools in the "Destructive" and "Tier 2 Risky" categories.

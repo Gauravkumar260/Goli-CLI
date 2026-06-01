@@ -1,4 +1,4 @@
-import { Message, ModelProvider } from "./ModelProvider";
+import { type Message, type ModelProvider } from "./ModelProvider";
 
 export class MockProvider implements ModelProvider {
   private responses: string[];
@@ -8,10 +8,11 @@ export class MockProvider implements ModelProvider {
     this.responses = responses;
   }
 
-  async complete(messages: Message[], systemPrompt?: string): Promise<string> {
-    if (this.currentIndex >= this.responses.length) {
+  async complete(_messages: Message[], _systemPrompt?: string): Promise<string> {
+    const response = this.responses[this.currentIndex++];
+    if (!response) {
       return "DONE";
     }
-    return this.responses[this.currentIndex++];
+    return response;
   }
 }

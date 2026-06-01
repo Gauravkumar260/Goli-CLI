@@ -1,6 +1,6 @@
-# APEX Tool Schemas (Phase 4)
+# Goli-CLI Tool Schemas (Phase 4)
 
-This document defines the interface between the APEX agent and its environment. These schemas are injected into the system prompt and validated during execution.
+This document defines the interface between the Goli-CLI agent and its environment. These schemas are injected into the system prompt and validated during execution.
 
 ## 1. Filesystem Tools
 

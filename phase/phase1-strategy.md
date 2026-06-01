@@ -1,4 +1,4 @@
-# Phase 1 Strategy: APEX — Open-Core Model-Agnostic CLI Coding Agent
+# Phase 1 Strategy: Goli_CLI — Open-Core Model-Agnostic CLI Coding Agent
 
 **Date:** 2026-05-30  
 **Status:** 🟢 Green — all three conditions resolved (see Section 10)  
@@ -16,7 +16,7 @@ The research is unambiguous on what differentiates capable agents from great one
 - **Eval infrastructure is the competitive moat.** Not model capability — the model is a commodity. The teams that will still be winning in 3 years are those that accumulated the best golden sets, trajectory logs, and regression infrastructure.
 - **Scaffolding adds 6–11 points on SWE-bench.** An excellent scaffolding layer with average model beats an average scaffolding layer with excellent model.
 
-APEX's strategy: win on scaffolding, not model. Specifically: best-in-class context retrieval engine + model-agnostic architecture + open-core distribution + eval infrastructure as a moat.
+Goli_CLI's strategy: win on scaffolding, not model. Specifically: best-in-class context retrieval engine + model-agnostic architecture + open-core distribution + eval infrastructure as a moat.
 
 ---
 
@@ -59,7 +59,7 @@ Rationale for this wedge: refactoring and debugging are the highest-leverage, hi
 
 ### Target User
 
-**External developers** — V1 is public, open-source, installed via `npm install -g apex` or `brew install apex`. Target persona: senior/staff software engineer, polyglot (Python, TypeScript, Go, Rust), working on a codebase they own, frustrated by the lock-in and context limitations of current tools.
+**External developers** — V1 is public, open-source, installed via `npm install -g goli_cli` or `brew install goli_cli`. Target persona: senior/staff software engineer, polyglot (Python, TypeScript, Go, Rust), working on a codebase they own, frustrated by the lock-in and context limitations of current tools.
 
 Enterprise users are the V2 revenue target, not V1 focus. Do not optimize for enterprise compliance until Phase 8.
 
@@ -93,7 +93,7 @@ Specifically:
 | Vector DB | | | ✅ | | **Wrap** | LanceDB (embedded, Apache 2.0, no server) for storage. Gemini `text-embedding-004` for embedding generation. Both via free tier. Not a differentiator. |
 | Eval pipeline | ✅ | | | | **Build** | Custom golden sets = durable moat. SWE-bench as industry standard; proprietary task sets on top. |
 | CLI/terminal UX | ✅ | | | | **Build** | Custom text input layer (slash commands, @file mentions, diff rendering). Ink + React for rich terminal UI. |
-| Auth / API key management | | | ✅ | | **Wrap** | Simple keychain storage (macOS) + `.apex/config` for V1. No OAuth needed yet. |
+| Auth / API key management | | | ✅ | | **Wrap** | Simple keychain storage (macOS) + `.goli_cli/config` for V1. No OAuth needed yet. |
 | Billing / usage tracking | | | | ✅ | **Defer** | Open-source V1 is free. Enterprise billing is Phase 8. |
 | IDE integration | | | | ✅ | **Defer** | CLI-first. IDE extension is Phase 4. Do not split focus. |
 | SSO / RBAC / audit logs | | | | ✅ | **Defer** | Enterprise features are Phase 8. Adding them now delays V1 by 3+ months. |
@@ -178,17 +178,17 @@ All metrics must be instrumented before the first line of product code ships to 
 
 ### In Scope — V1 (12-week horizon)
 
-Precisely: **A CLI tool (`apex`) that accepts a natural language task description, retrieves relevant context from a local Git repository using Tree-sitter chunking + semantic search (LanceDB + Gemini `text-embedding-004`), executes a while-loop agent with a defined tool set, and produces a reviewable diff — supporting Gemini (default), Claude, and GPT-4o models via `ModelProvider` interface, on macOS and Linux, for Python, TypeScript, Go, and Rust codebases.**
+Precisely: **A CLI tool (`goli_cli`) that accepts a natural language task description, retrieves relevant context from a local Git repository using Tree-sitter chunking + semantic search (LanceDB + Gemini `text-embedding-004`), executes a while-loop agent with a defined tool set, and produces a reviewable diff — supporting Gemini (default), Claude, and GPT-4o models via `ModelProvider` interface, on macOS and Linux, for Python, TypeScript, Go, and Rust codebases.**
 
 Specific capabilities:
-- `apex run "<task>"` — executes the full agent loop
-- `apex init` — indexes the current repo (Tree-sitter parse + vector embed)
-- `apex diff` — shows pending changes before commit
-- `apex commit` — applies the diff and commits (supervised mode default)
+- `goli_cli run "<task>"` — executes the full agent loop
+- `goli_cli init` — indexes the current repo (Tree-sitter parse + vector embed)
+- `goli_cli diff` — shows pending changes before commit
+- `goli_cli commit` — applies the diff and commits (supervised mode default)
 - Tool set: file read/write, git operations, shell exec (sandboxed), test runner (pytest, jest, go test, cargo test), web fetch (for docs)
 - Permission model: tiered gating (reads are free; writes require classification; destructive ops require explicit confirmation)
 - Context engine: Tree-sitter chunking at function/class boundaries, LanceDB embedded vector store, Gemini `text-embedding-004` for embeddings, MCP-compatible tool interface
-- APEX.md project context file (analogous to CLAUDE.md / AGENTS.md)
+- Goli_CLI.md project context file (analogous to CLAUDE.md / AGENTS.md)
 - Ephemeral Docker sandbox for test execution and file mutations
 - SWE-bench runner + custom golden set eval harness
 - Session logging for acceptance rate and task completion tracking
@@ -225,7 +225,7 @@ Specific capabilities:
 | Prompt injection via malicious content in repo files or web fetch results | H | H | **Phase 5 mandatory**: reasoning-blind transcript classifier + prompt injection probe on all tool results. This is non-negotiable before public release. |
 | Generated code introduces security vulnerability into user codebase | M | H | Phase 6: static analysis (semgrep, bandit, eslint-security) runs on every agent-generated diff before it is presented to user. |
 | Docker sandbox escape / privilege escalation | L | H | Hardened container profile: no network by default, read-only root fs, seccomp profile. Phase 5 red team exercise before public release. |
-| Developer over-trusts agent output and commits blindly | H | M | Friction by design: diff is always shown; `--auto` flag requires explicit opt-in; commit message contains `[APEX]` tag so it's auditable. |
+| Developer over-trusts agent output and commits blindly | H | M | Friction by design: diff is always shown; `--auto` flag requires explicit opt-in; commit message contains `[Goli_CLI]` tag so it's auditable. |
 | Key engineer leaves before Phase 3 | M | H | ADRs written from day 1. Every architectural decision is documented. Cross-train minimum 2 engineers on context retrieval engine. |
 | Open-source license choice creates commercial friction | M | M | BSL 1.1 (Business Source License): open for personal/non-commercial, commercial license required for enterprise. Legal review before public release. |
 | Cost overrun on eval infrastructure at scale | L | M | Eval runs are async and batched. Cost cap per eval run. Use smaller models (Claude Haiku, GPT-4o-mini) for trajectory analysis sub-agents. |
@@ -278,9 +278,9 @@ Specific capabilities:
 | **Gemini CLI → Antigravity** | Gemini only | ❌ Closed (was open) | Unknown | Internal | Unknown |
 | **Aider** | Multi-model ✅ | ✅ Open | File-level, no semantic search | Limited | Supervised |
 | **Continue.dev** | Multi-model ✅ | ✅ Open | IDE-context dependent | Minimal | IDE-only |
-| **APEX (ours)** | Multi-model ✅ | ✅ Open-core | Tree-sitter + semantic search + MCP ✅ | First-class, public ✅ | Supervised + opt-in auto |
+| **Goli_CLI (ours)** | Multi-model ✅ | ✅ Open-core | Tree-sitter + semantic search + MCP ✅ | First-class, public ✅ | Supervised + opt-in auto |
 
-**The white space**: No current tool combines (a) multi-model support, (b) enterprise-grade context retrieval, (c) open-source distribution, and (d) eval infrastructure as a public asset. APEX owns all four from day one.
+**The white space**: No current tool combines (a) multi-model support, (b) enterprise-grade context retrieval, (c) open-source distribution, and (d) eval infrastructure as a public asset. Goli_CLI owns all four from day one.
 
 ---
 
@@ -296,7 +296,7 @@ Specific capabilities:
 
 Verified Anthropic and OpenAI usage policies permit building open-source tooling on
 top of their APIs. Aider (MIT) is established precedent for the identical architecture.
-BSL 1.1 applies to APEX's own code, not to API usage. No conflict found. Full legal
+BSL 1.1 applies to Goli_CLI's own code, not to API usage. No conflict found. Full legal
 review deferred to pre-commercial release (Phase 8).
 
 ---

@@ -4,7 +4,7 @@ import { execHost } from "../sandbox/hostExec";
 import * as readline from "readline/promises";
 
 export async function commit(projectRoot: string) {
-  const patchPath = path.join(projectRoot, ".apex", "latest.patch");
+  const patchPath = path.join(projectRoot, ".goli_cli", "latest.patch");
   
   try {
     const patch = await fs.readFile(patchPath, "utf8");
@@ -13,7 +13,7 @@ export async function commit(projectRoot: string) {
       return;
     }
 
-    console.log("\n⚠️  APEX - Commit Request");
+    console.log("\n⚠️  Goli_CLI - Commit Request");
     console.log("──────────────────────────────────────────────────────────");
     console.log("The following changes will be applied to your host machine.");
     console.log("──────────────────────────────────────────────────────────");

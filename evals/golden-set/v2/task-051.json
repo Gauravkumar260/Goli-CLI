@@ -1,0 +1,12 @@
+{
+  "task_id": "task-051",
+  "task_description": "Implement a 'git_log' tool to show commit history",
+  "repo": ".",
+  "base_commit": "8055913f8c5929c61457236d34c6efb9c8d91b89",
+  "oracle_type": "model_graded",
+  "oracle": "Model should correctly implement git_log using sandbox.execute('git log')",
+  "expected_files": ["src/tools/ToolRegistry.ts"],
+  "difficulty": "medium",
+  "use_case": "implement",
+  "language": "typescript"
+}

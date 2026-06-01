@@ -1,6 +1,6 @@
-import { Sandbox } from "../sandbox/Sandbox";
-import { Retriever, RetrievedChunk } from "../retriever/Retriever";
-import { DiffManager } from "../diff/DiffManager";
+import { type Sandbox } from "../sandbox/Sandbox";
+import { type Retriever, type RetrievedChunk } from "../retriever/Retriever";
+import { type DiffManager } from "../diff/DiffManager";
 
 export interface ToolCall {
   name: string;
@@ -118,14 +118,27 @@ export class ToolRegistry {
 
       case "git_create_branch": {
         const { name } = toolCall.input;
-        const safeName = `apex/${name.replace(/[^a-z0-9-]/gi, "-")}`;
+        const safeName = `goli_cli/${name.replace(/[^a-z0-9-]/gi, "-")}`;
         await this.sandbox.execute(`git checkout -b ${safeName}`);
         return { success: true, output: `Created branch: ${safeName}` };
       }
 
       case "git_commit": {
         const { message } = toolCall.input;
-        const result = await this.sandbox.execute(`git add -A && git commit -m "[APEX] ${message}"`);
+        
+        // Root fix: Enforce git isolation - only allow commits to goli_cli/* branches
+        const branchResult = await this.sandbox.execute("git rev-parse --abbrev-ref HEAD");
+        const currentBranch = branchResult.trim();
+        
+        if (!currentBranch.startsWith("goli_cli/")) {
+            return { 
+                success: false, 
+                isError: true, 
+                error: `Git Isolation Breach: Cannot commit to branch '${currentBranch}'. Please create an 'goli_cli/*' branch first.` 
+            };
+        }
+
+        const result = await this.sandbox.execute(`git add -A && git commit -m "[Goli_CLI] ${message}"`);
         return { success: !result.includes("error:"), output: result, isError: result.includes("error:") };
       }
 

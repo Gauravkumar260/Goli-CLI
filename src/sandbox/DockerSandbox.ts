@@ -1,5 +1,5 @@
-import { Sandbox } from "./Sandbox";
-import { exec, execSync } from "child_process";
+import { type Sandbox } from "./Sandbox";
+import { exec } from "child_process";
 import { promisify } from "util";
 import { execHost } from "./hostExec";
 import * as fs from "fs/promises";
@@ -13,8 +13,8 @@ export class DockerSandbox implements Sandbox {
   private image: string;
   private projectRoot: string;
 
-  constructor(projectRoot: string, image: string = "apex-sandbox:v1") {
-    this.containerName = `apex-sandbox-${Math.random().toString(36).substring(7)}`;
+  constructor(projectRoot: string, image: string = "goli_cli-sandbox:v1") {
+    this.containerName = `goli_cli-sandbox-${Math.random().toString(36).substring(7)}`;
     this.image = image;
     this.projectRoot = projectRoot;
   }
@@ -28,30 +28,22 @@ export class DockerSandbox implements Sandbox {
       await execAsync(runCmd);
     } catch (e: any) {
       if (e.message.includes("not found")) {
-         console.log(`Image ${this.image} not found. Please build it using the Dockerfile.`);
-         throw e;
+         throw new Error(`Image ${this.image} not found. Please build it using the Dockerfile.`);
       } else {
         throw e;
       }
     }
 
-    console.log("Staging ephemeral clone in sandbox...");
     try {
       const wslProjectPath = (await execAsync(`wsl wslpath '${this.projectRoot.replace(/\\/g, '/')}'`)).stdout.trim();
       
-      // Ensure workspace exists and is empty
-      await this.execute("rm -rf /workspace/*");
+      await this.execute("mkdir -p /workspace && rm -rf /workspace/*");
       
-      // Pipe git archive to docker cp
-      const archiveCmd = `wsl sh -c "git -C \\"${wslProjectPath}\\" archive HEAD | docker cp - ${this.containerName}:/"`;
+      const archiveCmd = `wsl sh -c "git -C \\"${wslProjectPath}\\" archive HEAD | docker cp - ${this.containerName}:/workspace"`;
       await execAsync(archiveCmd);
       
-      // Verification
-      const files = await this.execute("ls -R /workspace | head -n 5");
-      console.log(`Sandbox files staged: ${files.substring(0, 50)}...`);
-
-      await this.execute("git config --global user.email 'apex@local.host' && git config --global user.name 'APEX Agent'");
-      await this.execute("cd /workspace && git init && git add . && git commit -m 'apex: baseline'");
+      await this.execute("git config --global user.email 'goli_cli@local.host' && git config --global user.name 'Goli_CLI Agent'");
+      await this.execute("cd /workspace && git init && git add -A && git commit -m 'goli_cli: baseline'");
     } catch (e) {
       console.error("Failed to stage project in sandbox:", e);
       throw e;
@@ -59,7 +51,8 @@ export class DockerSandbox implements Sandbox {
   }
 
   async execute(command: string): Promise<string> {
-    const cmd = `wsl docker exec ${this.containerName} /bin/sh -c "${command.replace(/"/g, '\\"')}"`;
+    const b64Command = Buffer.from(command).toString('base64');
+    const cmd = `wsl docker exec ${this.containerName} bash -c "echo ${b64Command} | base64 -d | bash"`;
     try {
       const { stdout, stderr } = await execAsync(cmd);
       return stdout + (stderr ? `\nErrors:\n${stderr}` : "");
@@ -69,12 +62,15 @@ export class DockerSandbox implements Sandbox {
   }
 
   async readFile(relativePath: string): Promise<string> {
-    return this.execute(`cat "/workspace/${relativePath}"`);
+    const cleanPath = relativePath.replace(/^\//, '');
+    return this.execute(`cat "/workspace/${cleanPath}"`);
   }
 
   async writeFile(relativePath: string, content: string): Promise<void> {
-    const escapedContent = content.replace(/'/g, "'\\''");
-    await this.execute(`mkdir -p "$(dirname "/workspace/${relativePath}")" && echo '${escapedContent}' > "/workspace/${relativePath}"`);
+    const cleanPath = relativePath.replace(/^\//, '');
+    const b64Content = Buffer.from(content).toString('base64');
+    const writeCmd = `mkdir -p "$(dirname "/workspace/${cleanPath}")" && echo ${b64Content} | base64 -d > "/workspace/${cleanPath}"`;
+    await this.execute(writeCmd);
   }
 
   async destroy(): Promise<void> {
@@ -84,13 +80,14 @@ export class DockerSandbox implements Sandbox {
   }
 
   async extractDiff(): Promise<string> {
-    return this.execute("cd /workspace && git diff HEAD");
+    await this.execute("cd /workspace && git add -A");
+    return this.execute("cd /workspace && git diff --cached HEAD");
   }
 
   async applyDiffToHost(diff: string): Promise<void> {
-    if (!diff || diff.trim() === "(no changes)") return;
+    if (!diff || diff.trim() === "(no changes)" || diff.trim() === "") return;
 
-    const tmpFile = path.join(os.tmpdir(), `apex-${Date.now()}.patch`);
+    const tmpFile = path.join(os.tmpdir(), `goli_cli-${Date.now()}.patch`);
     await fs.writeFile(tmpFile, diff, "utf8");
     
     try {
