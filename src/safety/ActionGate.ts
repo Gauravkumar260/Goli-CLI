@@ -1,13 +1,13 @@
+import type { AgentSession as Session } from "../config/types.js";
 import { classifyShellCommand } from "../sandbox/shellQuote.js";
+import type { ToolCall } from "../tools/ToolRegistry.js";
+import { AuditLog } from "./AuditLog.js";
+import type { BlastRadiusTracker } from "./BlastRadiusTracker.js";
+import { isPermanentlyDenied } from "./denyList.js";
 import {
 	type Classification,
 	TranscriptClassifier,
 } from "./TranscriptClassifier.js";
-import { isPermanentlyDenied } from "./denyList.js";
-import type { AgentSession as Session } from "../config/types.js";
-import type { ToolCall } from "../tools/ToolRegistry.js";
-import { BlastRadiusTracker } from "./BlastRadiusTracker.js";
-import { AuditLog } from "./AuditLog.js";
 
 export type GateDecision = "PROCEED" | "REQUIRE_HITL" | "ESCALATE" | "DENY";
 
@@ -113,7 +113,10 @@ export class ActionGate {
 			if (verdict === "DENY") {
 				return finalize("DENY", "Shell command blocked by AST security.");
 			}
-			return finalize("REQUIRE_HITL", "Shell execution requires manual approval.");
+			return finalize(
+				"REQUIRE_HITL",
+				"Shell execution requires manual approval.",
+			);
 		}
 
 		if (TIER_3_TOOLS.has(name)) {

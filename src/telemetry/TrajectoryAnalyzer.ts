@@ -7,7 +7,12 @@ const GOLI_CLI_HOME =
 	process.env.GOLI_CLI_HOME || path.join(os.homedir(), ".goli_cli");
 
 export interface FailurePattern {
-	pattern: "doom_loop" | "context_overflow" | "bad_retrieval" | "tests_failed" | "unknown";
+	pattern:
+		| "doom_loop"
+		| "context_overflow"
+		| "bad_retrieval"
+		| "tests_failed"
+		| "unknown";
 	count: number;
 	percentage: number;
 }
@@ -65,17 +70,21 @@ export class TrajectoryAnalyzer {
 	}
 
 	private countSessions(): number {
-		const row = this.db.prepare("SELECT COUNT(DISTINCT session_id) as count FROM turns").get() as any;
+		const row = this.db
+			.prepare("SELECT COUNT(DISTINCT session_id) as count FROM turns")
+			.get() as any;
 		return row?.count ?? 0;
 	}
 
 	private countSuccessfulSessions(): number {
 		// In V2, we track success in session_end events
-		const row = this.db.prepare(`
+		const row = this.db
+			.prepare(`
 			SELECT COUNT(DISTINCT session_id) as count 
 			FROM turns 
 			WHERE event_type = 'session_end' AND success = 1
-		`).get() as any;
+		`)
+			.get() as any;
 		return row?.count ?? 0;
 	}
 
@@ -91,28 +100,34 @@ export class TrajectoryAnalyzer {
 
 		// 1. Detect Doom Loops
 		// Cluster sessions where we see more than 3 'doom_loop' events or identical tool calls
-		const doomLoops = this.db.prepare(`
+		const doomLoops = this.db
+			.prepare(`
 			SELECT COUNT(DISTINCT session_id) as count 
 			FROM turns 
 			WHERE event_type = 'doom_loop'
-		`).get() as any;
+		`)
+			.get() as any;
 		patterns.doom_loop = doomLoops?.count ?? 0;
 
 		// 2. Detect Context Overflow
 		// (Approximate via max turns hit or large input tokens)
-		const overflows = this.db.prepare(`
+		const overflows = this.db
+			.prepare(`
 			SELECT COUNT(DISTINCT session_id) as count 
 			FROM turns 
 			WHERE event_type = 'session_end' AND reason = 'limit_reached'
-		`).get() as any;
+		`)
+			.get() as any;
 		patterns.context_overflow = overflows?.count ?? 0;
 
 		// 3. Tests Failed
-		const testFailures = this.db.prepare(`
+		const testFailures = this.db
+			.prepare(`
 			SELECT COUNT(DISTINCT session_id) as count 
 			FROM turns 
 			WHERE tool_name = 'run_tests' AND success = 0
-		`).get() as any;
+		`)
+			.get() as any;
 		patterns.tests_failed = testFailures?.count ?? 0;
 
 		return Object.entries(patterns)
@@ -125,23 +140,39 @@ export class TrajectoryAnalyzer {
 	}
 
 	private getAverageTurns(): number {
-		const row = this.db.prepare("SELECT AVG(turn_num) as avg FROM turns WHERE event_type = 'session_end'").get() as any;
+		const row = this.db
+			.prepare(
+				"SELECT AVG(turn_num) as avg FROM turns WHERE event_type = 'session_end'",
+			)
+			.get() as any;
 		return row?.avg ?? 0;
 	}
 
 	private getAverageCost(): number {
-		const row = this.db.prepare("SELECT AVG(cost_usd) as avg FROM turns WHERE event_type = 'session_end'").get() as any;
+		const row = this.db
+			.prepare(
+				"SELECT AVG(cost_usd) as avg FROM turns WHERE event_type = 'session_end'",
+			)
+			.get() as any;
 		return row?.avg ?? 0;
 	}
 
 	private getAverageLatency(): number {
-		const row = this.db.prepare("SELECT AVG(latency_ms) as avg FROM turns WHERE latency_ms > 0").get() as any;
+		const row = this.db
+			.prepare("SELECT AVG(latency_ms) as avg FROM turns WHERE latency_ms > 0")
+			.get() as any;
 		return row?.avg ?? 0;
 	}
 
 	private getSafetyFiringRate(): number {
-		const total = this.db.prepare("SELECT COUNT(*) as count FROM turns").get() as any;
-		const safety = this.db.prepare("SELECT COUNT(*) as count FROM turns WHERE event_type = 'gate_deny'").get() as any;
+		const total = this.db
+			.prepare("SELECT COUNT(*) as count FROM turns")
+			.get() as any;
+		const safety = this.db
+			.prepare(
+				"SELECT COUNT(*) as count FROM turns WHERE event_type = 'gate_deny'",
+			)
+			.get() as any;
 		if (!total || total.count === 0) return 0;
 		return (safety?.count ?? 0) / total.count;
 	}

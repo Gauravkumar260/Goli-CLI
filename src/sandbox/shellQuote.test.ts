@@ -35,10 +35,14 @@ describe("classifyShellCommand", () => {
 	});
 
 	test("requires review for sensitive redirects", () => {
-		expect(classifyShellCommand("echo 'pwned' > /etc/passwd")).toBe("REQUIRES_REVIEW");
+		expect(classifyShellCommand("echo 'pwned' > /etc/passwd")).toBe(
+			"REQUIRES_REVIEW",
+		);
 	});
 
 	test("requires review for heredocs", () => {
-		expect(classifyShellCommand("cat <<EOF\nhello\nEOF")).toBe("REQUIRES_REVIEW");
+		expect(classifyShellCommand("cat <<EOF\nhello\nEOF")).toBe(
+			"REQUIRES_REVIEW",
+		);
 	});
 });

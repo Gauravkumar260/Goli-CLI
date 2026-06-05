@@ -37,4 +37,3 @@ Task: "${task.slice(0, 200)}"`;
 		return task;
 	}
 }
-

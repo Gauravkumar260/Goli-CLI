@@ -104,17 +104,18 @@ export class ClaudeProvider implements ModelProvider {
 	estimateCost(inputTokens: number, outputTokens: number): number {
 		const p = PRICING[this.modelId] ?? PRICING["claude-3-5-sonnet-latest"]!;
 		return (
-			(inputTokens / 1_000_000) * p.input + (outputTokens / 1_000_000) * p.output
+			(inputTokens / 1_000_000) * p.input +
+			(outputTokens / 1_000_000) * p.output
 		);
 	}
 
-	async embed(text: string): Promise<number[]> {
+	async embed(_text: string): Promise<number[]> {
 		throw new Error(
 			"ClaudeProvider does not support embeddings. Use GeminiProvider or Ollama.",
 		);
 	}
 
-	async embedBatch(texts: string[]): Promise<number[][]> {
+	async embedBatch(_texts: string[]): Promise<number[][]> {
 		throw new Error(
 			"ClaudeProvider does not support embeddings. Use GeminiProvider or Ollama.",
 		);

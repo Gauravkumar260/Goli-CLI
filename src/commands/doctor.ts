@@ -8,7 +8,7 @@ export async function runDoctor(): Promise<void> {
 	const platform = os.platform();
 	const isWindows = platform === "win32";
 	// Root Fix: use the same socket logic that Dockerode needs for Windows
-	const dockerCmd = isWindows ? "docker" : "docker";
+	const _dockerCmd = isWindows ? "docker" : "docker";
 
 	const checks: Array<{
 		name: string;
@@ -46,7 +46,7 @@ export async function runDoctor(): Promise<void> {
 						out.toLowerCase().includes("id:") ||
 						out.toLowerCase().includes("server version:")
 					);
-				} catch (e: any) {
+				} catch (_e: any) {
 					return false;
 				}
 			},
@@ -73,7 +73,7 @@ export async function runDoctor(): Promise<void> {
 						}
 					}
 					return out.toLowerCase().includes("hello from docker!");
-				} catch (e: any) {
+				} catch (_e: any) {
 					return false;
 				}
 			},

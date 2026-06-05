@@ -26,7 +26,7 @@ export async function rerank(
 	query: string,
 	candidates: ChunkRecord[],
 	topK = 5,
-	logger?: SessionLogger,
+	_logger?: SessionLogger,
 ): Promise<ChunkRecord[]> {
 	if (candidates.length <= topK) return candidates;
 	if (candidates.length === 0) return [];

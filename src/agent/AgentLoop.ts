@@ -7,10 +7,11 @@ import {
 	type StopReason,
 	type ToolCall,
 } from "../config/types.js";
+import type { Message } from "../providers/ModelProvider.js";
 import { ActionGate } from "../safety/ActionGate.js";
 import { BlastRadiusTracker } from "../safety/BlastRadiusTracker.js";
 import { InjectionProbe } from "../safety/InjectionProbe.js";
-import { buildInitialContext } from "./AgentContext.js";
+import { buildInitialContext, type InitialContext } from "./AgentContext.js";
 import { compactContext, estimateTokens, shouldCompact } from "./Compaction.js";
 import { DoomLoopDetector } from "./DoomLoopDetector.js";
 import { requestHumanApproval } from "./HITLManager.js";
@@ -26,6 +27,8 @@ function finish(
 	startTime: number,
 	session: Session,
 	answer?: string,
+	messages: Message[] = [],
+	ctx?: InitialContext,
 ): AgentResult {
 	const result: AgentResult = {
 		status,
@@ -34,6 +37,16 @@ function finish(
 		costUsd,
 		durationMs: Date.now() - startTime,
 		...(answer ? { answer } : {}),
+		context: ctx
+			? { ...ctx, messages }
+			: {
+					messages,
+					systemPrompt: "",
+					userMessage: "",
+					retrievedChunks: [],
+					goliCLIMd: "",
+					estimatedTokens: 0,
+				},
 	};
 	session.logger.log({ event: "session_end", ...result });
 	return result;
@@ -64,7 +77,7 @@ export class AgentLoop {
 		const ctx = await buildInitialContext(
 			task,
 			session.repoRoot,
-			retrievedChunks as any,
+			retrievedChunks,
 		);
 
 		const messages: Array<{
@@ -90,6 +103,9 @@ export class AgentLoop {
 					session.costUsd,
 					startTime,
 					session,
+					undefined,
+					messages,
+					ctx,
 				);
 
 			if (session.costUsd >= this.config.sessionCostCapUsd)
@@ -100,6 +116,9 @@ export class AgentLoop {
 					session.costUsd,
 					startTime,
 					session,
+					undefined,
+					messages,
+					ctx,
 				);
 
 			const currentTokens = estimateTokens(ctx.systemPrompt, messages);
@@ -142,6 +161,9 @@ export class AgentLoop {
 						session.costUsd,
 						startTime,
 						session,
+						undefined,
+						messages,
+						ctx,
 					);
 				await new Promise((r) => setTimeout(r, 1000 * consecutiveErrors));
 				continue;
@@ -171,6 +193,8 @@ export class AgentLoop {
 					startTime,
 					session,
 					responseText,
+					messages,
+					ctx,
 				);
 			}
 
@@ -184,6 +208,8 @@ export class AgentLoop {
 					startTime,
 					session,
 					responseText,
+					messages,
+					ctx,
 				);
 			}
 
@@ -201,6 +227,9 @@ export class AgentLoop {
 						session.costUsd,
 						startTime,
 						session,
+						undefined,
+						messages,
+						ctx,
 					);
 				}
 
@@ -220,6 +249,9 @@ export class AgentLoop {
 							session.costUsd,
 							startTime,
 							session,
+							undefined,
+							messages,
+							ctx,
 						);
 					messages.push({
 						role: "tool",
@@ -241,6 +273,9 @@ export class AgentLoop {
 							session.costUsd,
 							startTime,
 							session,
+							undefined,
+							messages,
+							ctx,
 						);
 					if (approval.modified) toolCall.input = approval.modified;
 				}
@@ -248,7 +283,9 @@ export class AgentLoop {
 				const result = await session.tools.dispatch(toolCall);
 
 				if (toolCall.name === "write_file" || toolCall.name === "edit_file") {
-					blastRadius.recordFileModification((toolCall.input as any).path);
+					blastRadius.recordFileModification(
+						(toolCall.input as { path: string }).path,
+					);
 				}
 				if (toolCall.name === "shell_exec") {
 					blastRadius.recordShellExecution();
@@ -270,6 +307,9 @@ export class AgentLoop {
 							session.costUsd,
 							startTime,
 							session,
+							undefined,
+							messages,
+							ctx,
 						);
 				} else {
 					consecutiveErrors = 0;
@@ -292,6 +332,9 @@ export class AgentLoop {
 			session.costUsd,
 			startTime,
 			session,
+			undefined,
+			messages,
+			ctx,
 		);
 	}
 

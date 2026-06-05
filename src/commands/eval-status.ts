@@ -12,10 +12,14 @@ export async function evalStatus(): Promise<void> {
 
 	console.log("Operational Metrics:");
 	console.log(`- Total Sessions:    ${metrics.totalSessions}`);
-	console.log(`- Success Rate:      ${(metrics.successRate * 100).toFixed(1)}%`);
+	console.log(
+		`- Success Rate:      ${(metrics.successRate * 100).toFixed(1)}%`,
+	);
 	console.log(`- Avg Turns/Success: ${metrics.avgTurnsToSuccess.toFixed(1)}`);
 	console.log(`- Avg Cost/Session:  $${metrics.avgCostPerSession.toFixed(4)}`);
-	console.log(`- Avg Latency:       ${(metrics.avgLatencyMs / 1000).toFixed(1)}s`);
+	console.log(
+		`- Avg Latency:       ${(metrics.avgLatencyMs / 1000).toFixed(1)}s`,
+	);
 
 	console.log("\nTop Failure Patterns:");
 	if (metrics.topFailurePatterns.length === 0) {

@@ -1,6 +1,7 @@
 // src/sandbox/shellQuote.ts
-import { parse } from "shell-quote";
+
 import type { ParseEntry } from "shell-quote";
+import { parse } from "shell-quote";
 
 export type SafetyVerdict = "SAFE" | "REQUIRES_REVIEW" | "DENY";
 
@@ -40,7 +41,7 @@ const PATTERNS_DENY = [
 	/\$\(/,
 	/`[^`]+`/,
 	/\|\s*(bash|sh|zsh|dash|ksh|fish)\b/,
-	/<\(|\>\(/,
+	/<\(|>\(/,
 	/\$\(\(/,
 	/\$IFS|\$\{IFS\}/,
 	/cat\s+.*\.env/, // Root Fix: block cat on .env files

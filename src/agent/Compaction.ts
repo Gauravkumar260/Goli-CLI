@@ -18,7 +18,7 @@ export function shouldCompact(
 
 export async function compactContext(
 	messages: Msg[],
-	systemPrompt: string,
+	_systemPrompt: string,
 	compactModel: ModelProvider,
 ): Promise<{ messages: Msg[] }> {
 	if (messages.length <= 4) return { messages };

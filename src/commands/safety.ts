@@ -4,7 +4,7 @@ import { TelemetryMetrics } from "../telemetry/TelemetryMetrics.js";
 export async function safetyStatus(): Promise<void> {
 	const metrics = new TelemetryMetrics();
 	const overview = metrics.getOverview();
-	
+
 	const auditLog = new AuditLog();
 	const audit = auditLog.verify();
 
@@ -20,11 +20,11 @@ export async function safetyStatus(): Promise<void> {
 		console.log(`- Entries:         ${audit.count}`);
 	} else {
 		console.log("- Integrity:       \x1b[31m❌ BROKEN\x1b[0m");
-		// @ts-ignore
+		// @ts-expect-error
 		if (audit.error) console.log(`- Error:           ${audit.error}`);
 	}
 
-	const usage = metrics.getUsageByModel();
+	const _usage = metrics.getUsageByModel();
 	console.log("\nCost Profile:");
 	console.log(
 		`- Total Project Cost: $${(overview.total_cost ?? 0).toFixed(4)}`,

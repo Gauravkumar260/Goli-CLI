@@ -136,7 +136,7 @@ export async function runFeatureCommand(args: string[]): Promise<void> {
 		console.log("");
 	} else if (sub === "enable" || sub === "disable") {
 		const name = args[1] as keyof FeatureFlags;
-		if (!Object.prototype.hasOwnProperty.call(DEFAULT_FLAGS, name)) {
+		if (!Object.hasOwn(DEFAULT_FLAGS, name)) {
 			console.error(`Unknown feature: ${name}`);
 			return;
 		}

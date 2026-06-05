@@ -1,4 +1,8 @@
-import type { Message, ModelProvider, CompletionResponse } from "./ModelProvider.js";
+import type {
+	CompletionResponse,
+	Message,
+	ModelProvider,
+} from "./ModelProvider.js";
 
 export class MockProvider implements ModelProvider {
 	readonly modelId = "mock-model";
@@ -11,27 +15,29 @@ export class MockProvider implements ModelProvider {
 		this.responses = responses;
 	}
 
-	async complete(messages: Message[]): Promise<CompletionResponse> {
+	async complete(_messages: Message[]): Promise<CompletionResponse> {
 		const response =
 			this.responses[this.callCount % this.responses.length] || "DONE";
 		this.callCount++;
-		
+
 		return {
-		    text: response,
-		    usage: {
-		        inputTokens: 100,
-		        outputTokens: 50,
-		        cacheRead: 0,
-		        cacheWrite: 0
-		    },
-		    costUsd: 0.0001,
-		    latencyMs: 100
+			text: response,
+			usage: {
+				inputTokens: 100,
+				outputTokens: 50,
+				cacheRead: 0,
+				cacheWrite: 0,
+			},
+			costUsd: 0.0001,
+			latencyMs: 100,
 		};
 	}
 
-	estimateCost(): number { return 0; }
+	estimateCost(): number {
+		return 0;
+	}
 
-	async embed(text: string): Promise<number[]> {
+	async embed(_text: string): Promise<number[]> {
 		return new Array(768).fill(0);
 	}
 

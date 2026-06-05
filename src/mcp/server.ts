@@ -1,13 +1,14 @@
 // src/mcp/server.ts
+
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import * as lancedb from "@lancedb/lancedb";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { HybridRetriever } from "../retriever/search.js";
 import { formatChunksForContext } from "../retriever/format.js";
-import * as lancedb from "@lancedb/lancedb";
-import * as path from "node:path";
-import * as fs from "node:fs";
-import * as os from "node:os";
+import { HybridRetriever } from "../retriever/search.js";
 
 const VERSION = "0.1.0";
 
@@ -29,7 +30,9 @@ server.registerTool(
 		inputSchema: {
 			query: z
 				.string()
-				.describe("Natural language query describing the code you are looking for"),
+				.describe(
+					"Natural language query describing the code you are looking for",
+				),
 			top_k: z.number().int().min(1).max(20).optional().default(5),
 			file_filter: z
 				.string()
@@ -64,16 +67,22 @@ server.registerTool(
 
 		if (file_filter) {
 			const { minimatch } = await import("minimatch");
-			chunks = chunks.filter((c) => (minimatch as any)(c.file_path, file_filter));
+			chunks = chunks.filter((c) =>
+				(minimatch as any)(c.file_path, file_filter),
+			);
 		}
 
 		if (chunks.length === 0)
 			return {
-				content: [{ type: "text" as const, text: `No results for: "${query}"` }],
+				content: [
+					{ type: "text" as const, text: `No results for: "${query}"` },
+				],
 			};
 
 		return {
-			content: [{ type: "text" as const, text: formatChunksForContext(chunks as any) }],
+			content: [
+				{ type: "text" as const, text: formatChunksForContext(chunks as any) },
+			],
 		};
 	},
 );
@@ -85,7 +94,10 @@ server.registerTool(
 		description:
 			"List all files in the Goli-CLI index. Use to understand what is searchable.",
 		inputSchema: {
-			pattern: z.string().optional().describe('Glob filter (e.g. "src/**/*.ts")'),
+			pattern: z
+				.string()
+				.optional()
+				.describe('Glob filter (e.g. "src/**/*.ts")'),
 			workspace: z.string().optional(),
 		} as any,
 	},
@@ -97,12 +109,17 @@ server.registerTool(
 		if (!indexPath)
 			return {
 				isError: true,
-				content: [{ type: "text" as const, text: "[goli-mcp] No index found." }],
+				content: [
+					{ type: "text" as const, text: "[goli-mcp] No index found." },
+				],
 			};
 
 		const db = await lancedb.connect(indexPath);
 		const table = await db.openTable("chunks");
-		const rows = (await (table as any).query().select(["file_path"]).toArray()) as Array<{
+		const rows = (await (table as any)
+			.query()
+			.select(["file_path"])
+			.toArray()) as Array<{
 			file_path: string;
 		}>;
 		let files = [...new Set(rows.map((r) => r.file_path))].sort();
@@ -139,7 +156,10 @@ server.registerTool(
 		if (!indexPath)
 			return {
 				content: [
-					{ type: "text" as const, text: "No index. Run `goli init` at repo root." },
+					{
+						type: "text" as const,
+						text: "No index. Run `goli init` at repo root.",
+					},
 				],
 			};
 

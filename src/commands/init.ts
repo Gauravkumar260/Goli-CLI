@@ -1,5 +1,3 @@
-// src/commands/init.ts
-import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as readline from "node:readline/promises";
 import { ConfigManager } from "../config/features.js";
@@ -12,7 +10,8 @@ export async function init(projectRoot: string): Promise<void> {
 	await config.load();
 
 	const geminiApiKey = config.getApiKey("gemini") || process.env.GEMINI_API_KEY;
-	const ollamaApiKey = config.getApiKey("ollama_cloud") || process.env.OLLAMA_API_KEY;
+	const ollamaApiKey =
+		config.getApiKey("ollama_cloud") || process.env.OLLAMA_API_KEY;
 
 	if (!geminiApiKey) {
 		throw new Error(
@@ -26,7 +25,9 @@ export async function init(projectRoot: string): Promise<void> {
 		console.log(
 			"Goli-CLI can collect anonymous usage data to improve agent performance.",
 		);
-		console.log("This is OPT-IN only. No code, file names, or diffs are ever sent.");
+		console.log(
+			"This is OPT-IN only. No code, file names, or diffs are ever sent.",
+		);
 		console.log("Details: docs/TELEMETRY.md");
 
 		const rl = readline.createInterface({
@@ -45,10 +46,12 @@ export async function init(projectRoot: string): Promise<void> {
 		);
 	}
 
-    // V2 Default Update: Use Ollama for the provider interface but Gemini for the actual indexing
-	const provider = createProvider(ollamaApiKey ? "ollama/gpt-oss:120b" : "gemini/gemini-1.5-flash");
+	// V2 Default Update: Use Ollama for the provider interface but Gemini for the actual indexing
+	const provider = createProvider(
+		ollamaApiKey ? "ollama/gpt-oss:120b" : "gemini/gemini-1.5-flash",
+	);
 	const fallbackEmbedder = createProvider("gemini/gemini-1.5-flash-8b");
-	
+
 	const embedder = new Embedder(provider, fallbackEmbedder);
 	const indexPath = path.join(projectRoot, ".goli_cli", "index");
 	const indexer = new Indexer(projectRoot, indexPath, embedder);

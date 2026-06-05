@@ -17,14 +17,17 @@ export class OllamaCloudProvider implements ModelProvider {
 	readonly provider = "ollama" as const;
 	readonly modelId: string;
 
-	constructor(private apiKey: string, modelSpec = "gpt-oss:120b") {
+	constructor(
+		private apiKey: string,
+		modelSpec = "gpt-oss:120b",
+	) {
 		this.modelId = modelSpec;
 	}
 
 	async complete(
 		messages: Message[],
 		systemPrompt?: string,
-		options: CompletionOptions = {},
+		_options: CompletionOptions = {},
 	): Promise<CompletionResponse> {
 		const t0 = Date.now();
 		const system =
@@ -82,13 +85,13 @@ export class OllamaCloudProvider implements ModelProvider {
 		return 0;
 	}
 
-	async embed(text: string): Promise<number[]> {
+	async embed(_text: string): Promise<number[]> {
 		throw new Error(
 			"Ollama Cloud does not support embeddings. Falling back to local/other providers.",
 		);
 	}
 
-	async embedBatch(texts: string[]): Promise<number[][]> {
+	async embedBatch(_texts: string[]): Promise<number[][]> {
 		throw new Error(
 			"Ollama Cloud does not support embeddings. Falling back to local/other providers.",
 		);

@@ -1,8 +1,8 @@
-import { createHash } from "node:crypto";
 import { Database } from "bun:sqlite";
+import { createHash } from "node:crypto";
+import * as fs from "node:fs";
 import { homedir } from "node:os";
 import * as path from "node:path";
-import * as fs from "node:fs";
 
 export interface AuditEntry {
 	id?: number;

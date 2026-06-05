@@ -1,6 +1,6 @@
 import {
-	GoogleGenerativeAI,
 	type GenerativeModel,
+	GoogleGenerativeAI,
 } from "@google/generative-ai";
 import type {
 	CompletionOptions,
@@ -69,8 +69,8 @@ export class GeminiProvider implements ModelProvider {
 		};
 
 		const chat = this.client.startChat(config as any);
-		
-		const history = messages
+
+		const _history = messages
 			.filter((m) => m.role !== "system")
 			.slice(0, -1)
 			.map((m) => ({
@@ -99,8 +99,7 @@ export class GeminiProvider implements ModelProvider {
 		const costUsd =
 			(usage.promptTokenCount / 1_000_000) * pricing.inputPer1M +
 			(usage.candidatesTokenCount / 1_000_000) * pricing.outputPer1M -
-			(cacheCount / 1_000_000) *
-				(pricing.inputPer1M - pricing.cachedPer1M);
+			(cacheCount / 1_000_000) * (pricing.inputPer1M - pricing.cachedPer1M);
 
 		return {
 			text,

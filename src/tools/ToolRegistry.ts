@@ -196,6 +196,16 @@ export class ToolRegistry {
 		private session: AgentSession,
 	) {}
 
+	cloneWithSandbox(newSandbox: Sandbox): ToolRegistry {
+		return new ToolRegistry(
+			newSandbox,
+			this.retriever,
+			this.diff,
+			this.repoRoot,
+			this.session,
+		);
+	}
+
 	async getSchemas() {
 		return TOOL_SCHEMAS;
 	}
@@ -371,12 +381,12 @@ export class ToolRegistry {
 	}
 
 	private async shellExec(
-	        id: string,
-	        input: { command: string; rationale: string },
+		id: string,
+		input: { command: string; rationale: string },
 	): Promise<ToolResult> {
-	        const result = await this.sandbox.execute(input.command);
-	        console.log(`[DEBUG] shell_exec output: ${result.substring(0, 100)}...`);
-	        return { id, success: true, output: result };
+		const result = await this.sandbox.execute(input.command);
+		console.log(`[DEBUG] shell_exec output: ${result.substring(0, 100)}...`);
+		return { id, success: true, output: result };
 	}
 	private async gitCommit(
 		id: string,
@@ -400,4 +410,3 @@ export class ToolRegistry {
 		return TOOL_SCHEMAS;
 	}
 }
-

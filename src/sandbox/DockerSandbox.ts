@@ -1,18 +1,17 @@
 // src/sandbox/DockerSandbox.ts
 import { execSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { readFileSync, rmSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import * as fs from "node:fs/promises";
+import { existsSync, rmSync, writeFileSync } from "node:fs";
 import * as os from "node:os";
-import { join }                from "node:path";
-import { execHost }              from "./hostExec.js";
-import { classifyShellCommand }  from "./shellQuote.js";
+import { join } from "node:path";
+import { execHost } from "./hostExec.js";
+import { classifyShellCommand } from "./shellQuote.js";
 
 const isWindows = os.platform() === "win32";
 
 /**
  * DockerSandbox (V2 - Cross-Platform)
- * 
+ *
  * Uses CLI wrapper for Docker to ensure 100% reliability in Bun on Windows/WSL2.
  */
 export class DockerSandbox {
@@ -49,25 +48,35 @@ export class DockerSandbox {
 		// 2. Provision code via git archive
 		const tarPath = join(os.tmpdir(), `goli-${this.sessionId}.tar`);
 		try {
-		    execSync(`git -C "${this.projectRoot}" archive -o "${tarPath}" HEAD`);
-		    
-		    if (isWindows) {
-		        const { stdout: wslTarPath } = await execHost(`wsl wslpath '${tarPath.replace(/\\/g, "/")}'`);
-		        await execHost(`wsl docker cp "${wslTarPath.trim()}" ${this.containerId}:/repo.tar`);
-		        await this.executeRaw("mkdir -p /workspace && tar -xf /repo.tar -C /workspace");
-		    } else {
-		        execSync(`docker cp "${tarPath}" ${this.containerId}:/repo.tar`);
-		        await this.executeRaw("tar -xf /repo.tar -C /workspace");
-		    }
+			execSync(`git -C "${this.projectRoot}" archive -o "${tarPath}" HEAD`);
+
+			if (isWindows) {
+				const { stdout: wslTarPath } = await execHost(
+					`wsl wslpath '${tarPath.replace(/\\/g, "/")}'`,
+				);
+				await execHost(
+					`wsl docker cp "${wslTarPath.trim()}" ${this.containerId}:/repo.tar`,
+				);
+				await this.executeRaw(
+					"mkdir -p /workspace && tar -xf /repo.tar -C /workspace",
+				);
+			} else {
+				execSync(`docker cp "${tarPath}" ${this.containerId}:/repo.tar`);
+				await this.executeRaw("tar -xf /repo.tar -C /workspace");
+			}
 		} finally {
-		    if (existsSync(tarPath)) rmSync(tarPath);
+			if (existsSync(tarPath)) rmSync(tarPath);
 		}
 
-		await this.executeRaw("chown -R goli:goli /workspace && chmod -R 755 /workspace");
-		
+		await this.executeRaw(
+			"chown -R goli:goli /workspace && chmod -R 755 /workspace",
+		);
+
 		// Initialize git in container
 		await this.execute("git config --global --add safe.directory /workspace");
-		await this.execute("git config --global user.email 'goli@local' && git config --global user.name 'goli' && git init && git add -A && git commit -m 'baseline'");
+		await this.execute(
+			"git config --global user.email 'goli@local' && git config --global user.name 'goli' && git init && git add -A && git commit -m 'baseline'",
+		);
 	}
 
 	async execute(command: string, timeoutMs = 30_000): Promise<string> {
@@ -90,7 +99,10 @@ export class DockerSandbox {
 		}
 	}
 
-	private async executeRaw(command: string, timeoutMs = 10_000): Promise<string> {
+	private async executeRaw(
+		command: string,
+		timeoutMs = 10_000,
+	): Promise<string> {
 		if (!this.containerId) throw new Error("Sandbox not initialized");
 		const prefix = isWindows ? "wsl docker" : "docker";
 		const fullCmd = `${prefix} exec --user root --workdir /workspace ${this.containerId} bash -c ${JSON.stringify(command)}`;
@@ -106,12 +118,13 @@ export class DockerSandbox {
 		const encoded = Buffer.from(content).toString("base64");
 		const path = `/workspace/${relativePath.replace(/^\/+/, "")}`;
 		await this.execute(
-			`mkdir -p "$(dirname "${path}")" && echo "${encoded}" | base64 -d > "${path}"`);
+			`mkdir -p "$(dirname "${path}")" && echo "${encoded}" | base64 -d > "${path}"`,
+		);
 	}
 
 	async deleteFile(relativePath: string): Promise<void> {
-	    const path = `/workspace/${relativePath.replace(/^\/+/, "")}`;
-	    await this.execute(`rm -f "${path}"`);
+		const path = `/workspace/${relativePath.replace(/^\/+/, "")}`;
+		await this.execute(`rm -f "${path}"`);
 	}
 
 	async destroy(): Promise<void> {

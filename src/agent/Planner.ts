@@ -1,17 +1,17 @@
 ﻿// src/agent/Planner.ts
-import { type Plan, type PlanStep } from "./Plan.js";
 import type { ModelProvider } from "../providers/ModelProvider.js";
+import type { Plan } from "./Plan.js";
 
 export async function createPlan(
-        task: string,
-        model: ModelProvider,
-    scoutFindings?: string
+	task: string,
+	model: ModelProvider,
+	scoutFindings?: string,
 ): Promise<Plan> {
-        const prompt = `
+	const prompt = `
     You are a planning agent. Given a task and scout findings, output a JSON plan for a team of AI agents.
     
     TASK: "${task}"
-    ${scoutFindings ? `SCOUT FINDINGS:\n${scoutFindings}` : ''}
+    ${scoutFindings ? `SCOUT FINDINGS:\n${scoutFindings}` : ""}
 
     Respond ONLY with a valid JSON object matching this schema:
     {
@@ -31,30 +31,30 @@ export async function createPlan(
     If multiple steps can run in parallel (no file overlap, no shared dependencies), they should have empty 'dependsOn' lists.
     `;
 
-        const response = await model.complete(
-                [{ role: "user", content: prompt }],
-                "You are a planning agent. Respond only with valid JSON.",
-        );
+	const response = await model.complete(
+		[{ role: "user", content: prompt }],
+		"You are a planning agent. Respond only with valid JSON.",
+	);
 
-        try {
-                const jsonStr = response.text.trim();
-        const match = jsonStr.match(/\{[\s\S]*\}/);
-        if (!match) throw new Error("No JSON found");
-                const plan = JSON.parse(match[0]) as Plan;
-                return plan;
-        } catch (err) {
-                console.error("Plan parsing failed:", err);
-                return {
-            taskSummary: task,
-                        steps: [
-                                {
-                                        id: "1",
-                                        description: task,
-                    files: [],
-                                        rationale: "Execute task sequentially",
-                                        dependsOn: [],
-                                },
-                        ],
-                };
-        }
+	try {
+		const jsonStr = response.text.trim();
+		const match = jsonStr.match(/\{[\s\S]*\}/);
+		if (!match) throw new Error("No JSON found");
+		const plan = JSON.parse(match[0]) as Plan;
+		return plan;
+	} catch (err) {
+		console.error("Plan parsing failed:", err);
+		return {
+			taskSummary: task,
+			steps: [
+				{
+					id: "1",
+					description: task,
+					files: [],
+					rationale: "Execute task sequentially",
+					dependsOn: [],
+				},
+			],
+		};
+	}
 }

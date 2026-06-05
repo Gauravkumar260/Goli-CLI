@@ -11,7 +11,7 @@ describe("Context Compaction", () => {
 		const tokens = estimateTokens(prompt, messages as any);
 		expect(tokens).toBeGreaterThan(0);
 		// Simple length/4 check
-		const expected = Math.ceil(
+		const _expected = Math.ceil(
 			(prompt.length + "Hello world".length + "Response".length + 1) / 4,
 		);
 		// Join adds newlines
