@@ -37,8 +37,16 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 phase/
 
 # Goli-CLI metadata
+# Canonical metadata directory is `.goli_cli/`. `.goli-cli/` (with hyphen) is a
+# deprecated legacy name; both are ignored so neither one can ever be re-tracked.
 .goli_cli/
 .goli-cli/
 .test-db/
 .test-lancedb/
-success.txt
+
+# Throwaway for diagnostic / scratch scripts. Anything here is intentionally
+# untracked. Move finished work into src/ or scripts/ before committing.
+scripts/_scratch/
+
+# Local state
+.goli/

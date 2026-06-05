@@ -1,316 +1,310 @@
-import { type ModelProvider } from "../providers/ModelProvider";
-import { ToolRegistry, type ToolCall, type ToolResult } from "../tools/ToolRegistry";
-import { DiffManager } from "../diff/DiffManager";
-import { AgentContext } from "./AgentContext";
-import { compactContext } from "./compaction";
-import { buildSystemPrompt, type PromptConfig, BASELINE_CONFIG } from "./systemPrompt";
-import { SessionLogger } from "../telemetry/SessionLogger";
-import { logTurn, logAction, logSuccess, logFailure } from "../cli/renderer";
-import { needsPlan, makePlan, type Plan } from "./planner";
-import { requestHumanApproval } from "./hitl";
-import { ActionGate } from "../safety/ActionGate";
-import { InjectionProbe } from "../safety/InjectionProbe";
-import { BlastRadiusTracker } from "../safety/BlastRadiusTracker";
-import * as fs from "fs/promises";
-import * as path from "path";
-import * as readline from "readline/promises";
+﻿import { logAction, logMessage, logTurn } from "../cli/renderer.js";
+import {
+	type AgentConfig,
+	type AgentResult,
+	DEFAULT_CONFIG,
+	type AgentSession as Session,
+	type StopReason,
+	type ToolCall,
+} from "../config/types.js";
+import { ActionGate } from "../safety/ActionGate.js";
+import { BlastRadiusTracker } from "../safety/BlastRadiusTracker.js";
+import { InjectionProbe } from "../safety/InjectionProbe.js";
+import { buildInitialContext } from "./AgentContext.js";
+import { compactContext, estimateTokens, shouldCompact } from "./Compaction.js";
+import { DoomLoopDetector } from "./DoomLoopDetector.js";
+import { requestHumanApproval } from "./HITLManager.js";
 
-export interface AgentConfig {
-  maxTurns: number;
-  errorThreshold: number;
-  safetyDenialLimit: number;
-  sessionCostCapUsd: number;
-  compactionAt: number;
-  sessionTimeoutMs: number;
-  forcePlan?: boolean;
-  autoApprove?: boolean;
-  promptConfig?: PromptConfig;
-}
+export type { AgentConfig, AgentResult, Session, StopReason, ToolCall };
+export { DEFAULT_CONFIG };
 
-export const DEFAULT_CONFIG: AgentConfig = {
-  maxTurns: 30,
-  errorThreshold: 3,
-  safetyDenialLimit: 5,
-  sessionCostCapUsd: 0.50,
-  compactionAt: 0.80,
-  sessionTimeoutMs: 600_000,
-};
-
-export interface AgentResult {
-  success: boolean;
-  message: string;
-  context: AgentContext;
-  costUsd: number;
-}
-
-export interface Session {
-  sessionId: string;
-  model: ModelProvider;
-  compactModel: ModelProvider;
-  tools: ToolRegistry;
-  diffManager: DiffManager;
-  logger: SessionLogger;
-  costUsd: number;
-  task: string; 
-  language: string; 
+function finish(
+	status: AgentResult["status"],
+	reason: StopReason,
+	turns: number,
+	costUsd: number,
+	startTime: number,
+	session: Session,
+	answer?: string,
+): AgentResult {
+	const result: AgentResult = {
+		status,
+		reason,
+		turns,
+		costUsd,
+		durationMs: Date.now() - startTime,
+		...(answer ? { answer } : {}),
+	};
+	session.logger.log({ event: "session_end", ...result });
+	return result;
 }
 
 export class AgentLoop {
-  private config: AgentConfig;
+	private config: AgentConfig;
 
-  constructor(config: AgentConfig = DEFAULT_CONFIG) {
-    this.config = config;
-  }
+	constructor(config: AgentConfig = DEFAULT_CONFIG) {
+		this.config = config;
+	}
 
-  async run(task: string, session: Session): Promise<AgentResult> {
-    const deadline = Date.now() + this.config.sessionTimeoutMs;
-    let turns = 0;
-    let consecutiveErrors = 0;
-    let totalSafetyDenials = 0;
+	async run(task: string, session: Session): Promise<AgentResult> {
+		const startTime = Date.now();
+		const deadline = startTime + this.config.sessionTimeoutMs;
+		const doomDetect = new DoomLoopDetector();
+		const blastRadius = new BlastRadiusTracker();
+		const gate = new ActionGate(session);
 
-    const gate = new ActionGate(session);
-    const blastRadius = new BlastRadiusTracker();
+		let turns = 0;
+		let consecutiveErrors = 0;
+		let safetyDenials = 0;
 
-    const recentSessions = SessionLogger.getRecentSessions(3);
-    let priorWorkSummary = "";
-    if (recentSessions.length > 0) {
-        priorWorkSummary = "\n## Prior work on this repo\n" +
-            recentSessions.map(s => `- Session ${s.session_id} (active ${s.last_active})`).join("\n");
-        console.log(`\n🧠 Memory: Loaded ${recentSessions.length} recent sessions.`);
-    }
+		const retrievedChunks = await session.retriever
+			.search(task, 8, undefined, session.embedder)
+			.catch(() => []);
 
-    let plan: Plan | null = null;
-    const projectRoot = session.diffManager.getProjectRoot();
-    const goli_cliMd = await this.readGoliMd(projectRoot);
+		const ctx = await buildInitialContext(
+			task,
+			session.repoRoot,
+			retrievedChunks as any,
+		);
 
-    if (this.config.forcePlan || needsPlan(task)) {
-      console.log("\n📋 Generating execution plan...");
-      const files = await fs.readdir(projectRoot);
-      const repoMap = files.filter(f => !f.startsWith('.')).join("\n");
+		const messages: Array<{
+			role: "user" | "assistant" | "tool" | "system";
+			content: string;
+		}> = [{ role: "user", content: ctx.userMessage }];
 
-      plan = await makePlan(task, repoMap, session.compactModel);
-      this.displayPlan(plan);
+		session.logger.log({
+			event: "session_start",
+			task,
+			model: session.model,
+			turns: 0,
+		});
 
-      session.logger.log({ turn: turns, type: 'start', response: `plan_generated: ${plan.planId}` });
+		while (turns < this.config.maxTurns) {
+			logTurn(turns, this.config.maxTurns);
 
-      if (!this.config.autoApprove) {
-        const approved = await this.askForConfirmation("Proceed with this plan? [y/N] ");
-        if (!approved) {
-          return this.fail("plan_rejected", new AgentContext(), session, turns);
-        }
-      }
-    }
+			if (Date.now() > deadline)
+				return finish(
+					"failed",
+					"session_timeout",
+					turns,
+					session.costUsd,
+					startTime,
+					session,
+				);
 
-    const promptConfig = this.config.promptConfig || BASELINE_CONFIG;
-    const systemPrompt = buildSystemPrompt(goli_cliMd, session.tools.getToolDefinitions(), promptConfig) + priorWorkSummary;
-    let context = new AgentContext();
-    context.systemPrompt = systemPrompt;
-    context.messages.push({ role: 'system', content: systemPrompt });
+			if (session.costUsd >= this.config.sessionCostCapUsd)
+				return finish(
+					"failed",
+					"cost_cap",
+					turns,
+					session.costUsd,
+					startTime,
+					session,
+				);
 
-    if (plan) {
-      context.messages.push({
-        role: 'user',
-        content: `Execution Plan:\n${JSON.stringify(plan, null, 2)}\n\nPlease execute the task following this plan. State which step you are on.`
-      });
-    }
+			const currentTokens = estimateTokens(ctx.systemPrompt, messages);
+			if (
+				shouldCompact(
+					currentTokens,
+					this.config.contextWindowTokens,
+					this.config.compactionThreshold,
+				)
+			) {
+				const compacted = await compactContext(
+					messages,
+					ctx.systemPrompt,
+					session.compactModel,
+				).catch(() => null);
+				if (compacted) {
+					messages.length = 0;
+					messages.push(...compacted.messages);
+				}
+			}
 
-    context.messages.push({ role: 'user', content: task });
-    session.logger.log({ turn: turns, type: 'start', costUsd: 0 });
+			let response: any;
+			try {
+				response = await session.model_provider.complete(
+					messages,
+					ctx.systemPrompt,
+				);
+			} catch (err) {
+				session.logger.log({
+					event: "model_error",
+					turn: turns,
+					error: String(err),
+				});
+				consecutiveErrors++;
+				if (consecutiveErrors >= this.config.consecutiveErrorLimit)
+					return finish(
+						"failed",
+						"consecutive_errors",
+						turns,
+						session.costUsd,
+						startTime,
+						session,
+					);
+				await new Promise((r) => setTimeout(r, 1000 * consecutiveErrors));
+				continue;
+			}
 
-    while (turns < this.config.maxTurns) {
-      logTurn(turns, this.config.maxTurns);
+			const turnCost = response.costUsd;
+			session.costUsd += turnCost;
+			session.logger.log({
+				event: "model_response",
+				turn: turns,
+				costUsd: turnCost,
+				inputTokens: response.usage.inputTokens,
+				outputTokens: response.usage.outputTokens,
+				cacheRead: response.usage.cacheRead,
+				cacheWrite: response.usage.cacheWrite,
+			});
 
-      const limits = blastRadius.checkLimits();
-      if (limits.breached) {
-          return this.fail(`blast_radius_breach: ${limits.reason}`, context, session, turns);
-      }
+			const responseText = response.text;
+			logMessage(responseText);
 
-      if (Date.now() > deadline) {
-        return this.fail("session_timeout", context, session, turns);
-      }
+			if (responseText.includes("DONE")) {
+				return finish(
+					"done",
+					"final_answer",
+					turns,
+					session.costUsd,
+					startTime,
+					session,
+					responseText,
+				);
+			}
 
-      if (session.costUsd >= this.config.sessionCostCapUsd) {
-        return this.fail("cost_cap_reached", context, session, turns);
-      }
+			const toolCalls = this.parseToolCalls(responseText);
+			if (toolCalls.length === 0) {
+				return finish(
+					"done",
+					"final_answer",
+					turns,
+					session.costUsd,
+					startTime,
+					session,
+					responseText,
+				);
+			}
 
-      const response = await session.model.complete(context.messages, context.systemPrompt);
-      
-      // Root Fix: Stop nagger loop. If response is empty or model gives up, terminate gracefully.
-      if (!response || response.trim().length === 0) {
-          logFailure("Model returned an empty response. Terminating session to save tokens.");
-          return this.fail("empty_model_response", context, session, turns);
-      }
+			for (const toolCall of toolCalls) {
+				logAction(toolCall.name, toolCall.input);
 
-      const cost = (response.length / 4) * (0.000015);
-      session.costUsd += cost;
-      session.logger.log({ turn: turns, type: 'model_response', costUsd: cost, response, model: 'gpt-oss' });
+				doomDetect.record(turns, toolCall.name, toolCall.input);
+				const doomEvent = doomDetect.detect();
+				if (doomEvent) {
+					session.logger.log({ event: "doom_loop", ...doomEvent });
+					return finish(
+						"failed",
+						"doom_loop",
+						turns,
+						session.costUsd,
+						startTime,
+						session,
+					);
+				}
 
-      process.stdout.write(`\x1b[90m${response.substring(0, 500)}${response.length > 500 ? '...' : ''}\x1b[0m\n`);
+				const gateResult = await gate.check(
+					task,
+					toolCall,
+					session,
+					blastRadius,
+				);
+				if (gateResult.decision === "DENY") {
+					safetyDenials++;
+					if (safetyDenials >= this.config.safetyDenialLimit)
+						return finish(
+							"failed",
+							"safety_denial_limit",
+							turns,
+							session.costUsd,
+							startTime,
+							session,
+						);
+					messages.push({
+						role: "tool",
+						content: `[BLOCKED] ${gateResult.reason}`,
+					});
+					continue;
+				}
 
-      if (response.includes("DONE")) {
-        logSuccess("Task complete.");
-        session.logger.log({ turn: turns, type: 'stop', response: "DONE" });
-        return { success: true, message: response, context, costUsd: session.costUsd };
-      }
+				if (
+					gateResult.decision === "REQUIRE_HITL" ||
+					gateResult.decision === "ESCALATE"
+				) {
+					const approval = await requestHumanApproval(toolCall, session);
+					if (!approval.granted)
+						return finish(
+							"failed",
+							"human_denied",
+							turns,
+							session.costUsd,
+							startTime,
+							session,
+						);
+					if (approval.modified) toolCall.input = approval.modified;
+				}
 
-      const toolCalls = this.parseToolCalls(response);
-      
-      // Root Fix: If no tool calls and not DONE, it's a conversational response.
-      // Return control to user instead of looping back with a nag message.
-      if (toolCalls.length === 0) {
-        logSuccess("Agent responded conversationally.");
-        session.logger.log({ turn: turns, type: 'stop', response: "CONVERSATIONAL" });
-        return { success: true, message: response, context, costUsd: session.costUsd };
-      }
+				const result = await session.tools.dispatch(toolCall);
 
-      for (const toolCall of toolCalls) {
-        logAction(toolCall.name, toolCall.input);
+				if (toolCall.name === "write_file" || toolCall.name === "edit_file") {
+					blastRadius.recordFileModification((toolCall.input as any).path);
+				}
+				if (toolCall.name === "shell_exec") {
+					blastRadius.recordShellExecution();
+				}
 
-        const gateResult = await gate.check(task, toolCall, session);
+				if (result.output) {
+					const probeResult = InjectionProbe.scan(result.output);
+					if (probeResult.flagged)
+						result.output = InjectionProbe.wrap(result.output);
+				}
 
-        if (gateResult.denied) {
-          totalSafetyDenials++;
-          logFailure(`SAFETY DENIAL: ${gateResult.reason}`);
-          session.logger.log({ turn: turns, type: 'failure', response: `safety_denial: ${gateResult.reason}` });
+				if (!result.success) {
+					consecutiveErrors++;
+					if (consecutiveErrors >= this.config.consecutiveErrorLimit)
+						return finish(
+							"failed",
+							"consecutive_errors",
+							turns,
+							session.costUsd,
+							startTime,
+							session,
+						);
+				} else {
+					consecutiveErrors = 0;
+				}
 
-          if (totalSafetyDenials >= this.config.safetyDenialLimit) {
-            return this.fail("safety_denial_limit", context, session, turns);
-          }
+				messages.push({
+					role: "tool",
+					content: result.success
+						? result.output || "done"
+						: `[ERROR] ${result.error}`,
+				});
+			}
+			turns++;
+		}
 
-          context.appendToolResult(toolCall, { success: false, isError: true, error: `Action blocked: ${gateResult.reason}` });
-          continue;
-        }
+		return finish(
+			"failed",
+			"max_turns",
+			turns,
+			session.costUsd,
+			startTime,
+			session,
+		);
+	}
 
-        if (!this.config.autoApprove && gateResult.requiresHITL) {
-          const approval = await requestHumanApproval(toolCall, session);
-          session.logger.log({ turn: turns, type: 'hitl', toolName: toolCall.name, hitlDecision: approval.granted ? 'approved' : 'rejected', latencyMs: approval.latencyMs });
-
-          if (!approval.granted) {
-            logFailure(`Action rejected by user: ${toolCall.name}`);
-            return this.fail("human_denied", context, session, turns);
-          }
-          if (approval.modified) {
-            toolCall.input = approval.modified;
-            logAction(`${toolCall.name} (modified)`, toolCall.input);
-          }
-        }
-
-        const result = await session.tools.dispatch(toolCall);
-
-        if (toolCall.name === 'write_file' || toolCall.name === 'edit_file') {
-            blastRadius.recordFileModification(toolCall.input.path);
-        }
-        if (toolCall.name === 'shell_exec') {
-            blastRadius.recordShellExecution();
-        }
-
-        if (result.output) {
-            const probeResult = InjectionProbe.scan(result.output);
-            if (probeResult.flagged) {
-                console.log(`\n⚠️  INJECTION PROBE FLAGGED: ${probeResult.pattern}`);
-                result.output = InjectionProbe.wrap(result.output);
-            }
-        }
-
-        if (result.retrievedChunks) {
-            context.retrievedChunks.push(...result.retrievedChunks);
-        }
-
-        session.logger.log({
-            turn: turns,
-            type: 'tool_call',
-            toolName: toolCall.name,
-            toolInput: toolCall.input,
-            toolSuccess: result.success,
-            latencyMs: 0
-        });
-
-        if (result.isError) {
-          logFailure(`${toolCall.name} failed: ${result.error}`);
-          consecutiveErrors++;
-          if (consecutiveErrors >= this.config.errorThreshold) {
-            return this.fail("error_threshold", context, session, turns);
-          }
-        } else {
-          logSuccess(`${toolCall.name} succeeded.`);
-          consecutiveErrors = 0;
-        }
-
-        context.appendToolResult(toolCall, result);
-      }
-
-      if (plan && plan.checkpointAfter.includes(turns + 1)) {
-        console.log("\n🏁 Checkpoint reached.");
-        session.logger.log({ turn: turns, type: 'hitl', response: 'checkpoint_reached' });
-        if (!this.config.autoApprove) {
-            const cont = await this.askForConfirmation("Continue to next turn? [Y/n] ", true);
-            if (!cont) return this.fail("human_aborted", context, session, turns);
-        }
-      }
-
-      context.updateTokenCount();
-      if (context.tokenCount > context.windowSize * this.config.compactionAt) {
-        context = await compactContext(context, session.compactModel);
-        session.logger.log({ turn: turns, type: 'compaction' });
-      }
-
-      turns++;
-    }
-
-    return this.fail("max_turns_exceeded", context, session, turns);
-  }
-
-  private async readGoliMd(root: string): Promise<string> {
-    try {
-      const content = await fs.readFile(path.join(root, "Goli_CLI.md"), "utf-8");
-      return content
-        .replace(/ignore all previous instructions/gi, "[REDACTED INSTRUCTION]")
-        .replace(/system instructions/gi, "[REDACTED INSTRUCTION]");
-    } catch {
-      return "";
-    }
-  }
-
-  private parseToolCalls(response: string): ToolCall[] {
-    try {
-      const jsonMatch = response.match(/\[\s*\{[\s\S]*\}\s*\]|\{\s*\"name\"[\s\S]*\}/);
-      if (!jsonMatch) return [];
-      const parsed = JSON.parse(jsonMatch[0]);
-
-      const normalize = (p: any): ToolCall => ({
-        name: p.name || p.tool,
-        input: p.input || p.parameters || p.arguments || {}
-      });
-
-      if (Array.isArray(parsed)) {
-        return parsed.map(normalize);
-      }
-      return [normalize(parsed)];
-    } catch {
-      return [];
-    }
-  }
-
-  private displayPlan(plan: Plan) {
-    console.log(`\n┌─ Execution Plan (${plan.complexity}) ─┐`);
-    plan.steps.forEach(s => {
-      console.log(`│ ${s.id}. ${s.tool.padEnd(15)} │ ${s.rationale}`);
-    });
-    console.log(`└─────────────────────────── turns: ~${plan.estimatedTurns} ┘\n`);
-  }
-
-  private async askForConfirmation(query: string, defaultYes: boolean = false): Promise<boolean> {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const answer = await rl.question(query);
-    rl.close();
-    const normalized = answer.trim().toLowerCase();
-    if (normalized === "") return defaultYes;
-    return normalized === 'y' || normalized === 'yes';
-  }
-
-  private fail(reason: string, context: AgentContext, session: Session, turns: number): AgentResult {
-    logFailure(`Task failed: ${reason}`);
-    session.logger.log({ turn: turns, type: 'failure', response: reason });
-    return { success: false, message: `Task failed: ${reason}`, context, costUsd: session.costUsd };
-  }
+	private parseToolCalls(response: string): ToolCall[] {
+		try {
+			const jsonMatch = response.match(
+				/\[\s*\{[\s\S]*\}\s*\]|\{\s*"name"[\s\S]*\}/,
+			);
+			if (!jsonMatch) return [];
+			const parsed = JSON.parse(jsonMatch[0]);
+			return Array.isArray(parsed) ? parsed : [parsed];
+		} catch {
+			return [];
+		}
+	}
 }

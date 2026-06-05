@@ -1,12 +1,12 @@
 {
-  "task_id": "task-053",
-  "task_description": "Fix a potential race condition in SandboxPool.acquire()",
-  "repo": ".",
-  "base_commit": "8055913f8c5929c61457236d34c6efb9c8d91b89",
-  "oracle_type": "model_graded",
-  "oracle": "Use a lock or semaphore to ensure multiple concurrent acquire calls don't use the same sandbox",
-  "expected_files": ["src/sandbox/SandboxPool.ts"],
-  "difficulty": "high",
-  "use_case": "debug",
-  "language": "typescript"
+	"task_id": "task-053",
+	"task_description": "Fix a potential race condition in SandboxPool.acquire()",
+	"repo": ".",
+	"base_commit": "8055913f8c5929c61457236d34c6efb9c8d91b89",
+	"oracle_type": "model_graded",
+	"oracle": "Use a lock or semaphore to ensure multiple concurrent acquire calls don't use the same sandbox",
+	"expected_files": ["src/sandbox/SandboxPool.ts"],
+	"difficulty": "high",
+	"use_case": "debug",
+	"language": "typescript"
 }

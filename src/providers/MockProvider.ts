@@ -1,18 +1,41 @@
-import { type Message, type ModelProvider } from "./ModelProvider";
+import type { Message, ModelProvider, CompletionResponse } from "./ModelProvider.js";
 
 export class MockProvider implements ModelProvider {
-  private responses: string[];
-  private currentIndex: number = 0;
+	readonly modelId = "mock-model";
+	readonly provider = "ollama"; // Mock behaves like local
 
-  constructor(responses: string[]) {
-    this.responses = responses;
-  }
+	private responses: string[];
+	private callCount = 0;
 
-  async complete(_messages: Message[], _systemPrompt?: string): Promise<string> {
-    const response = this.responses[this.currentIndex++];
-    if (!response) {
-      return "DONE";
-    }
-    return response;
-  }
+	constructor(responses: string[]) {
+		this.responses = responses;
+	}
+
+	async complete(messages: Message[]): Promise<CompletionResponse> {
+		const response =
+			this.responses[this.callCount % this.responses.length] || "DONE";
+		this.callCount++;
+		
+		return {
+		    text: response,
+		    usage: {
+		        inputTokens: 100,
+		        outputTokens: 50,
+		        cacheRead: 0,
+		        cacheWrite: 0
+		    },
+		    costUsd: 0.0001,
+		    latencyMs: 100
+		};
+	}
+
+	estimateCost(): number { return 0; }
+
+	async embed(text: string): Promise<number[]> {
+		return new Array(768).fill(0);
+	}
+
+	async embedBatch(texts: string[]): Promise<number[][]> {
+		return texts.map(() => new Array(768).fill(0));
+	}
 }

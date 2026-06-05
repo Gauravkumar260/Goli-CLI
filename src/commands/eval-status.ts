@@ -1,44 +1,43 @@
-import { TrajectoryAnalyzer } from "../telemetry/TrajectoryAnalyzer";
-import { AuditLog } from "../safety/AuditLog";
-import * as fs from "fs/promises";
-import * as path from "path";
+import { AuditLog } from "../safety/AuditLog.js";
+import { TrajectoryAnalyzer } from "../telemetry/TrajectoryAnalyzer.js";
 
-export async function evalStatus() {
-  const analyzer = new TrajectoryAnalyzer();
-  const metrics = analyzer.getMetrics();
-  const audit = await AuditLog.verify();
-  
-  console.log("\n📈 Goli-CLI Evaluation Dashboard");
-  console.log("──────────────────────────────────────────────────────────");
+export async function evalStatus(): Promise<void> {
+	const analyzer = new TrajectoryAnalyzer();
+	const metrics = analyzer.getMetrics();
+	const auditLog = new AuditLog();
+	const audit = auditLog.verify();
 
-  // 1. Performance
-  console.log("Trajectory Performance:");
-  console.log(`- Success Rate:      \x1b[36m${(metrics.successRate * 100).toFixed(1)}%\x1b[0m`);
-  console.log(`- Efficiency:        ${metrics.avgTurnsToSuccess.toFixed(1)} turns/success`);
-  console.log(`- Avg Latency:       ${(metrics.avgLatencyMs / 1000).toFixed(2)}s / turn`);
-  
-  // 2. Safety
-  console.log("\nSafety Integrity:");
-  const integrityColor = audit.valid ? "\x1b[32m" : "\x1b[31m";
-  console.log(`- Audit Log:         ${integrityColor}${audit.valid ? "VALID" : "BROKEN"}\x1b[0m`);
-  console.log(`- Safety Trigger:    ${(metrics.safetyFiringRate * 100).toFixed(1)}% of turns gated`);
-  
-  // 3. Economics
-  console.log("\nBudget & Economics:");
-  console.log(`- Total Sessions:    ${metrics.totalSessions}`);
-  console.log(`- Avg Session Cost:  $${metrics.avgCostPerSession.toFixed(4)}`);
-  
-  // 4. Retrieval (v2 integration)
-  const projectRoot = process.cwd();
-  const evalLogPath = path.join(projectRoot, "evals", "latest-eval.json");
-  try {
-      const latestEval = JSON.parse(await fs.readFile(evalLogPath, "utf-8"));
-      console.log(`\nLatest Retrieval:   ${(latestEval.avgPrecision * 100).toFixed(1)}% (P@5)`);
-  } catch {
-      console.log(`\nLatest Retrieval:   N/A (Run 'bun evals/run-retrieval.ts')`);
-  }
+	console.log("\n📊 Goli-CLI Evaluation & Trajectory Report");
+	console.log("──────────────────────────────────────────────────────────");
 
-  console.log("──────────────────────────────────────────────────────────\n");
-  
-  analyzer.close();
+	console.log("Operational Metrics:");
+	console.log(`- Total Sessions:    ${metrics.totalSessions}`);
+	console.log(`- Success Rate:      ${(metrics.successRate * 100).toFixed(1)}%`);
+	console.log(`- Avg Turns/Success: ${metrics.avgTurnsToSuccess.toFixed(1)}`);
+	console.log(`- Avg Cost/Session:  $${metrics.avgCostPerSession.toFixed(4)}`);
+	console.log(`- Avg Latency:       ${(metrics.avgLatencyMs / 1000).toFixed(1)}s`);
+
+	console.log("\nTop Failure Patterns:");
+	if (metrics.topFailurePatterns.length === 0) {
+		console.log("- No failures recorded.");
+	} else {
+		for (const p of metrics.topFailurePatterns) {
+			if (p.count > 0) {
+				console.log(
+					`- ${p.pattern.padEnd(16)} ${p.count} sessions (${(p.percentage * 100).toFixed(1)}%)`,
+				);
+			}
+		}
+	}
+
+	console.log("\nAudit Health:");
+	if (audit.valid) {
+		console.log("- Integrity:       \x1b[32m✅ VALID\x1b[0m");
+	} else {
+		console.log("- Integrity:       \x1b[31m❌ BROKEN\x1b[0m");
+	}
+
+	console.log("──────────────────────────────────────────────────────────\n");
+
+	analyzer.close();
 }

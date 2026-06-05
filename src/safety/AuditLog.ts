@@ -1,106 +1,132 @@
-import * as fs from "fs/promises";
-import * as path from "path";
-import { createHash } from "crypto";
+import { createHash } from "node:crypto";
+import { Database } from "bun:sqlite";
+import { homedir } from "node:os";
+import * as path from "node:path";
+import * as fs from "node:fs";
 
 export interface AuditEntry {
-  ts: string;
-  session: string;
-  tool: string;
-  payload_hash: string;
-  decision: string;
-  latency_ms: number;
-  prev_hash: string;
-  entry_hash: string;
+	id?: number;
+	session_id: string;
+	ts: string;
+	event: string;
+	tool?: string;
+	payload_hash?: string;
+	decision: string;
+	latency_ms: number;
+	entry_hash: string;
 }
 
-const GOLI_CLI_HOME = process.env.GOLI_CLI_HOME || path.join(require('os').homedir(), '.goli_cli');
+const GOLI_CLI_HOME =
+	process.env.GOLI_CLI_HOME || path.join(homedir(), ".goli_cli");
 
 export class AuditLog {
-  static async log(session: string, tool: string, payload: any, decision: string, latency: number) {
-    const auditPath = path.join(GOLI_CLI_HOME, "audit.jsonl");
-    const payloadHash = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
-    
-    let prevHash = "0".repeat(64);
-    
-    try {
-      const dir = path.dirname(auditPath);
-      const fssync = require('fs');
-      if (!fssync.existsSync(dir)) {
-        fssync.mkdirSync(dir, { recursive: true });
-      }
+	private db: Database;
+	private prevHash = "0".repeat(64);
 
-      if (fssync.existsSync(auditPath)) {
-        const content = await fs.readFile(auditPath, "utf8");
-        const lines = content.trim().split("\n");
-        const lastLine = lines[lines.length - 1];
-        if (lines.length > 0 && lastLine) {
-          const lastEntry = JSON.parse(lastLine) as AuditEntry;
-          prevHash = lastEntry.entry_hash;
-        }
-      }
+	constructor() {
+		if (!fs.existsSync(GOLI_CLI_HOME)) {
+			fs.mkdirSync(GOLI_CLI_HOME, { recursive: true });
+		}
+		const dbPath = path.join(GOLI_CLI_HOME, "audit.sqlite");
+		this.db = new Database(dbPath);
 
-      const ts = new Date().toISOString();
-      const entryBase = {
-        ts,
-        session,
-        tool,
-        payload_hash: payloadHash,
-        decision,
-        latency_ms: latency,
-        prev_hash: prevHash,
-      };
+		this.db.run(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id   TEXT    NOT NULL,
+        ts           TEXT    NOT NULL DEFAULT (datetime('now')),
+        event        TEXT    NOT NULL,
+        tool         TEXT,
+        payload_hash TEXT,
+        decision     TEXT    NOT NULL,
+        latency_ms   INTEGER NOT NULL,
+        entry_hash   TEXT    NOT NULL
+      )
+    `);
 
-      const entryHash = createHash("sha256").update(JSON.stringify(entryBase)).digest("hex");
-      const entry: AuditEntry = { ...entryBase, entry_hash: entryHash };
+		const row = this.db
+			.query("SELECT entry_hash FROM audit_log ORDER BY id DESC LIMIT 1")
+			.get() as { entry_hash?: string } | undefined;
+		if (row?.entry_hash) {
+			this.prevHash = row.entry_hash;
+		}
+	}
 
-      await fs.appendFile(auditPath, JSON.stringify(entry) + "\n", "utf8");
-    } catch (e) {
-      console.error("Failed to write audit log:", e);
-    }
-  }
+	async log(
+		sessionId: string,
+		event: string,
+		tool: string | undefined,
+		payload: any,
+		decision: string,
+		latencyMs: number,
+	): Promise<void> {
+		const payloadHash = payload
+			? createHash("sha256").update(JSON.stringify(payload)).digest("hex")
+			: null;
 
-  static async verify(): Promise<{ valid: boolean; error?: string; count: number }> {
-    const auditPath = path.join(GOLI_CLI_HOME, "audit.jsonl");
-    const fssync = require('fs');
-    if (!fssync.existsSync(auditPath)) {
-      return { valid: true, count: 0 };
-    }
+		const ts = new Date().toISOString();
+		const entryBase = {
+			session_id: sessionId,
+			event,
+			tool,
+			payload_hash: payloadHash,
+			decision,
+		};
 
-    try {
-      const content = await fs.readFile(auditPath, "utf8");
-      const lines = content.trim().split("\n");
-      let expectedPrevHash = "0".repeat(64);
+		const entryHash = createHash("sha256")
+			.update(this.prevHash + JSON.stringify(entryBase))
+			.digest("hex");
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (!line) continue;
-        const entry = JSON.parse(line) as AuditEntry;
-        
-        if (entry.prev_hash !== expectedPrevHash) {
-          return { valid: false, error: `Hash chain broken at line ${i+1}: expected prev_hash ${expectedPrevHash}, found ${entry.prev_hash}`, count: i };
-        }
+		this.db
+			.prepare(
+				`
+      INSERT INTO audit_log (session_id, ts, event, tool, payload_hash, decision, latency_ms, entry_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+			)
+			.run(
+				sessionId,
+				ts,
+				event,
+				tool ?? null,
+				payloadHash,
+				decision,
+				latencyMs,
+				entryHash,
+			);
 
-        const entryBase = {
-          ts: entry.ts,
-          session: entry.session,
-          tool: entry.tool,
-          payload_hash: entry.payload_hash,
-          decision: entry.decision,
-          latency_ms: entry.latency_ms,
-          prev_hash: entry.prev_hash,
-        };
-        const actualHash = createHash("sha256").update(JSON.stringify(entryBase)).digest("hex");
+		this.prevHash = entryHash;
+	}
 
-        if (entry.entry_hash !== actualHash) {
-          return { valid: false, error: `Entry hash mismatch at line ${i+1}: expected ${actualHash}, found ${entry.entry_hash}`, count: i };
-        }
+	verify(): { valid: boolean; brokenAt?: number; count: number } {
+		const rows = this.db
+			.query("SELECT * FROM audit_log ORDER BY id ASC")
+			.all() as any[];
+		let expectedPrevHash = "0".repeat(64);
 
-        expectedPrevHash = entry.entry_hash;
-      }
+		for (const row of rows) {
+			const entryBase = {
+				session_id: row.session_id,
+				event: row.event,
+				tool: row.tool,
+				payload_hash: row.payload_hash,
+				decision: row.decision,
+			};
 
-      return { valid: true, count: lines.length };
-    } catch (e: any) {
-      return { valid: false, error: `Verification failed: ${e.message}`, count: 0 };
-    }
-  }
+			const actualHash = createHash("sha256")
+				.update(expectedPrevHash + JSON.stringify(entryBase))
+				.digest("hex");
+
+			if (row.entry_hash !== actualHash) {
+				return { valid: false, brokenAt: row.id, count: rows.length };
+			}
+			expectedPrevHash = row.entry_hash;
+		}
+
+		return { valid: true, count: rows.length };
+	}
+
+	close(): void {
+		this.db.close();
+	}
 }

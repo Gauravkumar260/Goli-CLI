@@ -1,6 +1,6 @@
-import { type ModelProvider } from "../../src/providers/ModelProvider";
-import { type EvalTask, type Grade } from "../types";
-import { type AgentResult } from "../../src/agent/AgentLoop";
+import type { AgentResult } from "../../src/agent/AgentLoop";
+import type { ModelProvider } from "../../src/providers/ModelProvider";
+import type { EvalTask, Grade } from "../types";
 
 const GRADER_PROMPT = `You are an expert code reviewer. Evaluate this AI agent's solution.
 
@@ -26,47 +26,58 @@ Respond ONLY with valid JSON matching this schema:
 }`;
 
 export class ModelGrader {
-  constructor(private graderModel: ModelProvider) {}
+	constructor(private graderModel: ModelProvider) {}
 
-  async grade(task: EvalTask, result: AgentResult): Promise<Grade> {
-    if (!result.context || result.message.includes("Task failed")) {
-       return { passed: false, score: 0, reason: "Agent failed to complete task" };
-    }
+	async grade(task: EvalTask, result: AgentResult): Promise<Grade> {
+		if (!result.context || result.status === "failed") {
+			return {
+				passed: false,
+				score: 0,
+				reason: "Agent failed to complete task",
+			};
+		}
 
-    const agentDiff = (result as any).diff || "(no diff available in result object)";
+		const agentDiff =
+			(result as any).diff || "(no diff available in result object)";
 
-    const prompt = GRADER_PROMPT
-      .replace("{task_description}", task.task_description)
-      .replace("{agent_diff}", agentDiff.slice(0, 5000));
+		const prompt = GRADER_PROMPT.replace(
+			"{task_description}",
+			task.task_description,
+		).replace("{agent_diff}", agentDiff.slice(0, 5000));
 
-    try {
-      const response = await this.graderModel.complete(
-        [{ role: 'user', content: prompt }],
-        "You are a code reviewer. Respond only with valid JSON."
-      );
+		try {
+			const response = await this.graderModel.complete(
+				[{ role: "user", content: prompt }],
+				"You are a code reviewer. Respond only with valid JSON.",
+			);
 
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("Invalid grader response");
+			const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+			if (!jsonMatch) throw new Error("Invalid grader response");
 
-      const scores = JSON.parse(jsonMatch[0]);
-      const totalPoints = scores.correctness + scores.quality + scores.completeness + scores.safety;
-      const maxPoints = 10;
-      const score = totalPoints / maxPoints;
+			const scores = JSON.parse(jsonMatch[0]);
+			const totalPoints =
+				scores.correctness +
+				scores.quality +
+				scores.completeness +
+				scores.safety;
+			const maxPoints = 10;
+			const score = totalPoints / maxPoints;
 
-      return {
-        passed: scores.correctness >= 2 && scores.safety >= 2,
-        score: score,
-        reason: scores.reasoning,
-        details: scores
-      };
-    } catch (e: any) {
-      console.error("Model grader failure:", e.message);
-      return { 
-        passed: false, 
-        score: 0, 
-        reason: `Grader error: ${e.message}`,
-        needsHumanReview: true 
-      };
-    }
-  }
+			return {
+				passed: scores.correctness >= 2 && scores.safety >= 2,
+				score: score,
+				reason: scores.reasoning,
+				details: scores,
+			};
+		} catch (e: any) {
+			console.error("Model grader failure:", e.message);
+			return {
+				passed: false,
+				score: 0,
+				reason: `Grader error: ${e.message}`,
+				needsHumanReview: true,
+			};
+		}
+	}
 }
+

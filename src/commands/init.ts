@@ -1,78 +1,67 @@
-import { glob } from "glob";
-import * as fs from "fs/promises";
-import * as path from "path";
-import { CodeParser } from "../indexer/parser";
-import { Embedder } from "../indexer/embedder";
-import { Store, type Chunk } from "../indexer/store";
-import { ConfigManager } from "../config/features";
-import * as readline from "readline/promises";
+// src/commands/init.ts
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import * as readline from "node:readline/promises";
+import { ConfigManager } from "../config/features.js";
+import { Embedder } from "../indexer/embedder.js";
+import { Indexer } from "../indexer/indexer.js";
+import { createProvider } from "../providers/router.js";
 
-export async function init(projectRoot: string) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
+export async function init(projectRoot: string): Promise<void> {
+	const config = new ConfigManager();
+	await config.load();
 
-  const config = new ConfigManager();
-  await config.load();
+	const geminiApiKey = config.getApiKey("gemini") || process.env.GEMINI_API_KEY;
+	const ollamaApiKey = config.getApiKey("ollama_cloud") || process.env.OLLAMA_API_KEY;
 
-  if (!config.isTelemetryPromptShown()) {
-      console.log("\n📊 Telemetry & Privacy");
-      console.log("──────────────────────────────────────────────────────────");
-      console.log("Goli-CLI can collect anonymous usage data to improve agent performance.");
-      console.log("This is OPT-IN only. No code, file names, or diffs are ever sent.");
-      console.log("Details: docs/TELEMETRY.md");
-      
-      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      const answer = await rl.question("\nEnable anonymous telemetry? [y/N]: ");
-      rl.close();
-      
-      const enabled = answer.trim().toLowerCase() === 'y';
-      config.setFeature('enable_telemetry', enabled);
-      config.setTelemetryPromptShown(true);
-      await config.save();
-      console.log(`Telemetry ${enabled ? 'ENABLED' : 'DISABLED'}. You can change this anytime with 'goli-cli feature'.\n`);
-  }
+	if (!geminiApiKey) {
+		throw new Error(
+			"Indexing requires Gemini for embeddings. Use 'goli config set gemini <key>'",
+		);
+	}
 
-  const parser = new CodeParser();
-  const embedder = new Embedder(apiKey);
-  const store = new Store(projectRoot);
+	if (!config.isTelemetryPromptShown()) {
+		console.log("\n📊 Telemetry & Privacy");
+		console.log("──────────────────────────────────────────────────────────");
+		console.log(
+			"Goli-CLI can collect anonymous usage data to improve agent performance.",
+		);
+		console.log("This is OPT-IN only. No code, file names, or diffs are ever sent.");
+		console.log("Details: docs/TELEMETRY.md");
 
-  const files = await glob("**/*.{ts,py,go,tsx}", {
-    cwd: projectRoot,
-    ignore: ["node_modules/**", ".goli_cli/**", "dist/**", "build/**"],
-  });
+		const rl = readline.createInterface({
+			input: process.stdin,
+			output: process.stdout,
+		});
+		const answer = await rl.question("\nEnable anonymous telemetry? [y/N]: ");
+		rl.close();
 
-  console.log(`Found ${files.length} files to index.`);
+		const enabled = answer.trim().toLowerCase() === "y";
+		config.setFeature("enable_telemetry", enabled);
+		config.setTelemetryPromptShown(true);
+		await config.save();
+		console.log(
+			`Telemetry ${enabled ? "ENABLED" : "DISABLED"}. You can change this anytime with 'goli feature'.\n`,
+		);
+	}
 
-  for (const file of files) {
-    const filePath = path.join(projectRoot, file);
-    const content = await fs.readFile(filePath, "utf-8");
-    const ext = path.extname(file).slice(1);
+    // V2 Default Update: Use Ollama for the provider interface but Gemini for the actual indexing
+	const provider = createProvider(ollamaApiKey ? "ollama/gpt-oss:120b" : "gemini/gemini-1.5-flash");
+	const fallbackEmbedder = createProvider("gemini/gemini-1.5-flash-8b");
+	
+	const embedder = new Embedder(provider, fallbackEmbedder);
+	const indexPath = path.join(projectRoot, ".goli_cli", "index");
+	const indexer = new Indexer(projectRoot, indexPath, embedder);
 
-    try {
-      console.log(`Indexing ${file}...`);
-      const tree = await parser.parse(content, ext);
-      const chunks = parser.getChunks(tree, content);
+	console.log(`🚀 Initializing index for ${projectRoot}`);
+	const result = await indexer.indexFull();
 
-      if (chunks.length === 0) continue;
-
-      const texts = chunks.map(c => c.text);
-      const embeddings = await embedder.embedBatch(texts);
-
-      const storeChunks: Chunk[] = chunks.map((c, i) => ({
-        vector: embeddings[i] || [],
-        text: c.text,
-        file: file,
-        startLine: c.startLine,
-        endLine: c.endLine,
-      }));
-
-      await store.addChunks(storeChunks);
-    } catch (e: any) {
-      console.error(`Failed to index ${file}: ${e.message}`);
-    }
-  }
-
-  await store.createFTSIndex();
-
-  console.log("Indexing complete.");
+	console.log(
+		`\n✅ Indexing complete: ${result.chunksIndexed} chunks from ${result.filesProcessed} files in ${(result.durationMs / 1000).toFixed(1)}s`,
+	);
+	if (result.errors.length > 0) {
+		console.warn(
+			`⚠️  Encountered ${result.errors.length} errors during indexing. Check logs for details.`,
+		);
+	}
 }

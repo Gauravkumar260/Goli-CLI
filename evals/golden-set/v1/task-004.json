@@ -1,12 +1,12 @@
 {
-  "task_id": "task-004",
-  "task_description": "Add a --verbose flag to the goli_cli search command to show scores",
-  "repo": ".",
-  "base_commit": "8055913f8c5929c61457236d34c6efb9c8d91b89",
-  "oracle_type": "model_graded",
-  "oracle": "Search output should contain 'Score: ' for each result when --verbose is present",
-  "expected_files": ["src/commands/search.ts", "src/cli.ts"],
-  "difficulty": "medium",
-  "use_case": "implement",
-  "language": "typescript"
+	"task_id": "task-004",
+	"task_description": "Add a --verbose flag to the goli_cli search command to show scores",
+	"repo": ".",
+	"base_commit": "8055913f8c5929c61457236d34c6efb9c8d91b89",
+	"oracle_type": "model_graded",
+	"oracle": "Search output should contain 'Score: ' for each result when --verbose is present",
+	"expected_files": ["src/commands/search.ts", "src/cli.ts"],
+	"difficulty": "medium",
+	"use_case": "implement",
+	"language": "typescript"
 }

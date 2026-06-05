@@ -1,18 +1,18 @@
-import { AuditLog } from "../safety/AuditLog";
+import { AuditLog } from "../safety/AuditLog.js";
 
-export async function verifyAudit() {
-  console.log("\n🛡️ Goli-CLI Audit Log Verification");
-  console.log("──────────────────────────────────────────────────────────");
-  
-  const result = await AuditLog.verify();
-  
-  if (result.valid) {
-    console.log(`✅ Success: Audit trail is intact and valid.`);
-    console.log(`Total verified entries: ${result.count}`);
-  } else {
-    console.error(`❌ FAILURE: ${result.error}`);
-    console.log(`Verified up to entry: ${result.count}`);
-    process.exit(1);
-  }
-  console.log("──────────────────────────────────────────────────────────\n");
+export async function verifyAudit(): Promise<void> {
+	console.log("\n🛡️ Goli-CLI Audit Log Verification");
+	console.log("──────────────────────────────────────────────────────────");
+
+	const auditLog = new AuditLog();
+	const result = auditLog.verify();
+
+	if (result.valid) {
+		console.log("✅ Success: Audit trail is intact and valid.");
+		console.log(`Total verified entries: ${result.count}`);
+	} else {
+		console.error(`❌ FAILURE: Audit trail is BROKEN at entry #${result.brokenAt}`);
+		console.error(`Total entries scanned: ${result.count}`);
+		process.exit(1);
+	}
 }

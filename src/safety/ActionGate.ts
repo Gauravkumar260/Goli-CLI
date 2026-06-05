@@ -1,58 +1,147 @@
-import type { ToolCall } from "../tools/ToolRegistry";
-import { isPermanentlyDenied } from "./denyList";
-import { TranscriptClassifier, type Classification } from "./TranscriptClassifier";
-import type { Session } from "../agent/AgentLoop";
+import { classifyShellCommand } from "../sandbox/shellQuote.js";
+import {
+	type Classification,
+	TranscriptClassifier,
+} from "./TranscriptClassifier.js";
+import { isPermanentlyDenied } from "./denyList.js";
+import type { AgentSession as Session } from "../config/types.js";
+import type { ToolCall } from "../tools/ToolRegistry.js";
+import { BlastRadiusTracker } from "./BlastRadiusTracker.js";
+import { AuditLog } from "./AuditLog.js";
+
+export type GateDecision = "PROCEED" | "REQUIRE_HITL" | "ESCALATE" | "DENY";
 
 export interface GateResult {
-  denied: boolean;
-  reason?: string;
-  requiresHITL: boolean;
-  classification?: Classification;
+	decision: GateDecision;
+	reason?: string;
+	classification?: Classification;
 }
 
-/**
- * Three-Tier Action Gate
- * 
- * TIER 1: Safe - Execute immediately.
- * TIER 2: Risky - Run classifier.
- * TIER 3: Destructive - Classifier + mandatory HITL.
- */
+const TIER_1_TOOLS = new Set([
+	"read_file",
+	"read_file_lines",
+	"list_directory",
+	"search_code",
+	"git_diff",
+	"git_status",
+	"list_files",
+	"get_context",
+]);
+
+const TIER_3_TOOLS = new Set(["git_commit", "delete_file", "shell_exec"]);
+
+const TIER_2_TOOLS = new Set([
+	"write_file",
+	"edit_file",
+	"run_tests",
+	"git_create_branch",
+	"create_dir",
+]);
+
+const PROTECTED_PATHS = [
+	/^\.github\/workflows\//,
+	/^deploy\//,
+	/^evals\//,
+	/^docs\/adr\//,
+	/\.env($|\.)/,
+	/\.(pem|key|p12|pfx|crt)$/,
+	/^\.git\//,
+];
+
 export class ActionGate {
-  private classifier: TranscriptClassifier;
+	private readonly classifier: TranscriptClassifier;
+	private readonly auditLog: AuditLog;
 
-  constructor(session: Session) {
-    this.classifier = new TranscriptClassifier(session.compactModel);
-  }
+	constructor(session: Session) {
+		this.classifier = new TranscriptClassifier(session.compactModel);
+		this.auditLog = new AuditLog();
+	}
 
-  async check(task: string, toolCall: ToolCall, session: Session): Promise<GateResult> {
-    // 1. Gate 0: Permanent Deny List
-    const command = toolCall.input?.command || "";
-    if (isPermanentlyDenied(command) || isPermanentlyDenied(toolCall.name)) {
-      return { denied: true, reason: "Command or tool matches permanent deny-list pattern.", requiresHITL: false };
-    }
+	async check(
+		task: string,
+		toolCall: ToolCall,
+		session: Session,
+		blastRadius: BlastRadiusTracker,
+	): Promise<GateResult> {
+		const { name, input } = toolCall;
+		const t0 = Date.now();
 
-    const toolName = toolCall.name;
+		const finalize = async (
+			decision: GateDecision,
+			reason?: string,
+			classification?: Classification,
+		): Promise<GateResult> => {
+			const latencyMs = Date.now() - t0;
+			await this.auditLog.log(
+				session.sessionId,
+				"gate_check",
+				name,
+				{ input, classification },
+				decision,
+				latencyMs,
+			);
+			const res: GateResult = { decision };
+			if (reason) res.reason = reason;
+			if (classification) res.classification = classification;
+			return res;
+		};
 
-    // 2. Tier 1: Safe Tools
-    const safeTools = ["read_file", "list_directory", "search_code", "git_diff", "git_status", "read_file_lines"];
-    if (safeTools.includes(toolName)) {
-      return { denied: false, requiresHITL: false };
-    }
+		const targetPath = (input as { path?: string }).path;
+		if (targetPath && PROTECTED_PATHS.some((p) => p.test(targetPath))) {
+			return finalize("DENY", `Protected path access: ${targetPath}`);
+		}
 
-    // 3. Tier 2 & 3: Risky/Destructive
-    const classification = await this.classifier.classify(task, toolCall);
+		const blastStatus = blastRadius.checkLimits();
+		if (blastStatus.breached) {
+			return finalize(
+				"REQUIRE_HITL",
+				`Blast radius reached: ${blastStatus.reason}`,
+			);
+		}
 
-    if (classification.verdict === "UNSAFE") {
-      return { denied: true, reason: `Classifier flagged as UNSAFE: ${classification.reason}`, requiresHITL: false, classification };
-    }
+		const command = (input as any)?.command || "";
+		if (isPermanentlyDenied(String(command)) || isPermanentlyDenied(name)) {
+			return finalize("DENY", "Command or tool matches permanent deny-list.");
+		}
 
-    const destructiveTools = ["delete_file", "git_commit", "git_create_branch"];
-    const requiresHITL = destructiveTools.includes(toolName) || classification.verdict === "UNCERTAIN";
+		if (TIER_1_TOOLS.has(name)) {
+			return finalize("PROCEED");
+		}
 
-    return { 
-      denied: false, 
-      requiresHITL, 
-      classification 
-    };
-  }
+		if (name === "shell_exec") {
+			const verdict = classifyShellCommand(String(command));
+			if (verdict === "DENY") {
+				return finalize("DENY", "Shell command blocked by AST security.");
+			}
+			return finalize("REQUIRE_HITL", "Shell execution requires manual approval.");
+		}
+
+		if (TIER_3_TOOLS.has(name)) {
+			return finalize(
+				"REQUIRE_HITL",
+				"Destructive action requires manual approval.",
+			);
+		}
+
+		if (TIER_2_TOOLS.has(name)) {
+			const classification = await this.classifier.classify(task, toolCall);
+			if (classification.verdict === "UNSAFE") {
+				return finalize(
+					"DENY",
+					`Action flagged as UNSAFE: ${classification.reason}`,
+					classification,
+				);
+			}
+			if (classification.verdict === "UNCERTAIN") {
+				return finalize(
+					"REQUIRE_HITL",
+					`Action flagged as UNCERTAIN: ${classification.reason}`,
+					classification,
+				);
+			}
+			return finalize("PROCEED", undefined, classification);
+		}
+
+		return finalize("REQUIRE_HITL", "Unknown tool requires manual approval.");
+	}
 }

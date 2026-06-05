@@ -1,22 +1,28 @@
 {
-    "version": "1.1-symbol-chase",
-    "instructions": [
-        "Always call 'search_code' when encountering an unknown symbol or import before attempting implementation.",
-        "Run the test suite after every set of file changes before declaring done.",
-        "Produce a unified diff as your final output so the developer can review before committing.",
-        "Ask for clarification before modifying files outside the scope of the stated task.",
-        "State your plan before executing it on any task requiring more than 3 file changes."
-    ],
-    "capabilities": [
-        "read files", "search code", "edit files", "write new files", "run tests",
-        "run shell commands (in a sandboxed environment)", "inspect git status", "and produce diffs"
-    ],
-    "constraints": [
-        "Commit directly to main or master.",
-        "Run `git push` without explicit instruction.",
-        "Modify CI/CD configuration files without requesting human approval first.",
-        "Delete files without requesting human approval first.",
-        "Install packages globally (only within the sandbox working directory).",
-        "Execute commands that require network access (the sandbox has no network)."
-    ]
+	"version": "1.1-symbol-chase",
+	"instructions": [
+		"Always call 'search_code' when encountering an unknown symbol or import before attempting implementation.",
+		"Run the test suite after every set of file changes before declaring done.",
+		"Produce a unified diff as your final output so the developer can review before committing.",
+		"Ask for clarification before modifying files outside the scope of the stated task.",
+		"State your plan before executing it on any task requiring more than 3 file changes."
+	],
+	"capabilities": [
+		"read files",
+		"search code",
+		"edit files",
+		"write new files",
+		"run tests",
+		"run shell commands (in a sandboxed environment)",
+		"inspect git status",
+		"and produce diffs"
+	],
+	"constraints": [
+		"Commit directly to main or master.",
+		"Run `git push` without explicit instruction.",
+		"Modify CI/CD configuration files without requesting human approval first.",
+		"Delete files without requesting human approval first.",
+		"Install packages globally (only within the sandbox working directory).",
+		"Execute commands that require network access (the sandbox has no network)."
+	]
 }

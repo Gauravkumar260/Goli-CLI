@@ -1,0 +1,19 @@
+{
+  "defaultAction": "SCMP_ACT_ALLOW",
+  "syscalls": [
+    {
+      "names": [
+        "mount", "umount2",
+        "kexec_load", "kexec_file_load",
+        "setuid", "setgid",
+        "setreuid", "setregid",
+        "setresuid", "setresgid",
+        "ptrace", "process_vm_readv",
+        "create_module", "init_module",
+        "syslog", "reboot", "swapon", "swapoff"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "args": []
+    }
+  ]
+}

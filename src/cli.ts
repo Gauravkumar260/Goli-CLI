@@ -1,237 +1,137 @@
-#!/usr/bin/env bun
+﻿#!/usr/bin/env bun
 import { Command } from "commander";
-import { run } from "./run";
-import { init } from "./commands/init";
-import { search } from "./commands/search";
-import { diff } from "./commands/diff";
-import { commit } from "./commands/commit";
-import { status } from "./commands/status";
-import { usage } from "./commands/usage";
-import { replay } from "./commands/replay";
-import { verifyAudit } from "./commands/audit";
-import { safetyStatus } from "./commands/safety";
-import { evalStatus } from "./commands/eval-status";
-import { runDoctor } from "./commands/doctor";
-import { runFeatureCommand, runConfigCommand } from "./config/features";
-import { runFeedbackCommand } from "./commands/feedback";
-import { checkMaturity } from "./commands/maturity";
 import dotenv from "dotenv";
+import { verifyAudit } from "./commands/audit.js";
+import { commit } from "./commands/commit.js";
+import { diff } from "./commands/diff.js";
+import { runDoctor } from "./commands/doctor.js";
+import { evalStatus } from "./commands/eval-status.js";      
+import { captureTask, verifyTask } from "./commands/eval.js";
+import { runFeedbackCommand } from "./commands/feedback.js"; 
+import { init } from "./commands/init.js";
+import { checkMaturity } from "./commands/maturity.js";
+import { replay } from "./commands/replay.js";
+import { safetyStatus } from "./commands/safety.js";
+import { search } from "./commands/search.js";
+import { status } from "./commands/status.js";
+import { usage } from "./commands/usage.js";
+import { workspaceInitCommand } from "./commands/workspace.js";
+import { runConfigCommand, runFeatureCommand } from "./config/features.js";
+import { run } from "./run.js";
 
 dotenv.config();
 
 const program = new Command();
 
 program
-  .name("goli")
-  .description("Goli-CLI — Open-Core Model-Agnostic CLI Coding Agent")
-  .version("0.1.0");
+        .name("goli")
+        .description("Goli-CLI — Open-Core Model-Agnostic CLI Coding Agent")
+        .version("0.1.0");
+
+function wrapCommand(fn: (...args: any[]) => Promise<void>) {
+        return async (...args: any[]) => {
+                try {
+                        await fn(...args);
+                } catch (error: any) {
+                        console.error(`Error: ${error.message}`);
+                        process.exit(1);
+                }
+        };
+}
 
 program
-  .command("run")
-  .description("Execute a natural language task")
-  .argument("<task>", "The task to execute")
-  .option("--plan", "Force execution planning")
-  .option("--auto", "Skip confirmation prompts (YOLO mode)")
-  .option("--apply", "Automatically apply changes to host on success")
-  .option("--model <name>", "Override primary model (haiku|sonnet|flash)")
-  .option("--mock", "Use mock provider for testing")
-  .action(async (task, options) => {
-    try {
-      await run(task, options);
-    } catch (error: any) {
-      console.error(`Error: ${error.message}`);
-      process.exit(1);
-    }
-  });
+        .command("run")
+        .description("Execute a natural language task")
+        .argument("<task>", "The task to execute")
+        .option("--plan", "Force execution planning")
+        .option("--auto", "Skip confirmation prompts (YOLO mode)")
+        .option("--apply", "Automatically apply changes to host on success")
+        .option("--model <name>", "Override primary model")
+        .option("--mock", "Use mock provider for testing")
+        .action(wrapCommand(async (task, options) => {
+                await run(task, options);
+        }));
 
 program
-  .command("init")
-  .description("Index the current repository")
-  .action(async () => {
-    try {
-      await init(process.cwd());
-    } catch (error: any) {
-      console.error(`Error: ${error.message}`);
-      process.exit(1);
-    }
-  });
+        .command("init")
+        .description("Index the current repository")
+        .action(wrapCommand(async () => {
+                await init(process.cwd());
+        }));
 
 program
-  .command("status")
-  .description("Show health dashboard and metrics")
-  .action(async () => {
-    try {
-      await status();
-    } catch (error: any) {
-      console.error(`Error: ${error.message}`);
-      process.exit(1);
-    }
-  });
+        .command("workspace")
+        .description("Manage multi-repo workspaces")
+        .argument("<name>", "Workspace name")
+        .argument("[repos...]", "Repository paths")
+        .action(wrapCommand(async (name, repos) => {
+                await workspaceInitCommand(name, repos);
+        }));
 
 program
-  .command("maturity")
-  .description("Check project maturity and road to Level 2")
-  .action(async () => {
-    try {
-      await checkMaturity();
-    } catch (error: any) {
-      console.error(`Error: ${error.message}`);
-      process.exit(1);
-    }
-  });
+        .command("status")
+        .description("Show health dashboard and metrics")
+        .action(wrapCommand(async () => {
+                await status();
+        }));
 
 program
-  .command("doctor")
-  .description("Check system health and dependencies")
-  .action(async () => {
-      try {
-          await runDoctor();
-      } catch (error: any) {
-          console.error(`Error: ${error.message}`);
-          process.exit(1);
-      }
-  });
+        .command("doctor")
+        .description("Check system health and dependencies")
+        .action(wrapCommand(async () => {
+                await runDoctor();
+        }));
 
 program
-  .command("config")
-  .description("Manage global configuration and API keys")
-  .argument("[action]", "set")
-  .argument("[provider]", "gemini|anthropic|ollama_cloud")
-  .argument("[key]", "API key value")
-  .action(async (action, provider, key) => {
-      try {
-          await runConfigCommand([action, provider, key]);
-      } catch (error: any) {
-          console.error(`Error: ${error.message}`);
-          process.exit(1);
-      }
-  });
+        .command("config")
+        .description("Manage global configuration and API keys")
+        .argument("[action]", "set")
+        .argument("[provider]", "gemini|anthropic|ollama_cloud")
+        .argument("[key]", "API key value")
+        .action(wrapCommand(async (action, provider, key) => {
+                await runConfigCommand([action, provider, key]);
+        }));
 
 program
-  .command("feature")
-  .description("Manage experimental feature flags")
-  .argument("[action]", "list|enable|disable")
-  .argument("[name]", "Feature flag name")
-  .action(async (action, name) => {
-      try {
-          await runFeatureCommand([action, name]);
-      } catch (error: any) {
-          console.error(`Error: ${error.message}`);
-          process.exit(1);
-      }
-  });
-
-program
-  .command("feedback")
-  .description("Provide feedback on recent agent performance")
-  .action(async () => {
-      try {
-          await runFeedbackCommand();
-      } catch (error: any) {
-          console.error(`Error: ${error.message}`);
-          process.exit(1);
-      }
-  });
+        .command("feature")
+        .description("Manage experimental feature flags")
+        .argument("[action]", "list|enable|disable")
+        .argument("[name]", "Feature flag name")
+        .action(wrapCommand(async (action, name) => {
+                await runFeatureCommand([action, name]);
+        }));
 
 const evalCmd = program.command("eval").description("Evaluation and benchmarking tools");
 
 evalCmd
-  .command("status")
-  .description("Show evaluation dashboard and trajectory metrics")
-  .action(async () => {
-    try {
-      await evalStatus();
-    } catch (error: any) {
-      console.error(`Error: ${error.message}`);
-      process.exit(1);
-    }
-  });
+        .command("status")
+        .description("Show evaluation dashboard and trajectory metrics")
+        .action(wrapCommand(async () => {
+                await evalStatus();
+        }));
 
 program
-  .command("safety")
-  .description("Show safety dashboard and audit integrity")
-  .action(async () => {
-    try {
-      await safetyStatus();
-    } catch (error: any) {
-      console.error(`Error: ${error.message}`);
-      process.exit(1);
-    }
-  });
+        .command("safety")
+        .description("Show safety dashboard and audit integrity")
+        .action(wrapCommand(async () => {
+                await safetyStatus();
+        }));
 
 program
-  .command("audit")
-  .description("Verify the integrity of the audit trail")
-  .action(async () => {
-    try {
-      await verifyAudit();
-    } catch (error: any) {
-      console.error(`Error: ${error.message}`);
-      process.exit(1);
-    }
-  });
+        .command("search")
+        .description("Search the repository for code")
+        .argument("<query>", "The search query")
+        .option("-l, --limit <number>", "Number of results", "5")
+        .action(wrapCommand(async (query, options) => {
+                await search(process.cwd(), query, Number.parseInt(options.limit));
+        }));
 
 program
-  .command("usage")
-  .description("Show model usage and cost breakdown")
-  .action(async () => {
-    try {
-      await usage();
-    } catch (error: any) {
-      console.error(`Error: ${error.message}`);
-      process.exit(1);
-    }
-  });
-
-program
-  .command("replay")
-  .description("Replay a past session from telemetry")
-  .argument("<sessionId>", "The session ID to replay")
-  .action(async (sessionId) => {
-    try {
-      await replay(sessionId);
-    } catch (error: any) {
-      console.error(`Error: ${error.message}`);
-      process.exit(1);
-    }
-  });
-
-program
-  .command("search")
-  .description("Search the repository for code")
-  .argument("<query>", "The search query")
-  .option("-l, --limit <number>", "Number of results", "5")
-  .action(async (query, options) => {
-    try {
-      await search(process.cwd(), query, parseInt(options.limit));
-    } catch (error: any) {
-      console.error(`Error: ${error.message}`);
-      process.exit(1);
-    }
-  });
-
-program
-  .command("diff")
-  .description("Show pending changes")
-  .action(async () => {
-    try {
-      await diff(process.cwd());
-    } catch (error: any) {
-      console.error(`Error: ${error.message}`);
-      process.exit(1);
-    }
-  });
-
-program
-  .command("commit")
-  .description("Apply pending changes and commit")
-  .action(async () => {
-    try {
-      await commit(process.cwd());
-    } catch (error: any) {
-      console.error(`Error: ${error.message}`);
-      process.exit(1);
-    }
-  });
+        .command("audit [subcommand]")
+        .description("Audit log operations")
+        .action(wrapCommand(async (subcommand) => {
+                if (subcommand === "verify") await verifyAudit();
+                else console.log("Usage: goli audit verify");
+        }));
 
 program.parse();

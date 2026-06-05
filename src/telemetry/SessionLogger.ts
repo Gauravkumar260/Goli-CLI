@@ -1,143 +1,154 @@
-import { Database } from 'bun:sqlite';
-import * as path from 'path';
-import * as fs from 'fs/promises';
-import * as os from 'os';
-import { createHash } from 'crypto';
+// src/telemetry/SessionLogger.ts
+import { Database } from "bun:sqlite";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 
-const GOLI_CLI_HOME = process.env.GOLI_CLI_HOME || path.join(os.homedir(), '.goli_cli');
-
-const CREATE_TURNS_TABLE_SQL = `
-CREATE TABLE IF NOT EXISTS turns (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  session_id      TEXT    NOT NULL,
-  trace_id        TEXT    NOT NULL,
-  turn_number     INTEGER NOT NULL,
-  ts              TEXT    NOT NULL,
-  event_type      TEXT    NOT NULL,
-  model           TEXT,
-  tool_name       TEXT,
-  tool_input_hash TEXT,
-  tool_success    INTEGER,
-  input_tokens    INTEGER,
-  output_tokens   INTEGER,
-  cache_tokens    INTEGER,
-  cost_usd        REAL,
-  latency_ms      INTEGER,
-  safety_fired    INTEGER DEFAULT 0,
-  hitl_decision   TEXT,
-  response        TEXT
-);
-CREATE INDEX IF NOT EXISTS idx_session ON turns(session_id);
-CREATE INDEX IF NOT EXISTS idx_ts ON turns(ts);
-`;
-
-export interface TurnEvent {
-  turn: number;
-  type: 'tool_call' | 'model_response' | 'hitl' | 'compaction' | 'stop' | 'failure' | 'start';
-  model?: string;
-  toolName?: string;
-  toolInput?: any;
-  toolSuccess?: boolean;
-  inputTokens?: number;
-  outputTokens?: number;
-  cacheTokens?: number;
-  costUsd?: number;
-  latencyMs?: number;
-  safetyFired?: boolean;
-  hitlDecision?: string;
-  response?: string;
+export interface TurnRecord {
+	event: string;
+	turn?: number;
+	tool?: string;
+	inputTokens?: number;
+	outputTokens?: number;
+	cacheRead?: number;
+	costUsd?: number;
+	latencyMs?: number;
+	success?: boolean;
+	[key: string]: unknown;
 }
 
 export class SessionLogger {
-  private db: Database;
-  private traceId: string;
+	private db: Database;
+	private sessionId: string;
+	private lastChunks: unknown[] = [];
 
-  constructor(private sessionId: string) {
-    this.traceId = createHash('sha256').update(Date.now().toString()).digest('hex').substring(0, 16);
-    const dbPath = path.join(GOLI_CLI_HOME, 'telemetry.sqlite');
+	constructor(sessionId: string) {
+		this.sessionId = sessionId;
+		const GOLI_CLI_HOME =
+			process.env.GOLI_CLI_HOME || path.join(os.homedir(), ".goli_cli");
+		const dbPath = path.join(GOLI_CLI_HOME, "telemetry.sqlite");
 
-    const dir = path.dirname(dbPath);
-    if (!require('fs').existsSync(dir)) {
-      require('fs').mkdirSync(dir, { recursive: true });
-    }
+		if (!fs.existsSync(GOLI_CLI_HOME)) {
+			fs.mkdirSync(GOLI_CLI_HOME, { recursive: true });
+		}
 
-    this.db = new Database(dbPath);
-    this.db.exec("PRAGMA journal_mode = WAL;");
-    this.db.exec("PRAGMA synchronous = NORMAL;");
-    
-    // Add column if it doesn't exist (incremental fix)
-    try {
-        this.db.exec(CREATE_TURNS_TABLE_SQL);
-        this.db.exec("ALTER TABLE turns ADD COLUMN response TEXT;");
-    } catch (e) {}
-  }
-
-  log(event: TurnEvent) {
-    const toolInputHash = event.toolInput
-      ? createHash('sha256').update(JSON.stringify(event.toolInput)).digest('hex')
-      : null;
-
-    const query = this.db.prepare(`
-      INSERT INTO turns
-        (session_id, trace_id, turn_number, ts, event_type, model, tool_name,
-         tool_input_hash, tool_success, input_tokens, output_tokens, cache_tokens,
-         cost_usd, latency_ms, safety_fired, hitl_decision, response)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+		this.db = new Database(dbPath);
+		// V2 Robustness: Ensure schema matches expectations
+		this.db.run(`
+      CREATE TABLE IF NOT EXISTS turns (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id  TEXT    NOT NULL,
+        ts          TEXT    NOT NULL DEFAULT (datetime('now')),
+        event_type  TEXT    NOT NULL,
+        turn_num    INTEGER,
+        tool_name   TEXT,
+        input_toks  INTEGER,
+        output_toks INTEGER,
+        cache_read  INTEGER,
+        cost_usd    REAL,
+        latency_ms  INTEGER,
+        success     INTEGER,
+        extra       TEXT
+      )
     `);
+	}
 
-    query.run(
-      this.sessionId,
-      this.traceId,
-      event.turn,
-      new Date().toISOString(),
-      event.type,
-      event.model || null,
-      event.toolName || null,
-      toolInputHash,
-      event.toolSuccess === undefined ? null : (event.toolSuccess ? 1 : 0),
-      event.inputTokens || null,
-      event.outputTokens || null,
-      event.cacheTokens || null,
-      event.costUsd || null,
-      event.latencyMs || null,
-      event.safetyFired ? 1 : 0,
-      event.hitlDecision || null,
-      event.response || null
-    );
+	log(record: TurnRecord): void {
+		try {
+			const {
+				event,
+				turn,
+				tool,
+				inputTokens,
+				outputTokens,
+				cacheRead,
+				costUsd,
+				latencyMs,
+				success,
+				...extra
+			} = record;
+			// V2 Standard: Robust column mapping
+			this.db
+				.prepare(`
+        INSERT INTO turns (session_id, event_type, turn_num, tool_name, input_toks, output_toks, cache_read, cost_usd, latency_ms, success, extra)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+				.run(
+					this.sessionId,
+					event,
+					turn ?? null,
+					tool ?? null,
+					inputTokens ?? null,
+					outputTokens ?? null,
+					cacheRead ?? null,
+					costUsd ?? null,
+					latencyMs ?? null,
+					success === undefined ? null : success ? 1 : 0,
+					Object.keys(extra).length > 0 ? JSON.stringify(extra) : null,
+				);
+		} catch (err: any) {
+			if (
+				err.message.includes("no such table") ||
+				err.message.includes("no column named")
+			) {
+				this.db.run("DROP TABLE IF EXISTS turns");
+				this.db.run(`
+              CREATE TABLE IF NOT EXISTS turns (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id  TEXT    NOT NULL,
+                ts          TEXT    NOT NULL DEFAULT (datetime('now')),
+                event_type  TEXT    NOT NULL,
+                turn_num    INTEGER,
+                tool_name   TEXT,
+                input_toks  INTEGER,
+                output_toks INTEGER,
+                cache_read  INTEGER,
+                cost_usd    REAL,
+                latency_ms  INTEGER,
+                success     INTEGER,
+                extra       TEXT
+              )
+            `);
+				// Attempt logging once more with fresh table
+				try {
+					this.log(record);
+				} catch {}
+			} else {
+				console.error(`[SessionLogger] Failed to log turn: ${err.message}`);
+			}
+		}
+	}
 
-    this.writeSessionLog(event);
-  }
+	setLastRetrievedChunks(chunks: unknown[]): void {
+		this.lastChunks = chunks;
+	}
+	getLastRetrievedChunks(): unknown[] {
+		return this.lastChunks;
+	}
 
-  private async writeSessionLog(event: TurnEvent) {
-    const sessionLogPath = path.join(GOLI_CLI_HOME, 'sessions', `${this.sessionId}.jsonl`);
-    try {
-      const dir = path.dirname(sessionLogPath);
-      if (!require('fs').existsSync(dir)) {
-        require('fs').mkdirSync(dir, { recursive: true });
-      }
-      await fs.appendFile(sessionLogPath, JSON.stringify({ ...event, ts: new Date().toISOString() }) + '\n', 'utf8');
-    } catch (e) {
-      console.error('Failed to write session log:', e);
-    }
-  }
+	close(): void {
+		this.db.close();
+	}
 
-  static getRecentSessions(limit: number = 3): any[] {
-    const dbPath = path.join(GOLI_CLI_HOME, 'telemetry.sqlite');
-    if (!require('fs').existsSync(dbPath)) return [];
-
-    const db = new Database(dbPath);
-    const sessions = db.prepare(`
-      SELECT DISTINCT session_id, MAX(ts) as last_active
-      FROM turns
-      GROUP BY session_id
-      ORDER BY last_active DESC
-      LIMIT ?
-    `).all(limit);
-    db.close();
-    return sessions;
-  }
-
-  close() {
-    this.db.close();
-  }
+	static getRecentSessions(limit = 5): any[] {
+		const GOLI_CLI_HOME =
+			process.env.GOLI_CLI_HOME || path.join(os.homedir(), ".goli_cli");
+		const dbPath = path.join(GOLI_CLI_HOME, "telemetry.sqlite");
+		try {
+			const db = new Database(dbPath);
+			const sessions = db
+				.prepare(`
+              SELECT session_id, MAX(ts) as last_active
+              FROM turns
+              GROUP BY session_id
+              ORDER BY last_active DESC
+              LIMIT ?
+          `)
+				.all(limit);
+			db.close();
+			return sessions;
+		} catch {
+			return [];
+		}
+	}
 }

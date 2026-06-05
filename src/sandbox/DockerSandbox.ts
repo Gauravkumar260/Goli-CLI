@@ -1,108 +1,162 @@
-import { type Sandbox } from "./Sandbox";
-import { exec } from "child_process";
-import { promisify } from "util";
-import { execHost } from "./hostExec";
-import * as fs from "fs/promises";
-import * as path from "path";
-import * as os from 'os';
+// src/sandbox/DockerSandbox.ts
+import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { readFileSync, rmSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import { join }                from "node:path";
+import { execHost }              from "./hostExec.js";
+import { classifyShellCommand }  from "./shellQuote.js";
 
-const execAsync = promisify(exec);
+const isWindows = os.platform() === "win32";
 
-export class DockerSandbox implements Sandbox {
-  private containerName: string;
-  private image: string;
-  private projectRoot: string;
+/**
+ * DockerSandbox (V2 - Cross-Platform)
+ * 
+ * Uses CLI wrapper for Docker to ensure 100% reliability in Bun on Windows/WSL2.
+ */
+export class DockerSandbox {
+	private containerId: string | null = null;
+	private sessionId: string;
+	private projectRoot: string;
+	private image: string;
 
-  constructor(projectRoot: string, image: string = "goli_cli-sandbox:v1") {
-    this.containerName = `goli_cli-sandbox-${Math.random().toString(36).substring(7)}`;
-    this.image = image;
-    this.projectRoot = projectRoot;
-  }
+	constructor(
+		projectRoot: string,
+		image = "goli_cli-sandbox:v1",
+		sessionId?: string,
+	) {
+		this.sessionId = sessionId ?? randomUUID();
+		this.projectRoot = projectRoot;
+		this.image = image;
+	}
 
-  async init() {
-    const runCmd = `wsl docker run -d --name ${this.containerName} ` +
-                `--network none --memory 2g --cpus 1.0 ` +
-                `-w /workspace ${this.image} tail -f /dev/null`;
+	private async dockerExec(cmd: string): Promise<string> {
+		const prefix = isWindows ? "wsl docker" : "docker";
+		const { stdout } = await execHost(`${prefix} ${cmd}`);
+		return stdout.trim();
+	}
 
-    try {
-      await execAsync(runCmd);
-    } catch (e: any) {
-      if (e.message.includes("not found") || e.message.includes("executable")) {
-         throw new Error("Goli-CLI Error: Docker is not installed or not in your WSL path.");
-      } else if (e.message.includes("daemon")) {
-          throw new Error("Goli-CLI Error: Docker Desktop is not running. Please start it.");
-      } else if (e.message.includes("Image") && e.message.includes("not found")) {
-          throw new Error(`Goli-CLI Error: Sandbox image '${this.image}' not found. Run 'goli doctor --fix' to rebuild it.`);
-      } else {
-        throw new Error(`Goli-CLI Sandbox Failure: ${e.message}`);
-      }
-    }
+	async init(): Promise<void> {
+		const name = `goli-${this.sessionId}`;
 
-    try {
-      const wslProjectPath = (await execAsync(`wsl wslpath '${this.projectRoot.replace(/\\/g, '/')}'`)).stdout.trim();
+		// 1. Create and start container
+		const id = await this.dockerExec(
+			`run -d --name ${name} --user root --workdir /workspace --label goli-session=${this.sessionId} --network none --memory 1500m --cpu-quota 75000 ${this.image} tail -f /dev/null`,
+		);
+		this.containerId = id.trim().substring(0, 12);
 
-      await this.execute("mkdir -p /workspace && rm -rf /workspace/*");
+		// 2. Provision code via git archive
+		const tarPath = join(os.tmpdir(), `goli-${this.sessionId}.tar`);
+		try {
+		    execSync(`git -C "${this.projectRoot}" archive -o "${tarPath}" HEAD`);
+		    
+		    if (isWindows) {
+		        const { stdout: wslTarPath } = await execHost(`wsl wslpath '${tarPath.replace(/\\/g, "/")}'`);
+		        await execHost(`wsl docker cp "${wslTarPath.trim()}" ${this.containerId}:/repo.tar`);
+		        await this.executeRaw("mkdir -p /workspace && tar -xf /repo.tar -C /workspace");
+		    } else {
+		        execSync(`docker cp "${tarPath}" ${this.containerId}:/repo.tar`);
+		        await this.executeRaw("tar -xf /repo.tar -C /workspace");
+		    }
+		} finally {
+		    if (existsSync(tarPath)) rmSync(tarPath);
+		}
 
-      const archiveCmd = `wsl sh -c "git -C \\"${wslProjectPath}\\" archive HEAD | docker cp - ${this.containerName}:/workspace"`;
-      await execAsync(archiveCmd);
+		await this.executeRaw("chown -R goli:goli /workspace && chmod -R 755 /workspace");
+		
+		// Initialize git in container
+		await this.execute("git config --global --add safe.directory /workspace");
+		await this.execute("git config --global user.email 'goli@local' && git config --global user.name 'goli' && git init && git add -A && git commit -m 'baseline'");
+	}
 
-      await this.execute("git config --global user.email 'goli_cli@local.host' && git config --global user.name 'Goli_CLI Agent'");
-      await this.execute("cd /workspace && git init && git add -A && git commit -m 'goli_cli: baseline'");
-    } catch (e: any) {
-      throw new Error(`Goli-CLI Staging Failure: ${e.message}`);
-    }
-  }
+	async execute(command: string, timeoutMs = 30_000): Promise<string> {
+		if (!this.containerId) throw new Error("Sandbox not initialized");
 
-  async execute(command: string): Promise<string> {
-    const b64Command = Buffer.from(command).toString('base64');
-    const cmd = `wsl docker exec ${this.containerName} bash -c "echo ${b64Command} | base64 -d | bash"`;
-    try {
-      const { stdout, stderr } = await execAsync(cmd);
-      return stdout + (stderr ? `\nErrors:\n${stderr}` : "");
-    } catch (e: any) {
-      return `Command failed: ${e.message}\nOutput: ${e.stdout}\nErrors: ${e.stderr}`;
-    }
-  }
+		const safety = classifyShellCommand(command);
+		if (safety === "DENY") {
+			return `[goli] Blocked: command failed safety check — ${command.slice(0, 80)}`;
+		}
 
-  async readFile(relativePath: string): Promise<string> {
-    const cleanPath = relativePath.replace(/^\//, '');
-    return this.execute(`cat "/workspace/${cleanPath}"`);
-  }
+		try {
+			const prefix = isWindows ? "wsl docker" : "docker";
+			const fullCmd = `${prefix} exec --user goli --workdir /workspace ${this.containerId} bash -c ${JSON.stringify(command)}`;
+			const { stdout, stderr } = await execHost(fullCmd, { timeoutMs });
+			return (stdout || stderr || "").trim();
+		} catch (e: any) {
+			if (e.message.includes("ETIMEDOUT"))
+				return `[goli] Timeout after ${timeoutMs}ms`;
+			return `[goli] Error: ${e.message}`;
+		}
+	}
 
-  async writeFile(relativePath: string, content: string): Promise<void> {
-    const cleanPath = relativePath.replace(/^\//, '');
-    const b64Content = Buffer.from(content).toString('base64');
-    const writeCmd = `mkdir -p "$(dirname "/workspace/${cleanPath}")" && echo ${b64Content} | base64 -d > "/workspace/${cleanPath}"`;
-    await this.execute(writeCmd);
-  }
+	private async executeRaw(command: string, timeoutMs = 10_000): Promise<string> {
+		if (!this.containerId) throw new Error("Sandbox not initialized");
+		const prefix = isWindows ? "wsl docker" : "docker";
+		const fullCmd = `${prefix} exec --user root --workdir /workspace ${this.containerId} bash -c ${JSON.stringify(command)}`;
+		const { stdout, stderr } = await execHost(fullCmd, { timeoutMs });
+		return (stdout || stderr || "").trim();
+	}
 
-  async destroy(): Promise<void> {
-    try {
-      await execAsync(`wsl docker rm -f ${this.containerName}`);
-    } catch (e) {}
-  }
+	async readFile(relativePath: string): Promise<string> {
+		return this.execute(`cat "/workspace/${relativePath.replace(/^\/+/, "")}"`);
+	}
 
-  async extractDiff(): Promise<string> {
-    await this.execute("cd /workspace && git add -A");
-    return this.execute("cd /workspace && git diff --cached HEAD");
-  }
+	async writeFile(relativePath: string, content: string): Promise<void> {
+		const encoded = Buffer.from(content).toString("base64");
+		const path = `/workspace/${relativePath.replace(/^\/+/, "")}`;
+		await this.execute(
+			`mkdir -p "$(dirname "${path}")" && echo "${encoded}" | base64 -d > "${path}"`);
+	}
 
-  async applyDiffToHost(diff: string): Promise<void> {
-    if (!diff || diff.trim() === "(no changes)" || diff.trim() === "") return;
+	async deleteFile(relativePath: string): Promise<void> {
+	    const path = `/workspace/${relativePath.replace(/^\/+/, "")}`;
+	    await this.execute(`rm -f "${path}"`);
+	}
 
-    const tmpFile = path.join(os.tmpdir(), `goli_cli-${Date.now()}.patch`);
-    await fs.writeFile(tmpFile, diff, "utf8");
+	async destroy(): Promise<void> {
+		if (this.containerId) {
+			await this.dockerExec(`stop ${this.containerId}`).catch(() => {});
+			await this.dockerExec(`rm ${this.containerId}`).catch(() => {});
+			this.containerId = null;
+		}
+	}
 
-    try {
-      const wslTmpPath = (await execAsync(`wsl wslpath '${tmpFile.replace(/\\/g, '/')}'`)).stdout.trim();
-      const wslProjectPath = (await execAsync(`wsl wslpath '${this.projectRoot.replace(/\\/g, '/')}'`)).stdout.trim();
+	async extractDiff(): Promise<string> {
+		await this.execute("git add -A");
+		return this.execute("git diff --cached HEAD");
+	}
 
-      const { stderr } = await execHost(`wsl sh -c "cd '${wslProjectPath}' && git apply '${wslTmpPath}'"`);
-      if (stderr && stderr.trim().length > 0) {
-          throw new Error(`Git Apply Error: ${stderr}`);
-      }
-    } finally {
-      await fs.unlink(tmpFile).catch(() => {});
-    }
-  }
+	async applyDiffToHost(diff: string): Promise<void> {
+		if (!diff || diff.trim().length === 0) return;
+		const tmpFile = join(os.tmpdir(), `goli-${Date.now()}.patch`);
+		writeFileSync(tmpFile, diff);
+		try {
+			if (isWindows) {
+				const { stdout: wslPatchPath } = await execHost(
+					`wsl wslpath '${tmpFile.replace(/\\/g, "/")}'`,
+				);
+				const { stdout: wslProjectPath } = await execHost(
+					`wsl wslpath '${this.projectRoot.replace(/\\/g, "/")}'`,
+				);
+				await execHost(
+					`wsl sh -c "cd '${wslProjectPath.trim()}' && git apply '${wslPatchPath.trim()}'"`,
+				);
+			} else {
+				execSync(`git -C "${this.projectRoot}" apply "${tmpFile}"`);
+			}
+		} finally {
+			rmSync(tmpFile, { force: true });
+		}
+	}
+
+	static async isAvailable(): Promise<boolean> {
+		try {
+			const prefix = isWindows ? "wsl docker" : "docker";
+			execSync(`${prefix} ps`, { stdio: "ignore" });
+			return true;
+		} catch {
+			return false;
+		}
+	}
 }

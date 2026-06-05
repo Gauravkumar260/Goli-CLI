@@ -1,112 +1,115 @@
-import { type Session, AgentLoop, type AgentResult } from "./AgentLoop";
-import { type Plan } from "./planner";
-import os from 'node:os';
-import pLimit from 'p-limit';
-import { ConfigManager } from '../config/features';
+﻿// src/agent/Coordinator.ts
+import { AgentLoop } from './AgentLoop.js'
+import { ROLE_CONFIGS } from './AgentRole.js'
+import { buildParallelBuckets } from './Plan.js'
+import { createPlan } from './Planner.js'
+import { createProvider } from '../providers/router.js'
+import { hasHeadroom, MAX_PARALLEL_AGENTS } from './TeamRunner.js'
+import { DockerSandbox } from '../sandbox/DockerSandbox.js'
+import pLimit from 'p-limit'
+import type { AgentSession as Session, AgentResult } from '../config/types.js'
+import type { PlanStep } from './Plan.js'
 
-export const MAX_PARALLEL_AGENTS = (() => {
-  const freeMemGb = os.freemem() / (1024 ** 3);
-  const agentsFromMemory = Math.floor((freeMemGb - 4) / 1.8);
-  const agentsFromCpu = 2; 
-  return Math.max(1, Math.min(agentsFromMemory, agentsFromCpu));
-})();
+export interface CoordinatorResult {
+  finalAnswer:   string
+  subResults:    AgentResult[]
+  totalCostUsd:  number
+  totalTurns:    number
+}
 
-export class Coordinator {
-  private config: ConfigManager;
+/**
+ * Coordinated execution using specialized sub-agents.
+ */
+export async function coordinatedRun(
+  task:    string,
+  session: Session,
+): Promise<CoordinatorResult> {
 
-  constructor(private session: Session) {
-      this.config = new ConfigManager();
+  const allResults: AgentResult[] = []
+  let totalCost = 0
+  const agentLoop = new AgentLoop();
+
+  console.log(`\n🔍 [Coordinator] Starting Scout Phase...`);
+  const scoutConfig  = ROLE_CONFIGS.scout!
+  const scoutSession = makeSubSession(session, 'scout', scoutConfig)
+  const scoutResult  = await agentLoop.run(
+    `Explore the codebase and describe: (1) relevant files for "${task}", (2) key patterns, (3) dependencies`,
+    scoutSession,
+  )
+  allResults.push(scoutResult)
+  totalCost += (scoutResult as any).costUsd || 0
+
+  console.log(`\n📝 [Coordinator] Starting Plan Phase...`);
+  const plannerConfig  = ROLE_CONFIGS.planner!
+  const plannerProvider = createProvider(plannerConfig.modelSpec)
+  const plan = await createPlan(task, plannerProvider, scoutResult.answer)
+  
+  const planBuckets = buildParallelBuckets(plan.steps ?? [])
+  console.log(`\n🏗️ [Coordinator] Plan created with ${planBuckets.length} parallel buckets.`);
+
+  const limit     = pLimit(MAX_PARALLEL_AGENTS)
+  const implTasks = planBuckets.map((bucket: PlanStep[], idx: number) =>
+    limit(async () => {
+      console.log(`\n🚀 [Coordinator] Launching Implementer for Bucket ${idx + 1}...`);
+      const implConfig  = ROLE_CONFIGS.implementer!
+      const implSession = makeSubSession(session, `impl-${idx}`, implConfig)
+
+      const sandbox = new DockerSandbox(session.repoRoot, `goli-sub-${session.sessionId}-${idx}`);
+      await sandbox.init();
+      implSession.tools = (implSession.tools as any).cloneWithSandbox(sandbox);
+
+      const bucketTask = [
+        `Your bucket: implement these steps only:`,
+        ...bucket.map((s: PlanStep, i: number) => `${i + 1}. ${s.description}`),
+        bucket.some((s: PlanStep) => s.files.length > 0)
+          ? `\nFiles in your scope: ${[...new Set(bucket.flatMap((s: PlanStep) => s.files))].join(', ')}`
+          : '',
+      ].filter(Boolean).join('\n')
+
+      const result = await agentLoop.run(bucketTask, implSession)
+      await sandbox.destroy()
+      return result
+    })
+  )
+
+  const implResults = (await Promise.all(implTasks)).filter((r): r is AgentResult => r !== null)
+  allResults.push(...implResults)
+  totalCost += implResults.reduce((sum: number, r: AgentResult) => sum + (r as any).costUsd || 0, 0)
+
+  console.log(`\n🧠 [Coordinator] Starting Synthesis Phase...`);
+  const orchConfig  = ROLE_CONFIGS.orchestrator!
+  const orchSession = makeSubSession(session, 'orchestrator', orchConfig)
+  const orchResult  = await agentLoop.run(
+    [
+      `Original task: ${task}`,
+      `Sub-agent results:`,
+      ...implResults.map((r: AgentResult, i: number) => `[Agent ${i + 1}] Status: ${r.status} — ${r.answer?.slice(0, 200) ?? 'no answer'}`),
+      `Synthesize the results into a final summary for the user.`,
+    ].join('\n'),
+    orchSession,
+  )
+  allResults.push(orchResult)
+  totalCost += (orchResult as any).costUsd || 0
+
+  return {
+    finalAnswer:  orchResult.answer ?? implResults.map((r: AgentResult) => r.answer).filter(Boolean).join('\n\n'),
+    subResults:   allResults,
+    totalCostUsd: totalCost,
+    totalTurns:   allResults.reduce((sum: number, r: AgentResult) => sum + r.turns, 0),
   }
+}
 
-  async run(plan: Plan): Promise<AgentResult> {
-    await this.config.load();
-    const useParallel = this.config.getFeature('experimental_parallel_execution');
-
-    this.session.logger.log({
-        turn: 0,
-        type: 'start',
-        response: `Starting coordinated execution [parallel=${useParallel}] of plan ${plan.planId}`
-    });
-
-    if (useParallel && plan.steps.length > 1) {
-        console.log(`\n⚡ Goli-CLI Parallel Mode: Active (Limit: ${MAX_PARALLEL_AGENTS})`);
-        return this.runParallel(plan);
-    } else {
-        return this.runSequential(plan);
-    }
-  }
-
-  private async runParallel(plan: Plan): Promise<AgentResult> {
-      // Root Fix: Partition plan into independent groups to avoid race conditions
-      const groups = this.partitionPlan(plan);
-      console.log(`📂 Plan partitioned into ${groups.length} execution batches.`);
-
-      let overallSuccess = true;
-      let combinedMessage = "";
-
-      for (const group of groups) {
-          console.log(`▶️ Executing batch of ${group.length} tasks...`);
-          const results = await this.runWithConcurrency(
-              group.map(step => () => this.runSingleStep(step)),
-              MAX_PARALLEL_AGENTS
-          );
-          
-          if (results.some(r => !r.success)) overallSuccess = false;
-          combinedMessage += results.map(r => r.message).join("\n");
-      }
-
-      return {
-          success: overallSuccess,
-          message: combinedMessage,
-          context: (await new AgentLoop().run("Finalizing", this.session)).context, // approximation
-          costUsd: this.session.costUsd
-      };
-  }
-
-  private partitionPlan(plan: Plan): any[][] {
-      const batches: any[][] = [];
-      let currentBatch: any[] = [];
-      const seenFiles = new Set<string>();
-
-      for (const step of plan.steps) {
-          // Extract file target from step (heuristic)
-          const targetFile = this.extractTargetFile(step);
-          
-          if (targetFile && seenFiles.has(targetFile)) {
-              // Conflict found! Finish current batch and start next one.
-              batches.push(currentBatch);
-              currentBatch = [step];
-              seenFiles.clear();
-              seenFiles.add(targetFile);
-          } else {
-              currentBatch.push(step);
-              if (targetFile) seenFiles.add(targetFile);
-          }
-      }
-      if (currentBatch.length > 0) batches.push(currentBatch);
-      return batches;
-  }
-
-  private extractTargetFile(step: any): string | null {
-      // In a real implementation, we'd ask the model to predict targets.
-      // For the Phase 8 root fix, we look for path-like strings in rationale/tool.
-      const match = step.rationale.match(/[a-zA-Z0-9_\-\.\/]+\.(ts|js|py|md|json|txt)/);
-      return match ? match[0] : null;
-  }
-
-  private async runSingleStep(step: any): Promise<AgentResult> {
-      const agent = new AgentLoop();
-      // Execute only the specific step rationale
-      return await agent.run(`Task: ${step.tool} - ${step.rationale}`, this.session);
-  }
-
-  private async runSequential(plan: Plan): Promise<AgentResult> {
-    const agent = new AgentLoop();
-    return await agent.run(this.session.task, this.session);
-  }
-
-  protected async runWithConcurrency<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {
-      const limiter = pLimit(limit);
-      return Promise.all(tasks.map(t => limiter(t)));
+function makeSubSession(
+  parent:      Session,
+  roleSuffix:  string,
+  roleConfig:  { modelSpec: string; maxTurns: number },
+): Session {
+  return {
+    ...parent,
+    sessionId:     `${parent.sessionId}-${roleSuffix}`,
+    model:         roleConfig.modelSpec,
+    model_provider: createProvider(roleConfig.modelSpec),
+    turns:         0,
+    costUsd:       0,
   }
 }

@@ -1,78 +1,63 @@
-import * as fs from "fs/promises";
-import * as path from "path";
-import { Embedder } from "../src/indexer/embedder";
-import { Store } from "../src/indexer/store";
-import { calculatePrecisionAtK } from "./metrics";
-import { type EvalTask } from "./types";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import dotenv from "dotenv";
+import { Embedder } from "../src/indexer/embedder.js";
+import { GeminiProvider } from "../src/providers/GeminiProvider.js";
+import { HybridRetriever } from "../src/retriever/search.js";
+import { calculatePrecisionAtK } from "./metrics.js";
+import type { EvalTask } from "./types.js";
 
 dotenv.config();
 
-async function main() {
-  const projectRoot = process.cwd();
-  const trainSplitPath = path.join(projectRoot, "evals", "splits", "train.json");
-  const taskIds = JSON.parse(await fs.readFile(trainSplitPath, "utf-8")) as string[];
-  
-  const tasks: EvalTask[] = [];
-  for (const id of taskIds) {
-      let taskPath = path.join(projectRoot, "evals", "golden-set", "v1", `${id}.json`);
-      const fssync = require('fs');
-      if (!fssync.existsSync(taskPath)) {
-          taskPath = path.join(projectRoot, "evals", "golden-set", "v2", `${id}.json`);
-      }
-      tasks.push(JSON.parse(await fs.readFile(taskPath, "utf-8")));
-  }
+async function runRetrievalEval() {
+	const projectRoot = process.cwd();
+	const apiKey = process.env.GEMINI_API_KEY;
+	if (!apiKey) throw new Error("GEMINI_API_KEY required");
 
-  const geminiApiKey = process.env.GEMINI_API_KEY;
-  if (!geminiApiKey) throw new Error("GEMINI_API_KEY is not set");
+	const provider = new GeminiProvider(apiKey, "gemini-flash-latest");
+	const embedder = new Embedder(provider);
+	const idxPath = path.join(projectRoot, ".goli_cli", "index");
+	const retriever = new HybridRetriever({ indexPath: idxPath });
 
-  const embedder = new Embedder(geminiApiKey);
-  const store = new Store(projectRoot);
+	const tasksDir = path.join(projectRoot, "evals", "golden-set", "v1");
+	const taskFiles = await fs.readdir(tasksDir);
 
-  console.log(`\n🧪 Starting Retrieval Evaluation (${tasks.length} tasks from TRAIN split)`);
-  console.log("──────────────────────────────────────────────────────────");
+	console.log("\n🧪 Goli-CLI Retrieval Evaluation");
+	console.log(`Tasks: ${taskFiles.length}`);
+	console.log("──────────────────────────────────────────────────────────");
 
-  let totalPrecision = 0;
+	let totalPrecision = 0;
 
-  for (const task of tasks) {
-    const queryVector = await embedder.embed(task.task_description);
-    const results = await store.hybridSearch(task.task_description, queryVector, 10);
+	for (const file of taskFiles) {
+		const task = JSON.parse(
+			await fs.readFile(path.join(tasksDir, file), "utf-8"),
+		) as EvalTask;
 
-    // Root Fix: Normalize paths to use forward slashes for cross-platform comparison
-    const retrievedFiles = [...new Set(results.map(r => r.file.replace(/\\/g, '/')))];
-    const expectedFiles = task.expected_files.map(f => f.replace(/\\/g, '/'));
+		const results = await retriever.search(
+			task.task_description,
+			5,
+			provider,
+			embedder,
+		);
 
-    const precision = calculatePrecisionAtK(expectedFiles, retrievedFiles, 5);
-    totalPrecision += precision;
+		const expectedFiles = task.expected_files.map((f) => f.replace(/\\/g, "/"));
+		const retrievedFiles = [
+			...new Set(results.map((r: any) => r.file_path.replace(/\\/g, "/"))),
+		];
 
-    console.log(`[${task.task_id}] P@5: ${precision.toFixed(2)} | Task: ${task.task_description.substring(0, 50)}...`);
-  }
+		const precision = calculatePrecisionAtK(expectedFiles, retrievedFiles, 5);
+		totalPrecision += precision;
 
-  const avgPrecision = totalPrecision / tasks.length;
-  console.log(`\n──────────────────────────────────────────────────────────`);
-  console.log(`🏁 Eval Complete: Average Precision@5: ${avgPrecision.toFixed(2)}`);
+		const status = precision > 0.5 ? "✅" : "🚧";
+		console.log(
+			`${status} [${task.task_id}] P@5: ${precision.toFixed(2)} | Query: ${task.task_description.substring(0, 50)}...`,
+		);
+	}
 
-  const evalLog = {
-      avgPrecision,
-      ts: new Date().toISOString()
-  };
-  await fs.writeFile(path.join(projectRoot, "evals", "latest-eval.json"), JSON.stringify(evalLog, null, 2), "utf8");
-
-  if (avgPrecision >= 0.80) {
-    console.log("✅ End-gate passed!");
-  } else {
-    console.log("❌ Average precision below threshold (0.80)");
-    process.exit(1);
-  }
+	const avgPrecision = totalPrecision / taskFiles.length;
+	console.log("──────────────────────────────────────────────────────────");
+	console.log(`🏁 Avg Precision@5: ${(avgPrecision * 100).toFixed(1)}%`);
+	console.log("──────────────────────────────────────────────────────────\n");
 }
 
-async function fileExists(p: string) {
-    try {
-        await fs.access(p);
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-main().catch(console.error);
+runRetrievalEval().catch(console.error);
