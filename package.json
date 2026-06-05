@@ -1,48 +1,49 @@
-{
-  "name": "goli-cli",
-  "version": "1.0.0",
-  "description": "Model-agnostic open-core CLI coding agent. Win on scaffolding.",
-  "type": "module",
-  "bin": {
-    "goli": "dist/cli.js",
-    "goli-mcp": "dist/mcp/server.js"
-  },
-  "module": "src/cli.ts",
-  "scripts": {
-    "dev": "bun run src/cli.ts",
-    "build": "bun build src/cli.ts --outdir dist --target=bun --minify && bun build src/mcp/server.ts --outdir dist/mcp --target=node --minify",
-    "test": "bun test",
-    "type-check": "tsc --noEmit",
-    "lint": "biome check src/",
-    "build-sandbox": "docker build -t goli_cli-sandbox:v1 -f deploy/sandbox/Dockerfile .",
-    "install-hooks": "bun run scripts/install-hooks.ts"
-  },
-  "dependencies": {
-    "@anthropic-ai/sdk": "latest",
-    "@google/generative-ai": "latest",
-    "@lancedb/lancedb": "latest",
-    "@modelcontextprotocol/sdk": "latest",
-    "@octokit/rest": "latest",
-    "apache-arrow": "latest",
-    "commander": "latest",
-    "dotenv": "latest",
-    "glob": "latest",
-    "minimatch": "latest",
-    "ollama": "latest",
-    "p-limit": "latest",
-    "posthog-node": "latest",
-    "shell-quote": "latest",
-    "web-tree-sitter": "^0.26.9",
-    "zod": "latest"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "latest",
-    "@types/better-sqlite3": "latest",
-    "@types/bun": "latest",
-    "@types/diff": "latest",
-    "@types/dockerode": "latest",
-    "@types/node": "latest",
-    "@types/shell-quote": "latest",
-    "typescript": "latest"
-  }
+﻿{
+    "name":  "goli-cli",
+    "version":  "1.0.0",
+    "description":  "Model-agnostic open-core CLI coding agent. Win on scaffolding.",
+    "type":  "module",
+    "bin":  {
+                "goli":  "dist/cli.js",
+                "goli-mcp":  "dist/mcp/server.js"
+            },
+    "module":  "src/cli.ts",
+    "scripts":  {
+                    "dev":  "bun run src/cli.ts",
+                    "build":  "bun build src/cli.ts --outdir dist --target=bun --minify \u0026\u0026 bun build src/mcp/server.ts --outdir dist/mcp --target=node --minify",
+                    "test":  "bun test",
+                    "type-check":  "tsc --noEmit",
+                    "lint":  "biome check src/",
+                    "build-sandbox":  "docker build -t goli_cli-sandbox:v1 -f deploy/sandbox/Dockerfile .",
+                    "install-hooks":  "bun run scripts/install-hooks.ts"
+                },
+    "dependencies":  {
+                         "@anthropic-ai/sdk":  "latest",
+                         "@google/generative-ai":  "latest",
+                         "@lancedb/lancedb":  "latest",
+                         "@modelcontextprotocol/sdk":  "latest",
+                         "@octokit/rest":  "latest",
+                         "apache-arrow":  "latest",
+                         "commander":  "latest",
+                         "dotenv":  "latest",
+                         "glob":  "latest",
+                         "minimatch":  "latest",
+                         "ollama":  "latest",
+                         "p-limit":  "latest",
+                         "posthog-node":  "latest",
+                         "shell-quote":  "latest",
+                         "web-tree-sitter":  "^0.26.9",
+                         "zod":  "latest"
+                     },
+    "devDependencies":  {
+                            "@biomejs/biome":  "latest",
+                            "@types/better-sqlite3":  "latest",
+                            "@types/bun":  "latest",
+                            "@types/diff":  "latest",
+                            "@types/dockerode":  "latest",
+                            "@types/node":  "latest",
+                            "@types/shell-quote":  "latest",
+                            "typescript":  "latest"
+                        },
+    "license":  "MIT"
 }
