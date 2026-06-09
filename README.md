@@ -4,7 +4,7 @@
 
 Goli-CLI is a next-generation coding agent designed to handle complex repository transformations. Unlike single-loop agents, Goli-CLI v1.0 introduces a **Multi-Agent Orchestration** system that decomposes large tasks into atomic steps and executes them in parallel using specialized sub-agents.
 
-[![Version](https://img.shields.io/badge/version-2.0.0--beta-blue.svg)](https://github.com/Gauravkumar260/Goli-CLI)
+[![Version](https://img.shields.io/badge/version-1.0.0--beta-blue.svg)](https://github.com/Gauravkumar260/Goli-CLI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Bun](https://img.shields.io/badge/Runtime-Bun-black.svg)](https://bun.sh)
 
@@ -105,7 +105,7 @@ goli commit
 ## 🗺️ Roadmap: The Path to Maturity
 
 Goli-CLI is evolving through four distinct levels of operational maturity:
-- [x] **Level 1: Operational Maturity** (V2.0 — Current)
+- [x] **Level 1: Operational Maturity** (V1.0 — Current)
 - [ ] **Level 2: Optimized Stability** (Automated drift monitoring & fine-tuning data pipelines)
 - [ ] **Level 3: Self-Sustaining Ecosystem** (Multi-repo workspace intelligence)
 - [ ] **Level 4: Collaborative Autonomy** (Advanced multi-agent debate protocols)
