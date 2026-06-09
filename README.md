@@ -2,7 +2,7 @@
 
 **Model-Agnostic · Multi-Agent · Production-Hardened · Zero-Infrastructure**
 
-Goli-CLI is a next-generation coding agent designed to handle complex repository transformations. Unlike single-loop agents, Goli-CLI v2.0 introduces a **Multi-Agent Orchestration** system that decomposes large tasks into atomic steps and executes them in parallel using specialized sub-agents.
+Goli-CLI is a next-generation coding agent designed to handle complex repository transformations. Unlike single-loop agents, Goli-CLI v1.0 introduces a **Multi-Agent Orchestration** system that decomposes large tasks into atomic steps and executes them in parallel using specialized sub-agents.
 
 [![Version](https://img.shields.io/badge/version-2.0.0--beta-blue.svg)](https://github.com/Gauravkumar260/Goli-CLI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -10,7 +10,7 @@ Goli-CLI is a next-generation coding agent designed to handle complex repository
 
 ---
 
-## ✨ Key Features in V2.0
+## ✨ Key Features in V1.0
 
 ### 🧩 Multi-Agent Orchestration
 Goli-CLI now operates with a team of specialized roles:
