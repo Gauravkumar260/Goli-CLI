@@ -102,13 +102,7 @@ goli commit
 
 ---
 
-## 🗺️ Roadmap: The Path to Maturity
 
-Goli-CLI is evolving through four distinct levels of operational maturity:
-- [x] **Level 1: Operational Maturity** (V1.0 — Current)
-- [ ] **Level 2: Optimized Stability** (Automated drift monitoring & fine-tuning data pipelines)
-- [ ] **Level 3: Self-Sustaining Ecosystem** (Multi-repo workspace intelligence)
-- [ ] **Level 4: Collaborative Autonomy** (Advanced multi-agent debate protocols)
 
 ---
 
