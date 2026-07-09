@@ -86,4 +86,29 @@ describe('parseToolCallArgs', () => {
     const result = parseToolCallArgs('total garbage');
     expect(result.ok).toBe(false);
   });
+
+  // Characterization tests: lock the CURRENT error-message content for inputs
+  // flagged in the refactor audit (flaw 4 & 8). A pending BEHAVIOR-CHANGING
+  // proposal would split the disjunction at lines 99-101 of json-repair.ts to
+  // produce more accurate messages ("got null", "got array"). When that
+  // proposal is human-approved, update these assertions to the new strings.
+  describe('error message characterization (flaw 4 & 8 — pending human approval)', () => {
+    it('currently reports "got object" for null input (will become "got null")', () => {
+      const result = parseToolCallArgs('null');
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        // CURRENT behavior: typeof null === 'object', so message says "got object".
+        expect(result.error).toBe('Expected JSON object, got object');
+      }
+    });
+
+    it('currently reports "got object" for array input (will become "got array")', () => {
+      const result = parseToolCallArgs('[1, 2, 3]');
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        // CURRENT behavior: typeof [] === 'object', so message says "got object".
+        expect(result.error).toBe('Expected JSON object, got object');
+      }
+    });
+  });
 });
