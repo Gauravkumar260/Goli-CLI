@@ -7,9 +7,12 @@
  *
  * Strategy (from the upstream Module 3 spec):
  * - Size-check first: if the output is under the cap, return as-is.
- * - Truncate oldest first (not newest) — the newest content is most
- *   relevant; truncating newest causes re-calls (wasted tokens) or
- *   wrong decisions on incomplete data.
+ * - Truncate from the tail (keep the head/first) — the beginning of
+ *   tool output (file headers, command preamble) is typically the
+ *   most structured and actionable part. Truncating the tail loses
+ *   less-relevant trailing detail. Note: this contradicts the
+ *   original spec's "keep newest" intent — see the BEHAVIOR-CHANGE
+ *   proposal in the human-review ticket for the alternative.
  * - Structured truncation with a recovery hint: the truncated result
  *   includes `{truncated: true, totalTokens, hint}` so the model knows
  *   it can re-call the tool with `offset`/`limit` to get more.
@@ -22,8 +25,15 @@
 /** Default max tokens for a tool result (~16K chars at 4 chars/token). */
 export const MAX_TOOL_RESULT_TOKENS = 4000;
 
+// Industry rule of thumb for English/Latin text. Overestimates tokens for
+// CJK and emoji-heavy content (which need ~2-3 chars/token); underestimates
+// for highly repetitive code. Acceptable for a size CAP — precise token
+// counting would require a tokenizer dependency.
 /** Approximate chars-per-token for size estimation. */
 const CHARS_PER_TOKEN = 4;
+
+/** Marker appended to truncated content so the model knows data was lost. */
+const TRUNCATION_MARKER = '\n\n[... truncated ...]';
 
 /** A truncation result. */
 export interface TruncationResult {
@@ -56,19 +66,18 @@ export function truncateResult(
   }
 
   const maxChars = maxTokens * CHARS_PER_TOKEN;
-  // Truncate from the BEGINNING (keep the end / newest content)
-  // because the newest output is most relevant for the model's next
-  // decision. This is the opposite of "truncate oldest first" when
-  // viewing from the model's perspective — but matches the spec's
-  // intent: "truncate oldest first, not newest" means we keep the
-  // newest tool results when multiple are in the conversation.
-  // For a single tool result, keeping the tail is the right call
-  // because file endings usually have the most relevant content.
+  // Keep the HEAD (first maxChars) of the content. The hint message
+  // below ("showing first") is consistent with this. The original
+  // spec intended to keep the TAIL (newest), but the implementation
+  // has always kept the head; the test suite (truncation.test.ts)
+  // does not verify which portion is retained, so head-keeping is
+  // the de facto contract. See human-review ticket for the
+  // behavior-changing proposal to switch to tail-keeping.
   const truncated = content.slice(0, maxChars);
   const defaultHint = `Output truncated: ${totalTokens} tokens total, showing first ${maxTokens}. Re-call with offset/limit to see more.`;
 
   return {
-    content: truncated + '\n\n[... truncated ...]',
+    content: truncated + TRUNCATION_MARKER,
     truncated: true,
     totalTokens,
     hint: hint ?? defaultHint,
