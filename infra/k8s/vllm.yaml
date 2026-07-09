@@ -1,0 +1,113 @@
+# vLLM — self-hosted GLM-5.2 inference.
+#
+# Requires a node pool with 8× H100 80GB GPUs.
+# Replace /models/glm-5.2 with your local weights path (mounted via PV).
+#
+# For development, comment out this manifest and use Z.AI's hosted API
+# (set ZAI_API_KEY in litellm-secrets).
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vllm
+  namespace: goli-cli
+  labels:
+    app: vllm
+    component: model-inference
+spec:
+  serviceName: vllm
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+    spec:
+      # Schedule only on GPU nodes.
+      nodeSelector:
+        accelerator: nvidia-h100
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vllm-secrets
+                  key: hf-token
+          volumeMounts:
+            - name: model-weights
+              mountPath: /models
+              readOnly: true
+          args:
+            - "--model"
+            - "/models/glm-5.2"
+            - "--tensor-parallel-size"
+            - "8"
+            - "--quantization"
+            - "fp8"
+            - "--max-model-len"
+            - "1048576"
+            - "--gpu-memory-utilization"
+            - "0.9"
+            - "--port"
+            - "8000"
+          resources:
+            limits:
+              nvidia.com/gpu: 8
+              memory: 256Gi
+              cpu: 32000m
+            requests:
+              nvidia.com/gpu: 8
+              memory: 128Gi
+              cpu: 16000m
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 300  # model loading takes ~5min
+            periodSeconds: 30
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 300
+            periodSeconds: 10
+      volumes:
+        - name: model-weights
+          persistentVolumeClaim:
+            claimName: glm-weights-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: glm-weights-pvc
+  namespace: goli-cli
+spec:
+  accessModes:
+    - ReadOnlyMany  # multiple vLLM pods can read the same weights
+  resources:
+    requests:
+      storage: 1500Gi  # GLM-5.2 744B at FP8 is ~1.4TB
+  storageClassName: nfs  # or a fast object store (S3 + JuiceFS)
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  namespace: goli-cli
+spec:
+  selector:
+    app: vllm
+  ports:
+    - port: 8000
+      targetPort: 8000

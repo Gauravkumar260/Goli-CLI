@@ -1,0 +1,80 @@
+# GOLI-CLI LiteLLM Router Configuration.
+#
+# This config is consumed by the LiteLLM container in docker-compose.yml.
+# It defines the model routing table and the open-weight-only policy.
+#
+# IMPORTANT: Only open-weight models are listed. Closed-weight models
+# (GPT-4, Claude, Gemini) are NOT listed and are blocked at the router.
+# Adding them would violate their ToS (competing-product clause) and
+# is explicitly forbidden by docs/decisions/0034-open-weight-only-routing.md.
+
+model_list:
+  # ─── Primary: GLM-5.2 ──────────────────────────────────────────
+  # Use Z.AI's hosted API by default, or self-hosted vLLM if
+  # VLLM_MODEL_PATH is set (uncomment the vllm block in docker-compose.yml).
+  - model_name: glm-5.2
+    litellm_params:
+      model: openai/glm-5.2  # OpenAI-compatible format
+      api_base: https://open.bigmodel.cn/api/paas/v4
+      api_key: os.environ/ZAI_API_KEY
+      # Reasoning effort is passed through as a request param.
+      # LiteLLM forwards unknown params to the provider.
+
+  # Self-hosted vLLM fallback (uncomment if VLLM_MODEL_PATH is set).
+  # - model_name: glm-5.2
+  #   litellm_params:
+  #     model: openai/glm-5.2
+  #     api_base: http://vllm:8000/v1
+  #     api_key: "EMPTY"  # vLLM doesn't require a key by default
+
+  # ─── Fallback 1: DeepSeek V3 ──────────────────────────────────
+  # Used for "hard" tasks (system design, distributed systems).
+  - model_name: deepseek-v3
+    litellm_params:
+      model: deepseek/deepseek-chat
+      api_key: os.environ/DEEPSEEK_API_KEY
+
+  # ─── Fallback 2: Qwen3-Coder ──────────────────────────────────
+  # Code-specialized model for high-precision refactors.
+  - model_name: qwen3-coder
+    litellm_params:
+      model: together_ai/Qwen/Qwen3-Coder-32B-Instruct
+      api_key: os.environ/TOGETHERAI_API_KEY
+
+  # ─── Fallback 3: Kimi K2.7-Code ───────────────────────────────
+  # Long-context fallback for 1M-token contexts.
+  - model_name: kimi-k2.7-code
+    litellm_params:
+      model: moonshot/moonshot-v1-128k
+      api_key: os.environ/MOONSHOT_API_KEY
+
+# ─── Routing fallbacks ───────────────────────────────────────────
+# If glm-5.2 is unavailable (rate limit, outage), fall back to deepseek-v3.
+router_settings:
+  routing_strategy: simple-shuffle  # round-robin within a model
+  fallbacks:
+    - glm-5.2:
+        - deepseek-v3
+        - qwen3-coder
+
+# ─── General settings ────────────────────────────────────────────
+litellm_settings:
+  # Drop unsupported params instead of erroring (forwards to provider).
+  drop_params: true
+  # Log all requests to Langfuse (observability).
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
+  # Set via env vars in docker-compose.yml.
+  langfuse_public_key: os.environ/GOLI_OBSERVABILITY_LANGFUSE_PUBLIC_KEY
+  langfuse_secret_key: os.environ/GOLI_OBSERVABILITY_LANGFUSE_SECRET_KEY
+  langfuse_host: os.environ/GOLI_OBSERVABILITY_LANGFUSE_HOST
+
+  # Rate limiting: per-key and per-model.
+  max_budget:
+    glm-5.2: 100.0  # $100/day default budget
+  default_fallbacks: ["deepseek-v3"]
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  # Disable telemetry (Langfuse collects its own).
+  disable_spend_logs: false

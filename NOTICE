@@ -1,0 +1,41 @@
+# NOTICE
+
+This product includes software developed by the GOLI-CLI Contributors
+(https://github.com/goli-cli/goli-cli).
+
+## Upstream Attribution
+
+GOLI-CLI is an original TypeScript codebase. The architecture and design
+documents are derived from the GOLI-CLI Enterprise AI Coding Agent Roadmap
+by the same authors. The roadmap is included verbatim under
+`docs/source-roadmap/` for reference and traceability.
+
+## Model Backend
+
+GOLI-CLI is designed to operate with **GLM-5.2** (MIT-licensed, open weights)
+as its sole default backend. The default client speaks the OpenAI-compatible
+Chat Completions API, allowing it to point at:
+
+- A self-hosted vLLM endpoint serving GLM-5.2 FP8 weights (production posture)
+- Any other OpenAI-compatible endpoint (prototype posture)
+
+GOLI-CLI does **not** ship with, depend on, or default to closed-weight vendor
+SDKs (Anthropic, OpenAI). Multi-model routing in Module 7 is open-weight-only
+by policy; closed-weight providers are hard-blocked in the routing config
+(see `docs/decisions/0007-open-weight-only-routing.md`).
+
+## Third-Party Dependencies
+
+A complete Software Bill of Materials (SBOM) is generated on every CI run via
+[Syft](https://github.com/anchore/syft). The SBOM is published as a build
+artifact and is also committed to `sbom/spdx.json` on tagged releases. The
+project's policy is **zero GPL/AGPL dependencies** — see
+`docs/decisions/0006-sbom-gate.md` for the rationale and enforcement mechanism.
+
+## Trademark
+
+"GOLI-CLI" and the GOLI-CLI logo are project trademarks. They are not
+affiliated with, endorsed by, or derived from any existing product. The
+name deliberately avoids "GLM", "Z.ai", "Claude", "Codex", "Cursor",
+"Gemini", or any other vendor mark — see
+`docs/decisions/0005-brand-and-trademark.md`.

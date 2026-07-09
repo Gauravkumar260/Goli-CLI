@@ -1,0 +1,14 @@
+{
+  "name": "goli-mcp-hello-world",
+  "version": "0.1.0",
+  "description": "Minimal MCP server example for Goli-CLI. Exposes a single `greet` tool.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "license": "MIT"
+}

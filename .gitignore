@@ -1,0 +1,36 @@
+# Working directories for extracted references — not source.
+/work/
+/tool-results/
+/upload/
+
+# Build artifacts.
+dist/
+*.tsbuildinfo
+
+# Logs.
+*.log
+npm-debug.log*
+
+# OS files.
+.DS_Store
+Thumbs.db
+
+# Editor.
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test artifacts.
+coverage/
+.nyc_output/
+
+# Skins / user configs.
+skins/*.yaml
+
+# Loop control.
+.goli-loop/ABORT
+node_modules/
+*.tsbuildinfo
+packages/*/dist/
+packages/*/*.tsbuildinfo

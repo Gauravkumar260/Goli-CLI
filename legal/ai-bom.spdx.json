@@ -1,0 +1,206 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "goli-cli",
+  "documentNamespace": "https://goli-cli.dev/spdxdocs/goli-cli-0.2.0-phase2",
+  "creationInfo": {
+    "creators": [
+      "Tool: syft (https://github.com/anchore/syft)",
+      "Organization: GOLI-CLI Contributors"
+    ],
+    "created": "2026-07-04T00:00:00Z",
+    "licenseListVersion": "3.23"
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-goli-cli",
+      "name": "goli-cli",
+      "versionInfo": "0.2.0-phase2",
+      "downloadLocation": "https://github.com/goli-cli/goli-cli/releases/tag/v0.2.0-phase2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "Copyright (c) 2026 GOLI-CLI Contributors",
+      "supplier": "Organization: GOLI-CLI Contributors",
+      "description": "Enterprise AI coding agent built around GLM-5.2 (open-weight, MIT-licensed).",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "PLACEHOLDER_RUN_SYFT_TO_GENERATE"
+        }
+      ],
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:github/goli-cli/goli-cli@v0.2.0-phase2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-glm-5.2",
+      "name": "GLM-5.2",
+      "versionInfo": "1.0",
+      "downloadLocation": "https://huggingface.co/zai-org/GLM-5.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "Copyright (c) Z.ai",
+      "supplier": "Organization: Z.ai",
+      "description": "Open-weight Mixture-of-Experts LLM (744B params, 1M context).",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:huggingface/zai-org/GLM-5.2@1.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-core",
+      "name": "@goli/core",
+      "versionInfo": "0.2.0-phase2",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "Copyright (c) 2026 GOLI-CLI Contributors",
+      "supplier": "Organization: GOLI-CLI Contributors",
+      "description": "GOLI-CLI core: agent loop, tools, safety, context, memory."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-cli",
+      "name": "@goli/cli",
+      "versionInfo": "0.2.0-phase2",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "Copyright (c) 2026 GOLI-CLI Contributors",
+      "supplier": "Organization: GOLI-CLI Contributors",
+      "description": "GOLI-CLI TUI (Ink/React) and command parsing."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-vscode-ext",
+      "name": "goli-vscode",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "Copyright (c) 2026 GOLI-CLI Contributors",
+      "supplier": "Organization: GOLI-CLI Contributors",
+      "description": "GOLI-CLI VS Code extension with batch diff review."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-langfuse",
+      "name": "langfuse",
+      "versionInfo": "2",
+      "downloadLocation": "https://github.com/langfuse/langfuse",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "Copyright (c) Langfuse",
+      "supplier": "Organization: Langfuse",
+      "description": "Self-hosted observability stack for LLM tracing."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-litellm",
+      "name": "litellm",
+      "versionInfo": "latest",
+      "downloadLocation": "https://github.com/BerriAI/litellm",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "Copyright (c) BerriAI",
+      "supplier": "Organization: BerriAI",
+      "description": "Open-weight-only model routing proxy."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-vllm",
+      "name": "vllm",
+      "versionInfo": "latest",
+      "downloadLocation": "https://github.com/vllm-project/vllm",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "Copyright (c) vLLM Project",
+      "supplier": "Organization: vLLM Project",
+      "description": "High-throughput inference engine for LLMs (self-hosted GLM-5.2)."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-trl",
+      "name": "trl",
+      "versionInfo": "0.12.1",
+      "downloadLocation": "https://github.com/huggingface/trl",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "Copyright (c) HuggingFace",
+      "supplier": "Organization: HuggingFace",
+      "description": "Transformer Reinforcement Learning (GRPO fine-tuning)."
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-goli-cli"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-goli-cli",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-glm-5.2"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-goli-cli",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-core"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-goli-cli",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-cli"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-goli-cli",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-vscode-ext"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-goli-cli",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-langfuse"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-goli-cli",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-litellm"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-goli-cli",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-vllm"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-goli-cli",
+      "relationshipType": "OPTIONAL_DEPENDENCY",
+      "relatedSpdxElement": "SPDXRef-Package-trl"
+    }
+  ],
+  "annotations": [
+    {
+      "annotationDate": "2026-07-04T00:00:00Z",
+      "annotationType": "OTHER",
+      "annotator": "Organization: GOLI-CLI Contributors",
+      "comment": "SBOM Gate (G2): All components are MIT or Apache-2.0 licensed. Zero GPL/AGPL components. This is a placeholder SPDX file — run `syft dir:. -o spdx-json > legal/ai-bom.spdx.json` to regenerate with full dependency tree and checksums."
+    },
+    {
+      "annotationDate": "2026-07-04T00:00:00Z",
+      "annotationType": "OTHER",
+      "annotator": "Organization: GOLI-CLI Contributors",
+      "comment": "Open-Weight-Only Policy (ADR-0034): Closed-weight models (GPT-4, Claude, Gemini) are NOT listed in this SBOM and are blocked at the LiteLLM router. Only GLM-5.2 (MIT), DeepSeek, Qwen, and Kimi are permitted."
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "name": "goli-vscode",
+  "displayName": "GOLI-CLI",
+  "description": "Enterprise AI coding agent for VS Code — powered by GLM-5.2 (open-weight, MIT-licensed).",
+  "version": "0.2.0",
+  "publisher": "goli-cli",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Other",
+    "Snippets"
+  ],
+  "keywords": [
+    "ai",
+    "agent",
+    "coding-agent",
+    "glm",
+    "open-weight"
+  ],
+  "icon": "media/icon.png",
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "goli.wakeup",
+        "title": "GOLI: Wake Up (Start Agent)",
+        "category": "GOLI"
+      },
+      {
+        "command": "goli.reviewBatchDiff",
+        "title": "GOLI: Review Batch Diff",
+        "category": "GOLI"
+      },
+      {
+        "command": "goli.approveAll",
+        "title": "GOLI: Approve All Pending Changes",
+        "category": "GOLI"
+      },
+      {
+        "command": "goli.rejectAll",
+        "title": "GOLI: Reject All Pending Changes",
+        "category": "GOLI"
+      },
+      {
+        "command": "goli.showAuditLog",
+        "title": "GOLI: Show Audit Log",
+        "category": "GOLI"
+      },
+      {
+        "command": "goli.showUsage",
+        "title": "GOLI: Show Token/Cost Usage",
+        "category": "GOLI"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "goli.agentPanel",
+          "name": "GOLI Agent",
+          "when": "goli.enabled"
+        }
+      ]
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "goli.wakeup",
+          "when": "goli.enabled"
+        },
+        {
+          "command": "goli.reviewBatchDiff",
+          "when": "goli.hasPendingChanges"
+        }
+      ],
+      "scm/resourceState/context": [
+        {
+          "command": "goli.reviewBatchDiff",
+          "when": "scmProvider == goli",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "GOLI-CLI",
+      "properties": {
+        "goli.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the `goli` binary. If empty, uses the globally-installed `goli` from PATH."
+        },
+        "goli.defaultEffort": {
+          "type": "string",
+          "enum": ["low", "high", "max"],
+          "default": "high",
+          "description": "Default reasoning effort for the GLM-5.2 model."
+        },
+        "goli.sandboxMode": {
+          "type": "string",
+          "enum": ["read-only", "workspace-write", "danger-full-access"],
+          "default": "workspace-write",
+          "description": "Sandbox mode for tool execution."
+        },
+        "goli.autoApproveTier2": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically approve Tier-2 (bash) commands without asking. Equivalent to `--auto` mode."
+        },
+        "goli.showBatchDiffOnGenerate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically show the batch diff review panel when the agent generates file changes."
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "goli.wakeup",
+        "key": "ctrl+shift+g ctrl+shift+w",
+        "mac": "cmd+shift+g cmd+shift+w"
+      },
+      {
+        "command": "goli.reviewBatchDiff",
+        "key": "ctrl+shift+g ctrl+shift+d",
+        "mac": "cmd+shift+g cmd+shift+d"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "lint": "eslint src --ext ts",
+    "test": "node ./dist/test/runTest.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.7.2",
+    "eslint": "^9.17.0"
+  }
+}

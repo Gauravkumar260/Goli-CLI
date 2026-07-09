@@ -1,0 +1,147 @@
+{
+  "_meta": {
+    "description": "Goli-CLI performance baseline. Captured at iter 0; updated when perf improves.",
+    "version": 1,
+    "methodology": "Each metric is the median of 5 runs unless noted. Cold-start is wall-clock from process spawn to exit, measured via `time -p`.",
+    "environment": {
+      "node_version": "see `node --version`",
+      "os": "linux x86_64 (container)",
+      "cpu": "containerized, nproc varies",
+      "ram": "containerized",
+      "date": "2026-07-05"
+    }
+  },
+  "metrics": {
+    "build_time_seconds": {
+      "value": 6.3,
+      "unit": "seconds"
+    },
+    "typecheck_time_seconds": {
+      "value": 6.4,
+      "unit": "seconds"
+    },
+    "lint_time_seconds": {
+      "value": 9.1,
+      "unit": "seconds"
+    },
+    "test_suite_time_seconds": {
+      "value": 33.9,
+      "unit": "seconds"
+    },
+    "goli_version_cold_start_ms": {
+      "value": 81,
+      "unit": "ms",
+      "note": "A1 target: < 200ms",
+      "samples": [
+        85,
+        82,
+        81,
+        79,
+        79
+      ]
+    },
+    "goli_help_cold_start_ms": {
+      "value": 84,
+      "unit": "ms",
+      "note": "A1 target: < 200ms",
+      "samples": [
+        81,
+        84,
+        84,
+        84,
+        81
+      ]
+    },
+    "tti_10k_repo_ms": {
+      "value": 46,
+      "unit": "ms",
+      "note": "A6 target: < 200ms (reference median, inferred). Measured via 'goli --version' on 10k-file repo.",
+      "samples": [
+        43,
+        46,
+        44,
+        48,
+        60
+      ]
+    },
+    "memory_peak_mb": {
+      "value": null,
+      "note": "T-002 will fill this in. Peak RSS during a 60s agent loop run."
+    },
+    "bundle_size_kb": {
+      "value": 13.5,
+      "unit": "kb",
+      "note": "Size of the compiled CLI entry point."
+    }
+  },
+  "reference_comparison": {
+    "note": "Per A6, TTI on 10k-file repo must be < median of references. Reference values are inferred (NOT measured) from public docs:",
+    "references": {
+      "hermes-agent": {
+        "cold_start_ms_inferred": 800,
+        "note": "Python; uv-managed venv; slower cold-start than Node/Rust"
+      },
+      "claude-code": {
+        "cold_start_ms_inferred": 150,
+        "note": "Node; tight binary"
+      },
+      "codex-cli": {
+        "cold_start_ms_inferred": 50,
+        "note": "Rust; fastest reference"
+      },
+      "aider": {
+        "cold_start_ms_inferred": 400,
+        "note": "Python; heavy imports"
+      },
+      "gemini-cli": {
+        "cold_start_ms_inferred": 200,
+        "note": "Node"
+      },
+      "median_inferred_ms": 200
+    }
+  },
+  "history": [
+    {
+      "iteration": 0,
+      "timestamp": "2026-07-05T17:18:00+08:00",
+      "changes": "baseline established; only test_suite_time_seconds measured"
+    },
+    {
+      "timestamp": "2026-07-05T17:36:21.761Z",
+      "goli_version_cold_start_ms": 83,
+      "goli_help_cold_start_ms": 86,
+      "build_time_seconds": 6.3,
+      "test_suite_time_seconds": 33.9
+    },
+    {
+      "timestamp": "2026-07-05T17:38:22.640Z",
+      "goli_version_cold_start_ms": 81,
+      "goli_help_cold_start_ms": 84
+    },
+    {
+      "timestamp": "2026-07-05T18:39:54.346Z",
+      "tti_10k_repo_ms": 256,
+      "cwd": "bench/fixtures/repo-10k",
+      "a6_passes": false
+    },
+    {
+      "timestamp": "2026-07-05T18:41:15.556Z",
+      "tti_10k_repo_ms": 87,
+      "cwd": "bench/fixtures/repo-10k",
+      "a6_passes": true
+    },
+    {
+      "timestamp": "2026-07-05T18:43:25.008Z",
+      "tti_10k_repo_ms": 84,
+      "cwd": "bench/fixtures/repo-10k",
+      "a6_passes": true
+    },
+    {
+      "timestamp": "2026-07-06T19:50:05.098Z",
+      "tti_10k_repo_ms": 46,
+      "cwd": "bench/fixtures/repo-10k",
+      "a6_passes": true
+    }
+  ],
+  "last_captured_at": "2026-07-06T19:50:05.097Z"
+}

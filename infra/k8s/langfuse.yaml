@@ -1,0 +1,113 @@
+# Langfuse deployment (observability UI + API).
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langfuse
+  namespace: goli-cli
+  labels:
+    app: langfuse
+    component: observability
+spec:
+  replicas: 1  # scale horizontally for HA (requires shared DATABASE_URL)
+  selector:
+    matchLabels:
+      app: langfuse
+  template:
+    metadata:
+      labels:
+        app: langfuse
+    spec:
+      containers:
+        - name: langfuse
+          image: langfuse/langfuse:2
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: langfuse-secrets
+                  key: database-url
+            - name: CLICKHOUSE_URL
+              value: http://clickhouse:8123
+            - name: CLICKHOUSE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: langfuse-secrets
+                  key: clickhouse-user
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: langfuse-secrets
+                  key: clickhouse-password
+            - name: NEXTAUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: langfuse-secrets
+                  key: nextauth-secret
+            - name: LANGFUSE_SALT
+              valueFrom:
+                secretKeyRef:
+                  name: langfuse-secrets
+                  key: langfuse-salt
+            - name: NEXTAUTH_URL
+              value: https://langfuse.goli-cli.internal
+            - name: LANGFUSE_DISABLE_TELEMETRY
+              value: "true"
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 500m
+            limits:
+              memory: 2Gi
+              cpu: 2000m
+          livenessProbe:
+            httpGet:
+              path: /api/public/health
+              port: 3000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/public/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: langfuse
+  namespace: goli-cli
+spec:
+  selector:
+    app: langfuse
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: langfuse-ingress
+  namespace: goli-cli
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - langfuse.goli-cli.internal
+      secretName: langfuse-tls
+  rules:
+    - host: langfuse.goli-cli.internal
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: langfuse
+                port:
+                  number: 3000

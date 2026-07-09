@@ -1,0 +1,11 @@
+# GOLI-CLI Observability Namespace.
+#
+# All GOLI-CLI infrastructure components run in the `goli-cli` namespace
+# to isolate them from other workloads and simplify RBAC.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: goli-cli
+  labels:
+    app.kubernetes.io/part-of: goli-cli
+    app.kubernetes.io/managed-by: kubectl

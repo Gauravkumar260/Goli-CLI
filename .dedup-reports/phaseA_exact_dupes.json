@@ -1,0 +1,47 @@
+{
+  "root": "/home/z/my-project/work/goli-cli",
+  "file_count": 607,
+  "group_count": 3,
+  "wasted_bytes": 1613,
+  "groups": [
+    {
+      "hash": "aaf4cf14740fed22e7bb47557a97c3ebf1197266a51d72b602e791d6c0738b34",
+      "size": 767,
+      "count": 2,
+      "files": [
+        "/home/z/my-project/work/goli-cli/.env",
+        "/home/z/my-project/work/goli-cli/packages/cli/.env"
+      ]
+    },
+    {
+      "hash": "c85996481a44ae1b8107c9dcb0ac329d2578e384add52a4137c0a02901ed97c5",
+      "size": 339,
+      "count": 2,
+      "files": [
+        "/home/z/my-project/work/goli-cli/packages/core/tsconfig.json",
+        "/home/z/my-project/work/goli-cli/packages/evals/tsconfig.json"
+      ]
+    },
+    {
+      "hash": "34fe496008be71d8fdd446b2cce81e4bb0406109c130eafc583fbd9fe33244e2",
+      "size": 39,
+      "count": 14,
+      "files": [
+        "/home/z/my-project/work/goli-cli/.husky/_/applypatch-msg",
+        "/home/z/my-project/work/goli-cli/.husky/_/commit-msg",
+        "/home/z/my-project/work/goli-cli/.husky/_/post-applypatch",
+        "/home/z/my-project/work/goli-cli/.husky/_/post-checkout",
+        "/home/z/my-project/work/goli-cli/.husky/_/post-commit",
+        "/home/z/my-project/work/goli-cli/.husky/_/post-merge",
+        "/home/z/my-project/work/goli-cli/.husky/_/post-rewrite",
+        "/home/z/my-project/work/goli-cli/.husky/_/pre-applypatch",
+        "/home/z/my-project/work/goli-cli/.husky/_/pre-auto-gc",
+        "/home/z/my-project/work/goli-cli/.husky/_/pre-commit",
+        "/home/z/my-project/work/goli-cli/.husky/_/pre-merge-commit",
+        "/home/z/my-project/work/goli-cli/.husky/_/pre-push",
+        "/home/z/my-project/work/goli-cli/.husky/_/pre-rebase",
+        "/home/z/my-project/work/goli-cli/.husky/_/prepare-commit-msg"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "name": "goli-cli",
+  "version": "0.2.0-phase2",
+  "description": "GOLI-CLI — a production-grade, multi-agent software engineering tool. An 11-agent swarm (Scout → Documenter) for complex, autonomous development tasks. Built as an npm workspaces monorepo with TypeScript + Ink.",
+  "type": "module",
+  "license": "MIT",
+  "author": "GOLI-CLI Contributors <contrib@goli-cli.dev>",
+  "homepage": "https://github.com/goli-cli/goli-cli",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/goli-cli/goli-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/goli-cli/goli-cli/issues"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "coding-agent",
+    "cli",
+    "tui",
+    "multi-agent",
+    "swarm",
+    "mcp",
+    "sandbox",
+    "enterprise"
+  ],
+  "engines": {
+    "node": ">=20.18.0"
+  },
+  "workspaces": [
+    "packages/core",
+    "packages/cli",
+    "packages/evals"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev": "tsx packages/cli/src/index.ts",
+    "typecheck": "npm run typecheck --workspaces",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --config vitest.config.ts",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "verify": "npm run typecheck && npm run lint && npm run format:check && npm test",
+    "sbom:gen": "syft dir:. -o spdx-json > sbom/spdx.json",
+    "sbom:check": "bash scripts/check-sbom.sh",
+    "goli": "node packages/cli/dist/index.js",
+    "tui": "tsx packages/cli/src/index.ts wakeup --interactive",
+    "prepare": "husky || true",
+    "bench": "tsx scripts/bench.ts",
+    "bench:quick": "tsx scripts/bench.ts --quick",
+    "docs:gen": "typedoc --out docs/api/_generated packages/core/src/index.ts --tsconfig packages/core/tsconfig.json",
+    "a11y:audit": "tsx scripts/a11y-audit.ts",
+    "gen:10k-repo": "tsx scripts/gen-10k-repo.ts",
+    "bench:tti": "tsx scripts/tti-bench.ts --10k",
+    "test:perf": "vitest run --config vitest.config.ts tests/unit/perf-baseline.test.ts",
+    "test:memory": "node --expose-gc -e \"global.gc(); const b=process.memoryUsage().heapUsed; require('./packages/cli/dist/index.js'); const a=process.memoryUsage().heapUsed; console.log('heap delta KB:', Math.round((a-b)/1024));\"",
+    "gen:completions": "tsx scripts/gen-completions.ts",
+    "test:coverage": "vitest run --config vitest.config.ts --coverage"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yaml,yml,toml}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@typescript-eslint/eslint-plugin": "^8.18.2",
+    "@typescript-eslint/parser": "^8.18.2",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jsdoc": "^50.6.1",
+    "eslint-plugin-n": "^17.15.1",
+    "eslint-plugin-promise": "^7.2.1",
+    "eslint-plugin-unicorn": "^56.0.1",
+    "globals": "^15.14.0",
+    "husky": "^9.1.7",
+    "ink-testing-library": "4.0.0",
+    "lint-staged": "^15.3.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typedoc": "^0.27.6",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,27 @@
+# Authors
+
+The GOLI-CLI project is authored and maintained by the contributors listed
+below. For an up-to-date list, see the Git history and the GitHub
+contributors page.
+
+## Lead Authors
+
+- **GOLI-CLI Contributors** <contrib@goli-cli.dev>
+
+## How to Be Added
+
+This file is a flat, alphabetically-sorted list of human contributors. To add
+yourself, submit a pull request modifying this file with the format:
+
+```
+- **Your Name** <your.email@example.com>
+```
+
+AI-generated code is not eligible for authorship credit. All AI-assisted
+contributions must be reviewed, signed off, and authored by a human
+contributor. See `docs/decisions/0008-ai-authorship-policy.md` for the
+rationale (US Copyright Office guidance and *Thaler v. Perlmutter*).
+
+## Corporate Sponsors
+
+(None at present. To be listed here, contact contrib@goli-cli.dev.)

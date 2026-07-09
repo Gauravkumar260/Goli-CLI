@@ -1,0 +1,80 @@
+# GOLI-CLI default configuration.
+#
+# This file is the repo-level default. Per-user overrides live at
+# $GOLI_HOME/config.toml or ~/.goli-cli/config.toml. Environment variables
+# prefixed with GOLI_ override everything (e.g. GOLI_MODEL_API_KEY).
+#
+# All values documented in src/config/schema.ts.
+
+[model]
+# The GLM-5.2 model identifier. Phase 7 will swap to a self-hosted vLLM
+# endpoint serving glm-5.2-fp8 weights.
+modelId = "glm-5.2"
+# Z.ai OpenAI-compatible endpoint for prototype. Phase 7 = self-hosted vLLM.
+baseUrl = "https://open.bigmodel.cn/api/paas/v4"
+# API key — DO NOT commit a real key. Use GOLI_MODEL_API_KEY env var.
+apiKey = ""
+# Default reasoning effort for routine tasks (cheaper).
+defaultEffort = "high"
+# Reasoning effort for complex tasks (refactor/architecture/debug).
+complexEffort = "max"
+# Triggers that bump to complexEffort.
+complexTriggers = ["refactor", "design", "architecture", "debug", "migrate", "rewrite"]
+# GLM-5.2's 1M-token context window.
+maxContextTokens = 1000000
+# Per-request timeout.
+requestTimeoutMs = 120000
+# Stream responses (recommended for TUI).
+streaming = true
+
+[budget]
+# Max output tokens per session (80% of 1M, leaves room for compaction).
+maxTokens = 800000
+# Max USD cost per session. Hard stop when exceeded.
+maxCostUsd = 5.0
+# Max agent-loop iterations per session.
+maxIterations = 50
+# Max wall-clock seconds per session.
+maxWallclockSeconds = 1800
+# Cost rates (USD per 1M tokens). Self-hosted GLM-5.2 = $0; cloud = varies.
+costPerMillionInputTokens = 0.0
+costPerMillionOutputTokens = 0.0
+costPerMillionThinkingTokens = 0.0
+
+[retry]
+# Max retry attempts for 429 / 5xx / timeout errors.
+maxRetries = 3
+initialBackoffMs = 1000
+backoffMultiplier = 2.0
+maxBackoffMs = 30000
+# Jitter prevents thundering-herd retries against the same endpoint.
+jitterFactor = 0.5
+
+[stall]
+# Detect 3 identical tool calls in a row (prevents the $47K LangChain incident).
+identicalCallThreshold = 3
+windowSize = 5
+# Max consecutive parse failures before stopping.
+maxParseFailures = 3
+
+[sandbox]
+# Codex three-mode standard.
+mode = "workspace-write"
+approvalPolicy = "on-request"
+# Default network egress allowlist (covered in depth in Phase 5).
+networkAllowlist = ["github.com:443", "pypi.org:443", "files.pythonhosted.org:443", "registry.npmjs.org:443", "crates.io:443"]
+# cgroups v2 resource limits (Phase 5).
+memoryMaxMb = 4096
+memoryHighMb = 3072
+cpuQuotaPercent = 200
+pidMax = 512
+diskMaxMb = 10240
+wallclockTimeoutS = 1800
+
+[logging]
+# Log level: trace | debug | info | warn | error | silent
+level = "info"
+# Format: pretty (TTY) | json (pipelines)
+format = "pretty"
+# Lifecycle log path — defaults to $GOLI_HOME/logs/goli.log
+# lifecycleLogPath = "/tmp/goli.log"
