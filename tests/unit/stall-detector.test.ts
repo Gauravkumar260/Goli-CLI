@@ -77,3 +77,65 @@ describe('StallDetector', () => {
     expect(detector.recordAndCheck(tc)).toBe(true); // 5th → stall
   });
 });
+
+// ─── Characterization tests for deferred flaws ────────────────────────────
+// These tests lock CURRENT behavior for flaws flagged as BEHAVIOR-CHANGING
+// and deferred for human approval. When a proposal is approved and applied,
+// update the corresponding test to assert the new behavior.
+describe('StallDetector — flaw characterization (pending human approval)', () => {
+  // Flaw 2: null argumentsParsed is treated as parse failure (RAW path)
+  // because `!null` is true. A pending fix would use `=== undefined` instead.
+  it('flaw 2: null argumentsParsed takes RAW path (CURRENT behavior)', () => {
+    const detector = new StallDetector(DEFAULT_CONFIG.stall);
+    const tcNull: ToolCall = {
+      id: 'tc-null',
+      name: 'x',
+      arguments: 'null',
+      argumentsParsed: null as unknown as undefined, // simulate parsed null
+      status: 'pending',
+    };
+    detector.recordAndCheck(tcNull);
+    detector.recordAndCheck(tcNull);
+    const sigs = detector.getSignatures();
+    // CURRENT: signature is `x:RAW:null` (RAW path because !null === true).
+    expect(sigs[0]).toBe('x:RAW:null');
+    // After fix: would be `x:null` (sorted-JSON path).
+  });
+
+  // Flaw 3: circular argumentsParsed crashes the detector.
+  // The crash happens in sortObjectKeys (called before JSON.stringify) via
+  // infinite recursion → RangeError: Maximum call stack size exceeded.
+  // A pending fix would guard against cycles (WeakSet visited set) or wrap
+  // the whole signature computation in try/catch with RAW fallback.
+  it('flaw 3: circular argumentsParsed throws RangeError (CURRENT behavior)', () => {
+    const detector = new StallDetector(DEFAULT_CONFIG.stall);
+    const circular: Record<string, unknown> = { a: 1 };
+    circular.self = circular;
+    const tcCircular: ToolCall = {
+      id: 'tc-circular',
+      name: 'x',
+      arguments: '{}',
+      argumentsParsed: circular,
+      status: 'pending',
+    };
+    // CURRENT: sortObjectKeys recurses infinitely → RangeError.
+    // (Not TypeError from JSON.stringify, because sortObjectKeys runs first
+    // and has no cycle detection.)
+    expect(() => detector.recordAndCheck(tcCircular)).toThrow(RangeError);
+    // After fix: would not throw, would return false (1st call, below threshold).
+  });
+
+  // Flaw 7: windowSize < threshold silently never fires.
+  // A pending fix would add a console.warn at construction.
+  it('flaw 7: windowSize < threshold never fires (CURRENT behavior, no warning)', () => {
+    const config = { identicalCallThreshold: 5, windowSize: 2 };
+    const detector = new StallDetector(config);
+    const tc = makeToolCall('read_file', { path: 'same.ts' });
+    // 10 identical calls — but windowSize=2 caps the array at 2, threshold=5
+    // means length(2) < 5 → always false.
+    for (let i = 0; i < 10; i++) {
+      expect(detector.recordAndCheck(tc)).toBe(false);
+    }
+    // After fix: construction would emit console.warn.
+  });
+});
