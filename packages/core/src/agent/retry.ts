@@ -172,7 +172,11 @@ export async function callWithRetry<T>(
       const jitterFloor = baseDelay * (1 - jitter);
       const delay = Math.floor(jitterFloor + Math.random() * (baseDelay - jitterFloor));
 
-      // Guard against NaN/Infinity from malformed config.
+      // Guard against NaN/Infinity/negative from malformed config (e.g.
+      // jitterFactor > 1, initialBackoffMs = 0 with multiplier = 0).
+      // Fallback of 1s is a safe middle ground: long enough to let a transient
+      // failure clear, short enough not to stall the agent loop noticeably.
+      // Mirrors the default initialBackoffMs (line 129 above).
       const safeDelay = Number.isFinite(delay) && delay >= 0 ? delay : 1000;
 
       opts.logger?.warn('Retrying after error', {
