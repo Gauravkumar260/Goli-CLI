@@ -352,3 +352,24 @@ describe('T-065: configurable thresholds', () => {
     expect(loop!.event.count).toBe(100);
   });
 });
+
+// ─── Characterization: flaw 3 (circular/BigInt args crash) ────────────────
+// These tests lock the CURRENT behavior: recordToolCall throws TypeError when
+// args contain a circular reference or BigInt, because JSON.stringify throws
+// and hashToolCall does not catch it. A pending BEHAVIOR-CHANGING proposal
+// would wrap JSON.stringify in try/catch with a String() fallback. When that
+// proposal is human-approved, these tests should be updated to assert the
+// graceful-handling behavior (no throw, returns null or LoopDetectionError).
+describe('T-065: flaw 3 — circular/BigInt args (CURRENT behavior: throws)', () => {
+  it('throws TypeError on circular args (pending human-approved fix)', () => {
+    const detector = new LoopDetector({ toolCallThreshold: 2 });
+    const circular: Record<string, unknown> = { a: 1 };
+    circular.self = circular;
+    expect(() => detector.recordToolCall({ name: 'x', args: circular })).toThrow(TypeError);
+  });
+
+  it('throws TypeError on BigInt args (pending human-approved fix)', () => {
+    const detector = new LoopDetector({ toolCallThreshold: 2 });
+    expect(() => detector.recordToolCall({ name: 'x', args: { big: 1n } })).toThrow(TypeError);
+  });
+});

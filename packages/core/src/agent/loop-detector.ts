@@ -133,6 +133,7 @@ export class LoopDetector {
         type: 'tool_call',
         count: this.consecutiveToolCallCount,
         threshold: this.toolCallThreshold,
+        // 80-char cap keeps the description readable in TUI logs without wrapping.
         description: `${call.name}(${truncate(JSON.stringify(call.args ?? {}) ?? '{}', 80)})`,
         timestamp: Date.now(),
       };
@@ -170,6 +171,8 @@ export class LoopDetector {
         type: 'content',
         count: this.consecutiveContentCount,
         threshold: this.contentThreshold,
+        // First 16 hex chars of the SHA-256 — enough to be uniquely
+        // identifiable in logs without the full 64-char hash.
         description: `content hash=${hash.slice(0, 16)}…`,
         timestamp: Date.now(),
       };
@@ -225,6 +228,7 @@ function hashContent(content: string): string {
 /** Truncate a string to `max` chars, with ellipsis if truncated. */
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
+  // Reserve 1 char for the ellipsis so the result fits within `max`.
   return s.slice(0, max - 1) + '…';
 }
 
