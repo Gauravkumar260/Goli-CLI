@@ -87,6 +87,8 @@ export type {
   LoggingConfig,
   ReasoningEffort,
 } from './config/schema.js';
+export { MODE_PROMPTS, getPromptForMode } from './config/mode-prompts.js';
+export type { AppMode } from './config/mode-prompts.js';
 
 // ─── Policy Integrity (T-064) ────────────────────────────────────────
 /**

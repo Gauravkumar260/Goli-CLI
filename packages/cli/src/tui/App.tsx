@@ -18,7 +18,6 @@ import { randomUUID } from 'node:crypto';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import { SplashBox } from './components/SplashBox.js';
-import { HeaderBar } from './components/HeaderBar.js';
 import { AgentStateBar } from './components/AgentStateBar.js';
 import { WelcomeTip } from './components/WelcomeTip.js';
 import { HistoryScroll } from './components/HistoryScroll.js';
@@ -28,7 +27,6 @@ import { MaybeFpsOverlay } from './components/FpsOverlay.js';
 import { MaybeDebugProfiler } from './components/DebugProfiler.js';
 import { ScreenReaderAppLayout } from './components/ScreenReaderAppLayout.js';
 import { T } from './theme/tokens.js';
-import { StatusBar } from './components/StatusBar.js';
 import { useAgentLoop } from './hooks/useAgentLoop.js';
 import { useFpsTracker } from './hooks/useFpsTracker.js';
 import { useFlickerDetector } from './hooks/useFlickerDetector.js';
@@ -58,7 +56,7 @@ import { useMouseScroll } from './hooks/useMouseScroll.js';
 import { useContextCounts } from './hooks/useContextCounts.js';
 import { HelpPanel } from './components/HelpPanel.js';
 import { ToastDisplay } from './components/ToastDisplay.js';
-import { formatTokenLimit, tokPct } from './components/TokenBar.js';
+
 
 /**
  *
@@ -535,9 +533,9 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
   }
 
   return (
-    <Box ref={rootUiRef} flexDirection="column" width={cols} height={rows}>
+    <Box ref={rootUiRef} flexDirection="column" width={cols}>
       {/* ── Top chrome ───────────────────────────────────────────────── */}
-      {showDesign ? (
+      {showDesign && (
         <Box
           flexDirection="column"
           borderStyle={getBorderStyle() as 'round'}
@@ -568,18 +566,6 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
             tier={snap.tier}
             busy={isBusy}
             bordered={false}
-          />
-        </Box>
-      ) : (
-        <Box flexDirection="column">
-          <HeaderBar
-            cols={cols}
-            model={snap.model}
-            tokens={snap.tokens}
-            tokenLimit={snap.tokenLimit}
-            mode={snap.mode}
-            tier={snap.tier}
-            branch={snap.branch}
           />
         </Box>
       )}
@@ -725,8 +711,8 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
         </Box>
       )}
 
-      {/* History + LoadingIndicator (T-070: replaces PipelineTrace for streaming) */}
-      <Box flexDirection="column" flexGrow={1}>
+      {/* History — Static renders into terminal scrollback */}
+      <Box flexDirection="column">
         <HistoryScroll messages={messages} />
         {isBusy && (
           <LoadingIndicator
@@ -738,19 +724,22 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
         )}
       </Box>
 
-      {/* Prompt + StatusBar */}
-      <Box
-        flexDirection="column"
-        borderStyle={getBorderStyle() as 'round'}
-        borderColor={T.border}
-        width={cols}
-      >
+      {/* Separator */}
+      <Box width={cols}>
+        <Text color={T.border}>{'─'.repeat(Math.max(0, cols - 2))}</Text>
+      </Box>
+      {/* Shortcuts hint above prompt */}
+      {!showHelp && !activeDialog && !snap.pendingPermission && (
+        <ShortcutsHelp cols={cols} alwaysShow />
+      )}
+      {/* Prompt input bordered box */}
+      <Box borderStyle="round" borderColor={T.border} width={cols}>
         <PromptInput
           onSubmit={handleSubmit}
           onAbort={handleAbort}
           onQueue={handleQueue}
           disabled={isBusy}
-          cols={cols}
+          cols={cols - 2}
           vimEnabled={vimEnabled}
           reverseSearchActive={reverseSearchActive}
           onReverseSearchExit={() => setReverseSearchActive(false)}
@@ -765,23 +754,6 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
           }
           bordered={false}
         />
-        <Box width={cols}>
-          <Text color={T.border}>{'─'.repeat(Math.max(0, cols - 2))}</Text>
-        </Box>
-        <StatusBar
-          cols={cols}
-          model={snap.model}
-          tokens={snap.tokens}
-          tokenLimit={snap.tokenLimit}
-          mode={snap.mode}
-          tier={snap.tier}
-          appMode={snap.appMode}
-          cost={snap.totalCostUsd > 0 ? snap.totalCostUsd.toFixed(4) : undefined}
-          branch={snap.branch}
-          cwd={snap.workspace}
-          fpsActive={fpsActive}
-          bordered={false}
-        />
       </Box>
 
       {/* T-095: Queued messages tray (shows when there are queued messages) */}
@@ -789,10 +761,7 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
         <QueuedMessagesTray messages={snap.queuedMessages} cols={cols} />
       )}
 
-      {/* T-070: Passive shortcuts help (only on splash screen, not during chat) */}
-      {showDesign && !isBusy && !showHelp && !activeDialog && !snap.pendingPermission && (
-        <ShortcutsHelp cols={cols} idleMs={2000} />
-      )}
+
     </Box>
   );
 }

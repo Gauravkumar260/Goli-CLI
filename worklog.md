@@ -721,3 +721,26 @@ R3 (no perf regression >3%): PASS — T-024 adds one new module that is NOT impo
 
 Overall: PASS — T-024 skin engine is correctly implemented. YAML schema (Skin interface + ColorMap with 10 tokens + parseSkinYaml) is in place. 3 built-in skins (default=Tokyo Night Dark, dark=warmer, high-contrast=WCAG AAA) all defined with valid 6-digit hex colors. GOLI_SKIN env var / --skin flag resolution works with env var precedence and graceful fallback. 34 tests pass covering all 5 criteria; full suite 1518/1518 green; typecheck + lint clean (I3 holds). R1/R2/R3 all hold (pure addition, no existing files modified, no perf impact). Documented follow-up: no TUI component currently consumes the skin via React context — the implementer explicitly notes this as follow-up work; criterion 4 is satisfied at the API-surface level per the verifier task definition.
 ```
+
+---
+Task ID: REFACTOR-SWEEP-1
+Agent: Main (Staff-level Code Refinement Engine)
+Task: Apply the per-file refinement loop (Phases 1-6) to selected files in goli-cli per the SYSTEM CONTRACT. Refine internal logic quality while preserving externally observable behavior. Tag pre-refactor SHA; one commit per file; flag behavior-changing items for human approval.
+
+Work Log:
+- Extracted goli-cli.zip to /home/z/my-project/refactor/goli-cli/. Verified TypeScript monorepo (npm workspaces: core, cli, evals). Read package.json, eslint.config.js, AGENTS.md for project context.
+- Installed dependencies (npm install, 502 packages). Confirmed build green (npm run build). Confirmed per-file test infra works (vitest run on single test file).
+- Initialized git repo, committed initial import, tagged pre-refactor SHA 0a7aa8c for rollback.
+- Ran per-file refinement loop on 5 files (json-repair.ts, retry.ts, loop-detector.ts, truncation.ts, stall-detector.ts). Each file: Phase 1 analysis → Phase 2 flaw detection (14-point checklist) → Phase 3 proposal (behavior-preserving applied, behavior-changing flagged) → Phase 4 verification (lint+build+tests+characterization) → Phase 5 self-critique → Phase 6 convergence.
+- Codebase-level sweep: repo-root build green; repo-root lint has 7 pre-existing errors in sandbox/ files (NOT touched by this sweep, confirmed via git diff --name-only); all 5 refined test suites pass together (83/83); 3 dependent-module test suites pass (68/68) confirming no cross-file regressions.
+
+Stage Summary:
+- 5 files refined, 5 commits made (6300089, e5d0536, 655a7e3, 2976da8, e5783bd).
+- 10 characterization tests added to lock current behavior of deferred flaws.
+- 4 boundary/edge-case tests added (truncation empty-string and at-cap).
+- 0 behavior-changing changes auto-applied (all flagged for human approval per HARD CONSTRAINT 1).
+- 2 documentation fixes applied (truncation doc/code contradiction; retry safeDelay rationale).
+- 1 constant extraction (TRUNCATION_MARKER).
+- 1 cross-file finding: stall-detector flaw 3 root cause is in utils/json-utils.ts sortObjectKeys (no cycle detection), not in stall-detector itself. Fix belongs in json-utils.ts.
+- Pre-refactor tag: 0a7aa8c. Rollback: `git reset --hard pre-refactor`.
+- 8 human-review tickets opened (see final summary table in deliverable).

@@ -8,6 +8,8 @@
  *
  */
 export { loadConfig } from './loader.js';
+export { MODE_PROMPTS, getPromptForMode } from './mode-prompts.js';
+export type { AppMode } from './mode-prompts.js';
 /**
  *
  */
