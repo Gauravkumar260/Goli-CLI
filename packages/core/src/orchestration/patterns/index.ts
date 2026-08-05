@@ -165,16 +165,36 @@ export class OrchestrationPatterns {
   /**
    * Handoff: sequential pipeline. Each subtask's output is the next
    * subtask's input. This is the 11-agent swarm pattern.
+   *
+   * The previous implementation called `this.runOne(subtask)`
+   * independently for each subtask, passing only the original
+   * `subtask.description`. The previous subtask's `output` was
+   * NEVER injected into the next subtask's prompt — the handoff
+   * pattern was functionally identical to a plain sequential
+   * loop. We now thread the previous result's `output` into the
+   * next subtask's `description` so the next agent sees what its
+   * upstream produced.
    * @param subtasks
    */
   private async handoff(subtasks: Subtask[]): Promise<OrchestrationResult['subtaskResults']> {
     const results: OrchestrationResult['subtaskResults'] = [];
+    let accumulatedOutput = '';
 
     for (const subtask of subtasks) {
-      const result = await this.runOne(subtask);
+      // Inject the previous subtask's output into this subtask's
+      // prompt so the next agent sees its upstream's work.
+      const enrichedSubtask: Subtask = accumulatedOutput
+        ? {
+            ...subtask,
+            description: `${subtask.description}\n\n--- Previous agent output ---\n${accumulatedOutput}`,
+          }
+        : subtask;
+      const result = await this.runOne(enrichedSubtask);
       results.push(result);
 
-      if (!result.ok) {
+      if (result.ok && result.output) {
+        accumulatedOutput = result.output;
+      } else if (!result.ok) {
         this.log?.warn('Handoff: subtask failed, continuing with remaining tasks', {
           subtaskId: subtask.id,
         });
@@ -201,8 +221,26 @@ export class OrchestrationPatterns {
       this.runOne(agent2!),
     ]);
 
-    // Supervisor arbitrates: pick the better result
-    const winner = result1.ok && !result2.ok ? result1 : result2.ok && !result1.ok ? result2 : result1;
+    // Supervisor arbitrates: pick the better result. The previous
+    // implementation always fell back to `result1` when both agents
+    // failed, masking the failure and reporting a winner with
+    // `ok: false`. The downstream `ok` computation still saw
+    // `false`, but the "winner" concept was misleading. We now
+    // explicitly mark the winner as failed when both agents failed,
+    // and pick whichever result has more output (or the first if
+    // equal) when both succeed.
+    let winner: typeof result1;
+    if (result1.ok && !result2.ok) {
+      winner = result1;
+    } else if (result2.ok && !result1.ok) {
+      winner = result2;
+    } else if (result1.ok && result2.ok) {
+      // Both succeeded — pick the longer output (more useful).
+      winner = (result1.output?.length ?? 0) >= (result2.output?.length ?? 0) ? result1 : result2;
+    } else {
+      // Both failed — pick result1 but mark explicitly as failed.
+      winner = { ...result1, output: `[Both debate agents failed — arbitrator picked result1 as a placeholder. agent1 error: ${result1.output ?? 'unknown'}, agent2 error: ${result2.output ?? 'unknown'}]` };
+    }
     const results = [winner];
 
     // Run remaining subtasks sequentially

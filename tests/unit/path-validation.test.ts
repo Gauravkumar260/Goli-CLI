@@ -84,11 +84,10 @@ describe('validatePath', () => {
 
   it('god mode still blocks /etc', () => {
     const result = validatePath('/etc/passwd', workspace, true);
-    // Even in god mode, /etc is blocked (defense in depth)
-    // Actually, god mode bypasses the workspace check but NOT the blocked paths
-    // Let's check the implementation — god mode returns early before blocked paths
-    // So this test depends on implementation order
-    expect(result.ok).toBe(true); // god mode bypasses blocked paths too
+    // Even in god mode, sensitive paths like /etc are blocked (defense
+    // in depth — god mode bypasses the workspace boundary but NOT the
+    // sensitive-paths check). The test name reflects the actual behavior.
+    expect(result.ok).toBe(false);
   });
 
   it('canonicalizes paths via realpath', () => {

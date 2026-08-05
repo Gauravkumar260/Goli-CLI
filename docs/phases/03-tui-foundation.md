@@ -1,6 +1,6 @@
 # Phase 3 — CLI Shell & TUI Foundation
 
-**Status:** Pending
+**Status:** Complete
 **Modules touched:** TUI (Ink + React port of reference design)
 **Compliance gates:** none new
 
@@ -12,6 +12,14 @@ prompt input, status bar, help panel, FPS overlay, and crash recovery —
 all driven by a `MockAgentLoop` for offline UI development. The real
 `CliAgentLoop` (Phase 2's `AgentLoop`) plugs in as the production
 backend.
+
+## Current Implementation Status
+
+Ink + React TUI shipped with 25+ components (SplashBox, HeaderBar, HistoryScroll, PromptInput, StatusBar, DiffReviewDialog, CommandPalette, etc.), 11 hooks (useAgentLoop, useFpsTracker, useFlickerDetector, useContextCounts, useMouseScroll, useKittyKeyboardProtocol, etc.), 25+ lib modules (keymap, vimMode, editor, fileCompletion, shellCompletion, markdown, code-highlight, mode-config, CommandRegistry, etc.), state store (AppStateStore + spinTicker), theme engine (20 built-in themes + skin-engine + tokens), crash recovery, DEC Synchronized Output, full vim mode, slash-command autocomplete, paste compaction. 35+ iterations of polish across Loop Runs 7-12.
+
+See the per-module sections in [docs/architecture.md](../architecture.md)
+for the current code locations and `AGENTS.md` for accumulated
+implementation patterns and gotchas.
 
 ## Definition of Done
 

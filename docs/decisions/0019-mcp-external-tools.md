@@ -12,6 +12,7 @@ connect the agent to external systems: GitHub, Postgres, Slack,
 browser automation, Jira, custom internal APIs.
 
 Building a proprietary integration protocol for each would be:
+
 1. **Wasteful** — every integration reinvents the wheel
 2. **Incompatible** — no ecosystem of pre-built integrations
 3. **Unmaintainable** — each integration is a separate codebase
@@ -51,12 +52,14 @@ across 30+ tools and makes it clear which server owns each tool.
 ## Consequences
 
 **Positive:**
+
 - Access to the entire MCP ecosystem (10,000+ servers).
 - Standard protocol — no vendor lock-in.
 - Users can build custom MCP servers for internal APIs.
 - Namespacing prevents tool collisions.
 
 **Negative:**
+
 - MCP v1.x has limitations (no stateless core, no formal OAuth).
   MCP v2 (2026-07-28) addresses these. We'll migrate in a later phase.
 - Each MCP server is a separate process — resource overhead.

@@ -15,9 +15,11 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { resolve, relative } from 'node:path';
+import { relative } from 'node:path';
 
 import { ToolExecutionError } from '../../utils/errors.js';
+
+import { resolveUserPath, checkPathInWorkspace } from './path-safety.js';
 
 import type { Tool, ToolResult, ToolContext } from '../types.js';
 
@@ -86,21 +88,23 @@ async function grepHandler(
   const caseInsensitive = (args['case_insensitive'] as boolean | undefined) ?? false;
   const maxResults = (args['max_results'] as number | undefined) ?? 100;
 
-  const resolvedPath = resolve(searchPath.startsWith('~')
-    ? resolve(process.env['HOME'] ?? '', searchPath.slice(1))
-    : searchPath.startsWith('/')
-      ? searchPath
-      : resolve(ctx.workspaceRoot, searchPath));
-
-  // Security: block reads outside workspace unless god mode
-  if (!ctx.godMode) {
-    const rel = relative(ctx.workspaceRoot, resolvedPath);
-    if (rel.startsWith('..')) {
-      throw new ToolExecutionError(
-        `Cannot search outside workspace: ${searchPath}`,
-        'grep',
-      );
-    }
+  // Security: resolve + check via the shared path-safety helper. The
+  // previous implementation did an inline `relative()` check on the
+  // UNRESOLVED path — `realpathSync` was never called, so an in-workspace
+  // symlink pointing to `/etc` (creatable via the bash `ln -s` bypass)
+  // was invisible to the check, and `grep({ pattern: 'root', path:
+  // '/workspace/evil' })` would search `/etc`, leaking `/etc/passwd`
+  // and `/etc/shadow` lines. This is the more dangerous of the two
+  // path-bypass issues (vs. list_directory) because `grep` returns
+  // matched CONTENT, not just filenames — a direct file-content
+  // disclosure channel.
+  const resolvedPath = resolveUserPath(searchPath, ctx.workspaceRoot);
+  const pathCheck = checkPathInWorkspace(resolvedPath, ctx.workspaceRoot, ctx.godMode ?? false);
+  if (!pathCheck.ok) {
+    throw new ToolExecutionError(
+      `Cannot search outside workspace: ${searchPath} (${pathCheck.reason})`,
+      'grep',
+    );
   }
 
   // Build the ripgrep command as an ARG ARRAY (not a shell string).
@@ -110,6 +114,14 @@ async function grepHandler(
   // interpreted by the shell, so a pattern like `foo$(rm -rf /)` would
   // execute. Using `execFileSync` with an arg array bypasses the shell
   // entirely.
+  //
+  // We use `--regexp` (not a positional arg) for the pattern so that
+  // patterns starting with `-` (e.g. `-foo`, `--foo`) aren't
+  // misparsed as flags. The previous implementation pushed `pattern`
+  // as a positional arg, which meant `rg ... --max-count 100 -foo`
+  // was interpreted as `rg ... --max-count 100 -foo` — ripgrep
+  // treated `-foo` as an unknown flag and errored.
+  // We use `--` to separate the path from any flag-like args.
   const rgArgs: string[] = [
     '--json',
     '--max-count', String(maxResults),
@@ -117,7 +129,8 @@ async function grepHandler(
   if (caseInsensitive) rgArgs.push('-i');
   if (glob) rgArgs.push('--glob', glob);
   if (type) rgArgs.push('--type', type);
-  rgArgs.push(pattern, resolvedPath);
+  rgArgs.push('--regexp', pattern);
+  rgArgs.push(resolvedPath);
 
   let stdout: string;
   try {

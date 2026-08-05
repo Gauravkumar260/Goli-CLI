@@ -1,7 +1,7 @@
 {
   "name": "@goli/core",
   "version": "0.2.0-phase2",
-  "description": "GOLI-CLI core — the 'Brain': agent loop, tools, safety, context, model providers. Powers the 11-agent swarm (Scout → Documenter pipeline).",
+  "description": "GOLI-CLI core — the 'Brain': agent loop, tools, safety, context, model providers. Powers the 8-agent swarm (Orchestrator → Data pipeline).",
   "type": "module",
   "license": "MIT",
   "author": "GOLI-CLI Contributors <contrib@goli-cli.dev>",

@@ -283,6 +283,15 @@ export class CredentialPool {
 
 /**
  * Extract HTTP status code from error.
+ *
+ * The previous implementation only checked `error.status` and
+ * `error.statusCode`. Many HTTP libraries (axios, fetch wrappers)
+ * nest the status under `error.response.status` or
+ * `error.cause.status`. Errors from these libraries would not be
+ * classified as 429/402, causing the credential pool to treat
+ * rate-limit errors as generic failures (no state transition to
+ * EXHAUSTED, no cooldown). We now also check `response.status`,
+ * `cause.status`, and `cause.statusCode`.
  * @param error
  */
 function extractStatus(error: unknown): number | undefined {
@@ -290,6 +299,21 @@ function extractStatus(error: unknown): number | undefined {
     const e = error as Record<string, unknown>;
     if (typeof e['status'] === 'number') return e['status'];
     if (typeof e['statusCode'] === 'number') return e['statusCode'];
+    // Axios-style: error.response.status.
+    const response = e['response'];
+    if (typeof response === 'object' && response !== null) {
+      const r = response as Record<string, unknown>;
+      if (typeof r['status'] === 'number') return r['status'];
+      if (typeof r['statusCode'] === 'number') return r['statusCode'];
+    }
+    // Error-cause-style: error.cause.status (used by Node's
+    // `new Error('msg', { cause: originalError })` and fetch).
+    const cause = e['cause'];
+    if (typeof cause === 'object' && cause !== null) {
+      const c = cause as Record<string, unknown>;
+      if (typeof c['status'] === 'number') return c['status'];
+      if (typeof c['statusCode'] === 'number') return c['statusCode'];
+    }
   }
   return undefined;
 }

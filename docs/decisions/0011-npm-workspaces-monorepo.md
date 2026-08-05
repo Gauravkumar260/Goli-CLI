@@ -10,13 +10,14 @@ Phase 1 used a single-package structure (`src/` at the repo root). The
 user's actual GOLI-CLI project uses an **npm workspaces monorepo** with
 three packages:
 
-| Package | Purpose |
-|---------|---------|
-| `@goli/core` | Agent loop, tools, safety, context, model providers |
-| `@goli/cli` | TUI entry, commands, Ink UI, sandbox Dockerfile |
-| `@goli/evals` | Evaluation harness, batch runners |
+| Package       | Purpose                                             |
+| ------------- | --------------------------------------------------- |
+| `@goli/core`  | Agent loop, tools, safety, context, model providers |
+| `@goli/cli`   | TUI entry, commands, Ink UI, sandbox Dockerfile     |
+| `@goli/evals` | Evaluation harness, batch runners                   |
 
 This separation is important because:
+
 1. **The core package can be embedded** in other applications (VS Code
    extension, web dashboard, CI runner) without pulling in the TUI.
 2. **The evals package has heavy dependencies** (SWE-bench, Promptfoo)
@@ -67,6 +68,7 @@ goli-cli/
 ## Consequences
 
 **Positive:**
+
 - Clean separation of concerns.
 - Core can be embedded in non-CLI contexts.
 - Evals dependencies don't bloat the CLI.
@@ -74,6 +76,7 @@ goli-cli/
 - Aligns with the user's actual project structure.
 
 **Negative:**
+
 - More boilerplate (3 `package.json`, 3 `tsconfig.json`).
 - Workspace setup requires `npm install` at the root (not per-package).
 - Cross-package refactoring needs to update both packages.

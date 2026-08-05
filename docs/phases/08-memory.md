@@ -1,6 +1,6 @@
 # Phase 8 — Memory System (Module 5, part 1)
 
-**Status:** Pending
+**Status:** Substantially Complete
 **Modules touched:** M5 (3-tier persistent memory)
 **Compliance gates:** none new
 
@@ -10,6 +10,14 @@ Build the three-tier persistent memory (session / persistent / external).
 `MEMORY.md` (~800 tokens), `USER.md` (~500 tokens), `PROJECT.md` per
 repo. Frozen-snapshot injection at session start (Hermes pattern).
 Memory curator agent at session end.
+
+## Current Implementation Status
+
+3-tier memory (session/ephemeral, persistent/files, external/vector-plugin) + JSONL session store with resume + branch (ADR-0040) + memory curator (classifies into MEMORY.md/USER.md/PROJECT.md) + trajectory store (JSONL + SQLite index) all shipped at packages/core/src/memory/. Frozen snapshot injection (ADR-0024) + hard character budgets (MEMORY=2200/USER=1375/PROJECT=2000 chars, ADR-0025) implemented. Search-store for session search also landed.
+
+See the per-module sections in [docs/architecture.md](../architecture.md)
+for the current code locations and `AGENTS.md` for accumulated
+implementation patterns and gotchas.
 
 ## Definition of Done
 

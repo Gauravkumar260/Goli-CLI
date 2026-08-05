@@ -50,29 +50,29 @@ but critical reports will be acknowledged in the release notes.
   (typically 90 days).
 - **Day 30–90**: Patch developed privately. CVE requested if appropriate.
 - **Embargo expiry**: Public release + advisory published in
-  `docs/security/advisories/`.
+  `docs/security/advisories/` (directory to be created at first incident).
 
 ---
 
 ## Threat Model (Summary)
 
-A full threat model lives in `docs/security/threat-model.md` (added in
-Phase 5, when the sandbox lands). The headline categories:
+The headline threat categories (full per-threat analysis lands with the
+Phase 5 sandbox hardening):
 
-| Threat                           | Primary control                               | Module |
-| -------------------------------- | --------------------------------------------- | ------ |
-| Prompt injection (OWASP LLM01)   | Input/output separation + PreToolUse hooks    | M3     |
-| Sandbox escape (path traversal)  | `O_NOFOLLOW` + `realpath()` + kernel boundary | M4     |
-| Sandbox escape (syscall)         | seccomp + Landlock / Seatbelt                 | M4     |
-| Network exfiltration (SSH keys)  | SOCKS5 egress filter + domain allowlist       | M4     |
-| Fork bomb / resource exhaustion  | cgroups v2 (`pids.max`, `memory.max`)         | M4     |
-| Tool-call JSON malformation      | Strict JSON Schema validation + repair        | M3     |
-| Runaway loop / cost exhaustion   | 4-condition stop engine + budget caps         | M1     |
-| Memory poisoning (RSI)           | Immutable safety registry + LLM overseer      | M5     |
-| Benchmark overfitting (RSI)      | Held-out eval set + overfit detector          | M5, M6 |
-| Provider ToS violation           | Hard-blocked provider list in routing         | M7     |
-| Supply-chain (GPL/AGPL, malware) | SBOM gate + Trivy + npm audit in CI           | CI     |
-| Data egress (GDPR)               | Self-hosted Langfuse + redaction layer        | M6     |
+| Threat                           | Primary control                                                   | Module |
+| -------------------------------- | ----------------------------------------------------------------- | ------ |
+| Prompt injection (OWASP LLM01)   | Input/output separation + PreToolUse hooks + provenance tracker   | M3     |
+| Sandbox escape (path traversal)  | `O_NOFOLLOW` + `realpath()` + kernel boundary + Landlock/seatbelt | M4     |
+| Sandbox escape (syscall)         | seccomp + Landlock (Linux) / Seatbelt (macOS)                     | M4     |
+| Network exfiltration (SSH keys)  | Network egress filter + domain allowlist + `block_secrets` hook   | M4     |
+| Fork bomb / resource exhaustion  | cgroups v2 (`pids.max`, `memory.max`, `cpuQuotaPercent`)          | M4     |
+| Tool-call JSON malformation      | Strict JSON Schema validation + `repairJson` (ADR-0010)           | M3     |
+| Runaway loop / cost exhaustion   | 4-condition stop engine + budget caps + stall detector            | M1     |
+| Memory poisoning (RSI)           | Immutable safety registry + LLM safety overseer with veto         | M5     |
+| Benchmark overfitting (RSI)      | Held-out eval set + overfit detector + rate limiter               | M5, M6 |
+| Provider ToS violation           | `BLOCKED_PROVIDERS` list in routing classifier (ADR-0034)         | M7     |
+| Supply-chain (GPL/AGPL, malware) | SBOM gate (Syft + Trivy + npm audit) in CI                        | CI     |
+| Data egress (GDPR)               | Self-hosted Langfuse + audit-log redaction + provider opt-in      | M6     |
 
 ---
 
@@ -82,14 +82,14 @@ Changes to the following directories require **two human reviewers** and
 a red-team test pass. CI will block merges that touch these paths
 without the `security-reviewed` label.
 
-- `src/sandbox/` — OS-native sandbox implementation
-- `src/approval/` — tiered approval policy engine
-- `src/tools/hooks/builtin/` — `block_destructive`, `block_secrets`, etc.
-- `src/sica/` — recursive self-improvement loop
-- `src/evals/redteam/` — red-team harness
-- `src/orchestration/routing/` — provider blocklist enforcement
-- `config/sandbox.toml` — sandbox profiles
-- `config/routing.toml` — provider allowlist/blocklist
+- `packages/core/src/sandbox/` — OS-native sandbox implementation (cgroups, landlock, bubblewrap, seatbelt, network, path-validation, audit-log, executor)
+- `packages/core/src/approval/` — tiered approval policy engine + blast-radius guard + enhanced approval
+- `packages/core/src/tools/hooks/builtin/` — `block_destructive`, `block_secrets`, `block_writes_outside_workspace`, `auto_format`, `git_checkpoint`, `audit_log`
+- `packages/core/src/memory/sica/` — recursive self-improvement loop (immutable-registry, overseer, overfit-detector, archive, rate-limiter, loop)
+- `packages/core/src/evals/redteam/` — red-team harness (promptfoo config generation + evaluation)
+- `packages/core/src/orchestration/routing/` — provider blocklist enforcement (`BLOCKED_PROVIDERS`)
+- `config/default.toml` — sandbox profile defaults + network egress allowlist
+- `infra/litellm/config.yaml` — LiteLLM router config (provider allowlist/blocklist)
 
 ---
 
@@ -105,7 +105,7 @@ If a vulnerability is exploited in production:
 3. **Notify**: follow the GDPR Art. 33 breach-notification workflow
    (72-hour window) if personal data was involved.
 4. **Postmortem**: a public incident report in `docs/security/incidents/`
-   within 14 days.
+   (directory to be created at first incident) within 14 days.
 
 ---
 
@@ -115,14 +115,16 @@ GOLI-CLI is designed to satisfy the compliance gates laid out in the
 roadmap (`docs/source-roadmap/enterprise-ai-coding-agent-roadmap.md`).
 The gates are:
 
-| Gate | Phase | Status                                     |
-| ---- | ----- | ------------------------------------------ |
-| 1    | P1    | MIT license + attribution in repo root     |
-| 2    | P1    | SBOM clean, zero GPL/AGPL in CI            |
-| 3    | P7    | Self-hosted GLM-5.2 (post-prototype)       |
-| 4    | P12   | Authorship ledger live                     |
-| 5    | P11+  | Liability shield (ToS + insurance + audit) |
+| Gate | Phase | Status                                        |
+| ---- | ----- | --------------------------------------------- |
+| 1    | P1    | MIT license + attribution in repo root ✅     |
+| 2    | P1    | SBOM clean, zero GPL/AGPL in CI ✅            |
+| 3    | P7    | Self-hosted open-weight path documented ⏳    |
+| 4    | P12   | Authorship ledger live ⏳                     |
+| 5    | P11+  | Liability shield (ToS + insurance + audit) ⏳ |
 
 Gates 1 and 2 are in force from Phase 1 onward. Gate 3 lands when the
-self-hosted vLLM endpoint replaces the prototype Z.ai/OpenAI-compatible
-endpoint. Gates 4 and 5 are runtime/process gates that land later.
+self-hosted vLLM endpoint serves open-weight models (e.g. `gpt-oss:120b`,
+DeepSeek V4, Qwen3-Coder, Kimi K2.7-Code). Gates 4 and 5 are
+runtime/process gates that land later. See `legal/TERMS_OF_SERVICE.md`
+and `legal/PRIVACY_POLICY.md` for the liability shield + privacy posture.

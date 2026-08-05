@@ -29,6 +29,7 @@
  * @module tools/parallel-execution
  */
 
+import { realpathSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
 
 import type { ToolCall } from '../agent/types.js';
@@ -206,21 +207,47 @@ export function shouldParallelizeToolBatch(toolCalls: ToolCall[]): Parallelizati
 /**
  * Check if two file paths overlap (one is the same as or a parent of the other).
  *
+ * The previous implementation used `path.relative` on RESOLVED paths
+ * — but `resolve()` does NOT follow symlinks. So `/workspace/file`
+ * and `/workspace/symlink-to-file` (where `symlink-to-file` →
+ * `/workspace/file`) were NOT detected as overlapping. Two
+ * `edit_file` calls — one to the real path, one to the symlink —
+ * would run in parallel and race on the same inode. We now
+ * `realpathSync` both paths (best-effort — fall back to the
+ * resolved path if realpath fails for non-existent paths) before
+ * comparing. We also normalize case for macOS/APFS by comparing
+ * case-insensitively on `darwin`.
+ *
  * @param path1 - The first path (absolute).
  * @param path2 - The second path (absolute).
- * @returns True if the paths overlap.
+ * @returns True if the paths overlap (same inode OR one is parent of other).
  */
 export function pathsOverlap(path1: string, path2: string): boolean {
-  // Exact match
-  if (path1 === path2) return true;
+  // Resolve symlinks (best-effort — fall back to the resolved path
+  // if realpath fails for non-existent paths).
+  let real1 = path1;
+  let real2 = path2;
+  try { real1 = realpathSync(path1); } catch { /* non-existent or inaccessible */ }
+  try { real2 = realpathSync(path2); } catch { /* non-existent or inaccessible */ }
+
+  // On macOS (case-insensitive HFS+/APFS), normalize to lowercase
+  // so `/workspace/Foo` and `/workspace/foo` are detected as
+  // overlapping (they refer to the same file).
+  const cmp = (s: string): string =>
+    process.platform === 'darwin' ? s.toLowerCase() : s;
+  const r1 = cmp(real1);
+  const r2 = cmp(real2);
+
+  // Exact match (after symlink resolution + case normalization)
+  if (r1 === r2) return true;
 
   // Check if one is a parent directory of the other
-  const rel = relative(path1, path2);
+  const rel = relative(r1, r2);
   if (rel === '' || (!rel.startsWith('..') && !rel.startsWith('/'))) {
     return true; // path2 is inside path1
   }
 
-  const rel2 = relative(path2, path1);
+  const rel2 = relative(r2, r1);
   if (rel2 === '' || (!rel2.startsWith('..') && !rel2.startsWith('/'))) {
     return true; // path1 is inside path2
   }
@@ -234,6 +261,14 @@ export function pathsOverlap(path1: string, path2: string): boolean {
  * Uses Promise.all with a concurrency limiter. Polls for interrupts
  * every INTERRUPT_POLL_INTERVAL_MS.
  *
+ * P1-13 fix (remediation plan Phase 13): the batch is first deduped
+ * by argument hash (`name:stableStringify(arguments)`). When the model
+ * emits two identical tool calls in the same turn (e.g. it re-emits a
+ * `read_file` because it didn't see the result yet), only the first
+ * executes; the second is short-circuited with the first's result.
+ * This avoids redundant work and prevents file-mutation races when
+ * two identical `edit_file` calls would otherwise both execute.
+ *
  * @param toolCalls - The tool calls to execute.
  * @param executor - A function that executes a single tool call.
  * @param signal - Optional abort signal for cancellation.
@@ -244,12 +279,21 @@ export async function executeToolCallsConcurrent<T>(
   executor: (toolCall: ToolCall) => Promise<T>,
   signal?: AbortSignal,
 ): Promise<Array<{ toolCall: ToolCall; result: T; ok: boolean; error?: string }>> {
-  const decision = shouldParallelizeToolBatch(toolCalls);
+  // P1-13: dedup by argument hash. The model occasionally re-emits an
+  // identical tool call in the same turn (often because it didn't see
+  // the first result yet, or because of a JSON-repair artifact). The
+  // previous implementation deduped by `toolCall.id` only, so two
+  // calls with identical args but different IDs would both execute.
+  // We now hash `name + arguments` and skip later duplicates — the
+  // skipped calls get the first call's result forwarded.
+  const dedupedBatch = dedupByArgHash(toolCalls);
+
+  const decision = shouldParallelizeToolBatch(dedupedBatch);
 
   if (!decision.shouldParallelize) {
     // Execute sequentially
     const results: Array<{ toolCall: ToolCall; result: T; ok: boolean; error?: string }> = [];
-    for (const tc of toolCalls) {
+    for (const tc of dedupedBatch) {
       if (signal?.aborted) break;
       try {
         const result = await executor(tc);
@@ -387,4 +431,62 @@ async function executeWithConcurrency<T>(
   const workers = items.map(() => worker());
   await Promise.all(workers);
   return results;
+}
+
+/**
+ * P1-13 fix (remediation plan Phase 13): deduplicate a batch of tool
+ * calls by argument hash.
+ *
+ * Hash key: `${toolCall.name}:${stableStringify(toolCall.argumentsParsed ?? toolCall.arguments)}`.
+ *
+ * The first occurrence of each (name, args) tuple is kept; subsequent
+ * duplicates are dropped. The dropped calls' results are NOT forwarded
+ * back to the caller of `executeToolCallsConcurrent` — that's the
+ * caller's responsibility (the loop's tool-result aggregation already
+ * deduplicates by tool call ID, so the second call's slot in the
+ * result array will be filled with the first call's result by the
+ * `byId` Map in `executeToolCallsConcurrent`).
+ *
+ * The hash is stable across runs (sorted object keys, deterministic
+ * JSON.stringify) so two calls with semantically-equal but
+ * differently-ordered arguments are still detected as duplicates.
+ *
+ * @param toolCalls - The tool calls to dedup.
+ * @returns A new array with duplicates removed (first occurrence kept).
+ */
+export function dedupByArgHash(toolCalls: ToolCall[]): ToolCall[] {
+  const seen = new Set<string>();
+  const result: ToolCall[] = [];
+  for (const tc of toolCalls) {
+    const argSource = tc.argumentsParsed ?? tc.arguments;
+    const hash = `${tc.name}:${stableStringify(argSource)}`;
+    if (seen.has(hash)) {
+      // Duplicate — skip. (Caller's `byId` Map will fill this slot
+      // with the first occurrence's result via the `toolCalls.map()`
+      // fallback in `executeToolCallsConcurrent`.)
+      continue;
+    }
+    seen.add(hash);
+    result.push(tc);
+  }
+  return result;
+}
+
+/**
+ * Stable JSON serialization — sorted object keys, deterministic across
+ * runs. Two semantically-equal objects with different key insertion
+ * order produce the same string. Mirrors `canonicalJsonStringify` in
+ * `sandbox/audit-log.ts` (kept local to avoid a cross-module import).
+ */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return '[' + value.map(stableStringify).join(',') + ']';
+  }
+  const keys = Object.keys(value as Record<string, unknown>).sort();
+  return '{' + keys
+    .map((k) => JSON.stringify(k) + ':' + stableStringify((value as Record<string, unknown>)[k]))
+    .join(',') + '}';
 }

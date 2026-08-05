@@ -44,11 +44,25 @@ interface Props {
 }
 
 /**
- * Check if a tool name is an MCP tool (starts with 'mcp-' or contains '_').
- * MCP tools get the progress indicator when running.
+ * Check if a tool name is an MCP tool.
+ *
+ * P0-3 fix: Previously also matched any name containing `_` (which
+ * false-positive-matched built-ins like `edit_file`, `read_file`,
+ * `write_file`, `read_many_files`). Those built-ins routinely carry a
+ * `meta` such as `"12 lines"` or `"+5 -2"`, and the progress-bar
+ * renderer used `parseFloat(meta)` as the progress ratio, then called
+ * `'░'.repeat(16 - 192)` → `RangeError: Invalid count value`. The TUI
+ * crashed mid-conversation whenever such a tool was in `running` state.
+ *
+ * Restricting the match to the `mcp-` prefix is sufficient — MCP
+ * servers expose tools through the namespaced `mcp-<server>_<tool>`
+ * shape, and the prefix is the canonical signal used elsewhere in the
+ * codebase. If a future caller wants progress bars for non-MCP tools,
+ * they should set an explicit `progress`/`total` field on the tool
+ * call rather than re-using `meta`.
  */
 function isMcpTool(name: string): boolean {
-  return name.startsWith('mcp-') || name.includes('_');
+  return name.startsWith('mcp-');
 }
 
 /**
@@ -64,9 +78,17 @@ function McpProgressIndicator({ progress, total, message }: {
   message?: string;
 }): React.ReactElement {
   const barWidth = 16;
-  const ratio = total !== undefined && total > 0 ? Math.min(progress / total, 1) : progress;
-  const filled = Math.round(ratio * barWidth);
-  const empty = barWidth - filled;
+  // P0-3 fix: Clamp both ends so a bogus `progress` value (e.g. parsed
+  // from a human-readable `meta` string) cannot produce a negative
+  // `empty` count and crash `String.prototype.repeat` with
+  // `RangeError: Invalid count value`.
+  const safeProgress = Number.isFinite(progress) ? progress : 0;
+  const safeTotal = Number.isFinite(total as number) ? total : undefined;
+  const ratio = safeTotal !== undefined && safeTotal > 0
+    ? Math.min(Math.max(safeProgress / safeTotal, 0), 1)
+    : Math.min(Math.max(safeProgress, 0), 1);
+  const filled = Math.max(0, Math.min(barWidth, Math.round(ratio * barWidth)));
+  const empty = Math.max(0, barWidth - filled);
   const pct = Math.round(ratio * 100);
 
   return (
@@ -201,6 +223,31 @@ export function ToolMessage({
           output={`Error: ${toolCall.error}`}
           availableTerminalHeight={availableTerminalHeight}
         />
+      )}
+
+      {/* P1-9 fix (remediation plan Phase 9): provenance footer.
+          Renders the source category (tool/mcp/subagent/hook) and,
+          when available, the turn number and timestamp. Hidden when
+          `source` is undefined (older @goli/core or untagged results)
+          so the layout is unchanged for callers that don't bridge
+          provenance. */}
+      {toolCall.source && (
+        <Box paddingLeft={1}>
+          <Text color={T.gray} dimColor>
+            {' '}· src:{' '}
+          </Text>
+          <Text color={T.gray} dimColor>{toolCall.source}</Text>
+          {toolCall.turn !== undefined && (
+            <>
+              <Text color={T.gray} dimColor> · turn {toolCall.turn}</Text>
+            </>
+          )}
+          {toolCall.timestamp !== undefined && (
+            <>
+              <Text color={T.gray} dimColor> · {new Date(toolCall.timestamp).toLocaleTimeString()}</Text>
+            </>
+          )}
+        </Box>
       )}
     </Box>
   );

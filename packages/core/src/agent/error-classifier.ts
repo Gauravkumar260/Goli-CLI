@@ -95,7 +95,22 @@ export function classifyApiError(
   const lowerMessage = message.toLowerCase();
 
   // ─── Auth errors ─────────────────────────────────────────────
-  if (statusCode === 401 || lowerMessage.includes('unauthorized') || lowerMessage.includes('invalid api key') || lowerMessage.includes('api key')) {
+  // The previous implementation included a bare
+  // `lowerMessage.includes('api key')` which matched ANY error
+  // mentioning "api key", including "api key not required for
+  // this endpoint" or "api key header missing (ignored)". Those
+  // would be misclassified as auth errors, triggering credential
+  // rotation unnecessarily. We now require either status 401 or
+  // a more specific phrase (`unauthorized`, `invalid api key`,
+  // `api key invalid`, `api key expired`).
+  if (
+    statusCode === 401 ||
+    lowerMessage.includes('unauthorized') ||
+    lowerMessage.includes('invalid api key') ||
+    lowerMessage.includes('api key invalid') ||
+    lowerMessage.includes('api key expired') ||
+    lowerMessage.includes('api key revoked')
+  ) {
     // Check for permanent auth failure
     const permanentReasons = [
       'token_invalidated', 'token_revoked', 'invalid_token', 'invalid_grant',
@@ -127,20 +142,11 @@ export function classifyApiError(
     );
   }
 
-  // ─── Billing errors ──────────────────────────────────────────
-  if (statusCode === 402 || lowerMessage.includes('billing') || lowerMessage.includes('payment') || lowerMessage.includes('quota') || lowerMessage.includes('insufficient')) {
-    return makeClassified(
-      'billing', statusCode, provider, model, message,
-      {
-        shouldRetry: false,
-        shouldRotateCredential: true,
-        isTerminal: false,
-        suggestedRetryDelayMs: 0,
-      },
-    );
-  }
-
-  // ─── Rate limit ──────────────────────────────────────────────
+  // ─── Rate limit — checked BEFORE billing so 'rate limit quota
+  // exceeded' is classified as rate_limit (shouldRetry: true), not
+  // billing (shouldRetry: false). The previous implementation
+  // had billing first, so 'quota' in a rate-limit message
+  // misclassified it as billing and prevented retries.
   if (statusCode === 429 || lowerMessage.includes('rate limit') || lowerMessage.includes('too many requests')) {
     return makeClassified(
       'rate_limit', statusCode, provider, model, message,
@@ -149,6 +155,19 @@ export function classifyApiError(
         shouldRotateCredential: false,
         isTerminal: false,
         suggestedRetryDelayMs: 5000,
+      },
+    );
+  }
+
+  // ─── Billing errors ──────────────────────────────────────────
+  if (statusCode === 402 || lowerMessage.includes('billing') || lowerMessage.includes('payment') || lowerMessage.includes('insufficient quota') || lowerMessage.includes('plan limit')) {
+    return makeClassified(
+      'billing', statusCode, provider, model, message,
+      {
+        shouldRetry: false,
+        shouldRotateCredential: true,
+        isTerminal: false,
+        suggestedRetryDelayMs: 0,
       },
     );
   }
@@ -221,7 +240,13 @@ export function classifyApiError(
   }
 
   // ─── Image too large ─────────────────────────────────────────
-  if (lowerMessage.includes('image') && (lowerMessage.includes('too large') || lowerMessage.includes('size'))) {
+  // The previous implementation used
+  // `lowerMessage.includes('image') && (lowerMessage.includes('too large') || lowerMessage.includes('size'))`
+  // which matched ANY error mentioning "image" and "size",
+  // including "image of size 100x100 uploaded successfully" or
+  // "database image size limit". We now require both "image"
+  // AND "too large" (or "exceeds").
+  if (lowerMessage.includes('image') && (lowerMessage.includes('too large') || lowerMessage.includes('exceeds'))) {
     return makeClassified(
       'image_too_large', statusCode, provider, model, message,
       {

@@ -14,17 +14,30 @@
  *    I should use read_file first to get more surrounding context
  *    and provide a longer, unique old_string."
  *
- * The reflection is injected into the next prompt-builder cycle so
- * the model adapts its strategy.
+ * The reflection is injected into the next system-prompt assembly cycle
+ * so the model adapts its strategy.
  *
- * ## Integration with the agent loop
+ * ## Integration with the agent loop (P2-18 — wired)
  *
- * The loop calls `reflexionEngine.reflect()` after a structural error
- * (as classified by error-classifier.ts). The engine:
+ * `AgentLoop` instantiates a `ReflexionEngine` in its constructor (or
+ * accepts a caller-provided one via `AgentLoopOptions.reflexionEngine`).
+ * After each tool-call failure, `AgentLoop.executeToolCall()` calls
+ * `reflexionEngine.reflect()` with the error, the failed `ToolCall`,
+ * the structured `ClassifiedError` (from `error-classifier.ts`), and
+ * the recent conversation messages. The engine:
  *   1. Constructs a reflection prompt with the error and recent context.
  *   2. Calls the LLM (with `effort: 'high'` — reflection doesn't need max).
+ *      When no LLM client is configured, falls back to a heuristic
+ *      reflection that maps the error category to a pre-written strategy.
  *   3. Stores the reflection in the episodic memory buffer.
- *   4. Returns the reflection text for injection into the next turn.
+ *   4. Returns the reflection (the loop ignores the return value — the
+ *      side-effect of storing it in the engine is what matters).
+ *
+ * On the next iteration, `AgentLoop.run()` calls
+ * `reflexionEngine.formatForPrompt()` and passes the resulting string
+ * to the system-prompt assembler as `ctx.reflections`. The assembler
+ * renders it as a "Recent Reflections (lessons from failures)" fragment
+ * so the model adapts its strategy on subsequent turns.
  *
  * @module agent/reflexion
  */

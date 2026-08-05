@@ -147,11 +147,14 @@ export class DynamicToolManager {
    * @param name
    */
   delete(name: string): boolean {
-    if (!this.tools.has(name)) return false;
+    const entry = this.tools.get(name);
+    if (!entry) return false;
+    // Capture the language BEFORE deleting so we unlink the correct script file.
+    const ext = this.getExtension(entry.language);
     this.tools.delete(name);
     try {
       unlinkSync(join(this.toolsDir, `${name}.json`));
-      unlinkSync(join(this.toolsDir, `${name}.${this.getExtension(this.tools.get(name)?.language ?? 'bash')}`));
+      unlinkSync(join(this.toolsDir, `${name}.${ext}`));
     } catch {
       // Best-effort.
     }
@@ -159,6 +162,32 @@ export class DynamicToolManager {
   }
 
   // ─── Internal helpers ──────────────────────────────────────────
+
+  /**
+   * Validate a parsed DynamicToolDef shape. Files on disk are untrusted
+   * input — runtime validation is required to prevent tampered manifests
+   * from crashing the executor or enabling path-traversal via a corrupt
+   * `name` field.
+   */
+  private validateToolDef(def: unknown): def is DynamicToolDef {
+    if (typeof def !== 'object' || def === null) return false;
+    const d = def as Record<string, unknown>;
+    if (typeof d['name'] !== 'string' || !/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(d['name'])) return false;
+    if (typeof d['description'] !== 'string') return false;
+    if (d['language'] !== 'python' && d['language'] !== 'bash' && d['language'] !== 'node') return false;
+    if (typeof d['code'] !== 'string') return false;
+    if (!Array.isArray(d['args'])) return false;
+    for (const arg of d['args']) {
+      if (typeof arg !== 'object' || arg === null) return false;
+      const a = arg as Record<string, unknown>;
+      if (typeof a['name'] !== 'string' || !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(a['name'])) return false;
+      if (a['type'] !== 'string' && a['type'] !== 'number' && a['type'] !== 'boolean') return false;
+      if (typeof a['description'] !== 'string') return false;
+      if (typeof a['required'] !== 'boolean') return false;
+    }
+    if (typeof d['createdAt'] !== 'string') return false;
+    return true;
+  }
 
   /**
    * Load existing dynamic tools from disk (on startup).
@@ -170,10 +199,18 @@ export class DynamicToolManager {
       for (const file of files) {
         try {
           const raw = readFileSync(join(this.toolsDir, file), 'utf-8');
-          const def = JSON.parse(raw) as DynamicToolDef;
-          this.tools.set(def.name, def);
-        } catch {
+          const parsed = JSON.parse(raw);
+          if (!this.validateToolDef(parsed)) {
+            this.log?.warn('Skipping malformed dynamic tool manifest', { file });
+            continue;
+          }
+          this.tools.set(parsed.name, parsed);
+        } catch (err) {
           // Skip malformed files.
+          this.log?.warn('Failed to load dynamic tool manifest', {
+            file,
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       }
       this.log?.debug('Loaded dynamic tools', { count: this.tools.size });
@@ -183,16 +220,34 @@ export class DynamicToolManager {
   }
 
   /**
+   * Validate a tool name and reject anything that could traverse the
+   * filesystem. Tool names are persisted to `<toolsDir>/<name>.<ext>`, so
+   * an unsanitized name like `../../../../etc/cron.d/evil` would let the
+   * LLM write outside `toolsDir`. The schema says "kebab-case" but
+   * schema-validator only checks `type: 'string'` — we enforce the
+   * pattern at the boundary as defense-in-depth.
+   */
+  private sanitizeToolName(name: string): string {
+    if (!/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(name)) {
+      throw new Error(
+        `Invalid tool name: ${name} (must be kebab-case, 1-63 chars, [a-z0-9-])`,
+      );
+    }
+    return name;
+  }
+
+  /**
    * Persist a tool definition to disk.
    * @param def
    */
   private persistTool(def: DynamicToolDef): void {
+    const safeName = this.sanitizeToolName(def.name);
     mkdirSync(this.toolsDir, { recursive: true });
     // Save the definition as JSON.
-    writeFileSync(join(this.toolsDir, `${def.name}.json`), JSON.stringify(def, null, 2), 'utf-8');
+    writeFileSync(join(this.toolsDir, `${safeName}.json`), JSON.stringify(def, null, 2), 'utf-8');
     // Save the script.
     const ext = this.getExtension(def.language);
-    writeFileSync(join(this.toolsDir, `${def.name}.${ext}`), def.code, 'utf-8');
+    writeFileSync(join(this.toolsDir, `${safeName}.${ext}`), def.code, 'utf-8');
   }
 
   /**
@@ -253,7 +308,11 @@ export class DynamicToolManager {
 
     try {
       // Build command args from the tool arguments.
-      const cmdArgs: string[] = [];
+      // Use `--` to mark end-of-options so scripts using argparse-style
+      // parsers cannot re-interpret user values as flags. Argument names
+      // are validated by validateToolDef to match ^[a-zA-Z][a-zA-Z0-9_]*$,
+      // preventing `--`-option injection via arg name.
+      const cmdArgs: string[] = ['--'];
       for (const arg of def.args) {
         const val = args[arg.name];
         if (val !== undefined) {
@@ -277,6 +336,8 @@ export class DynamicToolManager {
           binary = 'bash';
           execArgs = [scriptPath, ...cmdArgs];
           break;
+        default:
+          throw new Error(`Unsupported language: ${def.language as string}`);
       }
 
       const stdout = execFileSync(binary, execArgs, {
@@ -366,16 +427,26 @@ export const SAVE_TOOL_TOOL: Tool = {
     required: ['name', 'description', 'language', 'code'],
     additionalProperties: false,
   },
-  handler: async (args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> => {
+  handler: async (_args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> => {
     // This is a stub handler — the real registration happens in the
     // agent loop, which has access to the DynamicToolManager instance.
     // The loop intercepts save_tool calls and delegates to the manager.
+    // If the host did not wire up the interception, we MUST fail loudly
+    // rather than silently reporting success — silent success is a
+    // footgun that confuses the agent into thinking the tool was saved.
     return {
       toolCallId: ctx.toolCallId,
-      ok: true,
-      content: `Tool "${args['name']}" saved. It will be available for future calls.`,
+      ok: false,
+      content: '',
+      error:
+        'save_tool not configured: DynamicToolManager was not registered with the agent loop. ' +
+        'The host must intercept save_tool calls and delegate to DynamicToolManager.createTool().',
     };
   },
-  tier: 'T0',
-  readOnly: true,
+  // Persisting executable code is a high-privilege operation. Auto-approval
+  // at T0 with readOnly=true would let the LLM escalate from a no-confirm
+  // tool to arbitrary code execution (via later dynamic-tool dispatch).
+  // T3 (destructive/code-execution) + readOnly=false forces user review.
+  tier: 'T3',
+  readOnly: false,
 };

@@ -123,6 +123,11 @@ export const BUILTIN_SKIN_NAMES = [
   'xcode-light',
   'github-dark-colorblind',
   'github-light-colorblind',
+  // Hermes-inspired additions (matching the web Studio theme registry)
+  'hermes-gold',
+  'ares-crimson',
+  'slate-cool',
+  'daylight',
 ] as const;
 
 /** A built-in skin name. */
@@ -636,6 +641,102 @@ export const GITHUB_LIGHT_COLORBLIND_SKIN: Skin = {
 };
 
 /**
+ * Hermes Gold — classic gold/kawaii skin inspired by Hermes Agent.
+ * Warm parchment background with goldenrod accents.
+ */
+export const HERMES_GOLD_SKIN: Skin = {
+  name: 'hermes-gold',
+  description: 'Hermes Gold — classic gold/kawaii with warm parchment and goldenrod accents.',
+  colors: {
+    fg: '#f5e6c8',
+    blue: '#daa520',
+    green: '#b8860b',
+    red: '#a32d2a',
+    yellow: '#ffd700',
+    purple: '#cd7f32',
+    teal: '#6b8e23',
+    gray: '#a08960',
+    border: '#5c4530',
+    orange: '#eb6c32',
+  },
+  borderStyle: 'round',
+  promptStyle: '⚔',
+  builtin: true,
+};
+
+/**
+ * Ares Crimson — crimson/bronze war-god skin.
+ * Bold warm reds on dark background.
+ */
+export const ARES_CRIMSON_SKIN: Skin = {
+  name: 'ares-crimson',
+  description: 'Ares Crimson — crimson/bronze war-god with bold warm reds.',
+  colors: {
+    fg: '#f5d6cf',
+    blue: '#c8451f',
+    green: '#a3261f',
+    red: '#ff4d4d',
+    yellow: '#eb6c32',
+    purple: '#a3261f',
+    teal: '#ff8c5a',
+    gray: '#a06a5c',
+    border: '#5c2e22',
+    orange: '#ffd700',
+  },
+  borderStyle: 'bold',
+  promptStyle: '⚔',
+  builtin: true,
+};
+
+/**
+ * Slate Cool — sky-on-snow light, deep ocean dark.
+ * Cool blue palette inspired by Hermes Slate skin.
+ */
+export const SLATE_COOL_SKIN: Skin = {
+  name: 'slate-cool',
+  description: 'Slate Cool — cool blue palette with sky-on-snow feel.',
+  colors: {
+    fg: '#e2e8f0',
+    blue: '#38bdf8',
+    green: '#22d3ee',
+    red: '#f87171',
+    yellow: '#fbbf24',
+    purple: '#a78bfa',
+    teal: '#7dd3fc',
+    gray: '#64748b',
+    border: '#334155',
+    orange: '#fb923c',
+  },
+  borderStyle: 'single',
+  promptStyle: '❯',
+  builtin: true,
+};
+
+/**
+ * Daylight — high-contrast print-friendly light theme.
+ * Pure black on white with bold accents.
+ */
+export const DAYLIGHT_SKIN: Skin = {
+  name: 'daylight',
+  description: 'Daylight — high-contrast print-friendly light theme.',
+  colors: {
+    fg: '#000000',
+    blue: '#0066cc',
+    green: '#009966',
+    red: '#cc0000',
+    yellow: '#cc6600',
+    purple: '#9933cc',
+    teal: '#009999',
+    gray: '#555555',
+    border: '#999999',
+    orange: '#cc0066',
+  },
+  borderStyle: 'single',
+  promptStyle: '$',
+  builtin: true,
+};
+
+/**
  * T-055: NoColorSkin — a fully-decolorized skin for `NO_COLOR` users.
  *
  * Reference: gemini-cli's `NoColorTheme` returns blank colors for every
@@ -699,6 +800,11 @@ export const BUILTIN_SKINS: Record<BuiltinSkinName, Skin> = {
   'xcode-light': XCODE_LIGHT_SKIN,
   'github-dark-colorblind': GITHUB_DARK_COLORBLIND_SKIN,
   'github-light-colorblind': GITHUB_LIGHT_COLORBLIND_SKIN,
+  // Hermes-inspired additions (matching the web Studio theme registry)
+  'hermes-gold': HERMES_GOLD_SKIN,
+  'ares-crimson': ARES_CRIMSON_SKIN,
+  'slate-cool': SLATE_COOL_SKIN,
+  daylight: DAYLIGHT_SKIN,
 };
 
 // ─── User skin directory ──────────────────────────────────────────────
@@ -836,15 +942,45 @@ function loadSkinFromFile(filePath: string): Skin {
 
   const name = String(parsed['name'] ?? 'unnamed');
   const description = String(parsed['description'] ?? '');
-  const borderStyle = String(parsed['borderStyle'] ?? 'round') as BorderStyle;
-  const promptStyle = String(parsed['promptStyle'] ?? '>');
+
+  // P1-17 fix: Schema mismatch — the JSDoc at the top of this file
+  // documents `border_style:` and `prompt_style:` (snake_case), but the
+  // old parser only read `borderStyle` / `promptStyle` (camelCase). A
+  // user YAML following the documented schema would silently fall back
+  // to defaults. We now accept BOTH forms (camelCase first for
+  // backward compat with any existing user YAMLs, then snake_case as
+  // documented).
+  const borderStyleRaw = String(parsed['borderStyle'] ?? parsed['border_style'] ?? 'round');
+  const promptStyle = String(parsed['promptStyle'] ?? parsed['prompt_style'] ?? '>');
+
+  // P1-17 fix: Validate `borderStyle` against the BorderStyle union.
+  // Previously an unchecked `as BorderStyle` cast — a YAML with
+  // `borderStyle: "fancy"` would be accepted and stored, then throw at
+  // render time when passed to Ink's `<Box borderStyle="fancy">`.
+  const VALID_BORDER_STYLES: ReadonlySet<BorderStyle> = new Set([
+    'single', 'double', 'round', 'bold', 'singleDouble', 'classic', 'arrow',
+  ]);
+  const borderStyle: BorderStyle = VALID_BORDER_STYLES.has(borderStyleRaw as BorderStyle)
+    ? (borderStyleRaw as BorderStyle)
+    : 'round';
+
   const colorsRaw = (parsed['colors'] ?? {}) as Record<string, unknown>;
 
   // Merge with default colors so missing keys fall back.
   const colors: ColorMap = { ...DEFAULT_SKIN.colors };
+  // P1-17 fix: Validate color values as `#rrggbb` hex strings. Previously
+  // a YAML with `red: "purple"` was stored verbatim and passed to Ink,
+  // which would either silently render no color or throw.
+  const HEX_RE = /^#[0-9a-fA-F]{6}$/;
   for (const key of Object.keys(colorsRaw)) {
     if (key in colors) {
-      colors[key as ColorTokenName] = String(colorsRaw[key]);
+      const val = String(colorsRaw[key]);
+      if (HEX_RE.test(val)) {
+        colors[key as ColorTokenName] = val;
+      }
+      // else: silently skip invalid color — fall back to default.
+      // (We intentionally don't throw so a single bad color doesn't
+      //  prevent the whole skin from loading.)
     }
   }
 

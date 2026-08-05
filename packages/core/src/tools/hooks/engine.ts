@@ -67,6 +67,14 @@ export interface PostToolUseResult {
   reRun: boolean;
   /** All hook results (for debugging). */
   hookResults: Array<{ name: string; result: PostToolUseHookResult }>;
+  /**
+   * Modified tool result (Round-2 verification item A9). When at
+   * least one hook returned `modifiedResult`, this is the LAST
+   * non-undefined value (chained overrides). When no hook modified
+   * the result, this is `undefined` and the caller should use the
+   * original tool output.
+   */
+  modifiedResult?: { content: string; isError?: boolean };
 }
 
 /**
@@ -84,12 +92,32 @@ export class HookEngine {
 
   /**
    * Register a hook.
+   *
+   * The previous implementation called `this.hooks.sort(...)` on
+   * every `register()` call. For a static set of 6 builtin hooks
+   * this is fine, but a plugin system registering dozens of hooks
+   * at startup pays O(n² log n) total — every register triggers a
+   * full sort. We now use a single insertion-sort step (binary
+   * search + splice) which is O(n) per call instead of O(n log n).
+   * For 100 hook registrations, this saves ~3× the sort cost.
    * @param hook
    */
   register(hook: Hook): void {
-    this.hooks.push(hook);
-    // Sort by priority (lower = first)
-    this.hooks.sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100));
+    // Insert at the right position to keep `this.hooks` sorted by
+    // priority. Binary search for the insertion index, then splice.
+    const priority = hook.priority ?? 100;
+    let lo = 0;
+    let hi = this.hooks.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      const midPriority = this.hooks[mid]!.priority ?? 100;
+      if (midPriority < priority) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    this.hooks.splice(lo, 0, hook);
     this.log?.debug('Hook registered', {
       name: hook.name,
       event: hook.event,
@@ -200,6 +228,14 @@ export class HookEngine {
     const hookResults: Array<{ name: string; result: PostToolUseHookResult }> = [];
     const feedback: string[] = [];
     let reRun = false;
+    // Round-2 verification item A9: track the latest non-undefined
+    // `modifiedResult` so the caller can substitute the tool output.
+    // We chain (last-wins) rather than merge because tool output is a
+    // single string — merging would require a defined precedence that
+    // callers can't reason about. Hooks that want to compose should
+    // read the prior result from `ctx.result` and return their
+    // composed version.
+    let modifiedResult: { content: string; isError?: boolean } | undefined;
 
     for (const hook of hooks) {
       try {
@@ -212,6 +248,9 @@ export class HookEngine {
         if (result.reRun) {
           reRun = true;
         }
+        if (result.modifiedResult !== undefined) {
+          modifiedResult = result.modifiedResult;
+        }
       } catch (err) {
         this.log?.error('PostToolUse hook crashed', {
           hook: hook.name,
@@ -221,7 +260,7 @@ export class HookEngine {
       }
     }
 
-    return { feedback, reRun, hookResults };
+    return { feedback, reRun, hookResults, modifiedResult };
   }
 
   /**
@@ -263,10 +302,22 @@ export class HookEngine {
           modifiedPrompt = result.modifiedPrompt;
         }
       } catch (err) {
-        this.log?.error('UserPromptSubmit hook crashed', {
+        // Fail-SAFE: a crashed UserPromptSubmit hook blocks the
+        // prompt. The previous implementation logged and CONTINUED
+        // (fail-open), so a future UserPromptSubmit hook added for
+        // prompt sanitization (e.g., blocking prompts containing
+        // secrets) would be silently bypassed on a regex
+        // catastrophic-backtracking crash. We now fail-closed:
+        // treat a crashed safety hook as if it returned
+        // `{ allow: false, reason: 'hook crashed' }` so the user
+        // is told the prompt was blocked.
+        this.log?.error('UserPromptSubmit hook crashed (fail-closed)', {
           hook: hook.name,
           error: err instanceof Error ? err.message : String(err),
         });
+        allow = false;
+        reason = `Hook "${hook.name}" crashed while inspecting the prompt — failing closed for safety. Error: ${err instanceof Error ? err.message : String(err)}`;
+        break;
       }
     }
 

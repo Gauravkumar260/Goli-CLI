@@ -26,7 +26,7 @@ export interface Message {
   role: MessageRole;
   /** The text content (may be empty for pure tool-call assistant messages). */
   content: string;
-  /** Thinking/reasoning content (GLM-5.2 `reasoning_content` field; separate from content). */
+  /** Thinking/reasoning content (separate from content). */
   thinking?: string;
   /** Tool calls made by the assistant (only for `role: 'assistant'`). */
   toolCalls?: ToolCall[];
@@ -72,6 +72,42 @@ export interface ToolCall {
   durationMs?: number;
   /** Tokens consumed by this tool call (for accounting). */
   tokensUsed?: number;
+  /**
+   * P1-9 fix (remediation plan Phase 9): provenance tag.
+   *
+   * Populated by `ProvenanceTracker` when the tool result is recorded
+   * into the conversation state. Surfaces the source ('tool', 'mcp',
+   * 'subagent', 'hook', 'user', 'system'), the originating session ID,
+   * the turn number, and the timestamp — so downstream consumers (TUI,
+   * audit log, trajectory export) can attribute the result.
+   *
+   * When undefined (older callers that don't track provenance), all
+   * sub-fields are simply omitted — no behavior change.
+   */
+  provenance?: ToolCallProvenance;
+}
+
+/**
+ * P1-9: Provenance tag attached to a `ToolCall` after execution.
+ *
+ * Set by `ProvenanceTracker.tagToolCall()` in `loop.ts` immediately
+ * after `toolRegistry.dispatch()` returns. The tag is then read by:
+ *   - `CliAgentLoop.tryRunStream()` to bridge into the TUI's
+ *     `kind: 'tool'` event (so HistoryScroll can render it).
+ *   - `audit-log.ts` to record the source alongside the action.
+ *   - `trajectory/store.ts` to attribute the result in training data.
+ */
+export interface ToolCallProvenance {
+  /** Origin of the tool call. */
+  source: 'tool' | 'mcp' | 'subagent' | 'hook' | 'user' | 'system';
+  /** The original tool name (before any MCP namespacing). */
+  toolName: string;
+  /** Unix epoch ms when the tool call was emitted. */
+  timestamp: number;
+  /** The originating session ID. */
+  sessionId: string;
+  /** The turn number within the session (0-indexed). */
+  turn: number;
 }
 
 // ─── Agent Roles (11-agent swarm, Phase 13) ───────────────────────────
@@ -161,6 +197,14 @@ export interface ConversationState {
   startedAt: string;
   /** Recent tool calls for stall detection (serialized for equality check). */
   recentToolCallSignatures: string[];
+  /**
+   * P1-9 fix (remediation plan Phase 9): session ID for provenance
+   * tagging. Populated by `AgentLoop.run()` from `input.sessionId`
+   * (or auto-generated when absent). Read by `executeToolCall()` to
+   * tag each `ToolCall.provenance` so downstream consumers can
+   * attribute the result to the originating session.
+   */
+  sessionId?: string;
 }
 
 // ─── Stop Reasons ─────────────────────────────────────────────────────
@@ -168,13 +212,20 @@ export interface ConversationState {
 /**
  * Why the agent loop stopped.
  *
- * The four stop conditions from the Module 1 spec:
+ * The five stop conditions from the Module 1 spec:
  * 1. `completed` — the model stopped calling tools (natural completion)
  * 2. `budget` — hit a budget limit (tokens / cost / iterations / wallclock)
  * 3. `stall` — detected 3 identical tool calls in a row
  * 4. `error` — repeated parse failures or unrecoverable error
  * 5. `aborted` — user aborted (Ctrl+C or programmatic abort)
- * 6. `not-implemented` — Phase 1 stub (removed in Phase 2)
+ * 6. `loop_detected` — the loop-detector flagged a non-identical-but-
+ *    semantically-repeating pattern (e.g. toggling between two states).
+ *
+ * LOW-priority fix: the previous type included `'not-implemented'`
+ * (a Phase 1 stub variant). Phase 2 removed the stub but kept the
+ * type variant — no code path emits it, so it's dead. We keep it
+ * for backwards-compat (callers that switch on `StopReason` may have
+ * a `case 'not-implemented'` arm) but mark it `@deprecated`.
  */
 export type StopReason =
   | 'completed'
@@ -182,6 +233,7 @@ export type StopReason =
   | 'stall'
   | 'error'
   | 'aborted'
+  /** @deprecated Phase 1 stub — no code path emits this. */
   | 'not-implemented'
   | 'loop_detected';
 
@@ -255,8 +307,12 @@ export interface Todo {
 // ─── Prompt context base ──────────────────────────────────────────────
 
 /**
- * Base context fields shared by `PromptBuildContext` (prompt-builder.ts)
- * and `SystemPromptContext` (system-prompt.ts).
+ * Base context fields shared by `SystemPromptContext` (system-prompt.ts).
+ *
+ * (Historically also shared with `PromptBuildContext` from
+ * `prompt-builder.ts`, but that file was deleted in P2-18 / remediation
+ * plan Phase 18 as dead code. The base interface is retained because
+ * external callers may still extend it for custom assemblers.)
  *
  * Extracted during dedup loop iteration 7 from the first 10 fields that
  * were duplicated verbatim in both interfaces. Each consumer interface
@@ -285,4 +341,78 @@ export interface BasePromptContext {
   godMode: boolean;
   /** The task prompt. */
   taskPrompt: string;
+  /**
+   * The current AppMode (read-only / plan / build / god / local-llms).
+   * Drives the mode-specific system-prompt fragment AND the tool-filtering
+   * logic. If absent, the assembler derives it from `godMode`.
+   */
+  appMode?: 'read-only' | 'plan' | 'build' | 'god' | 'local-llms';
+  /**
+   * P2-7: Code-intelligence context retrieved from the symbol graph +
+   * hybrid retriever. When the AgentLoop is constructed with a context
+   * engine (via `createContextEngine()`), it queries the retriever with
+   * the task prompt and passes the top-k results here. The system-prompt
+   * assembler injects them as a "Retrieved Context" fragment so the
+   * agent sees relevant symbols before its first tool call.
+   *
+   * When undefined, no code-intelligence context is injected (the agent
+   * must discover code structure via read_file / grep).
+   */
+  retrievedContext?: string;
+  /**
+   * P1-4 fix (verification report item #4): L1 metadata for the skills
+   * subsystem (ADR-0026). When the AgentLoop is constructed with a
+   * SkillLoader, it calls `formatL1ForPrompt()` at session start and
+   * passes the resulting string here. The system-prompt assembler
+   * injects it as a "Skills" fragment so the agent knows which skills
+   * are available and can request L2 instructions via the `ask_user`
+   * tool or by emitting a skill-name tool call.
+   *
+   * When undefined or empty, no skills fragment is injected (the
+   * agent has no skill catalog).
+   */
+  skillsL1?: string;
+  /**
+   * P0-6 fix (remediation plan Phase 6): on-demand L2 skill
+   * instructions. When the `SkillLoader` is configured AND the user's
+   * query matches one or more skill triggers, the AgentLoop calls
+   * `loadL2Instructions(skillId)` for the top matches and concatenates
+   * their full instructions here. The system-prompt assembler injects
+   * this as an "L2 Skill Instructions" fragment so the agent sees the
+   * complete playbook for matching skills — not just the L1 metadata.
+   *
+   * Capped at `L2_BUDGET_TOKENS` (4000) to prevent L2 from consuming
+   * too much context. When undefined or empty, no L2 fragment is
+   * injected (backward-compatible for callers that don't wire L2).
+   */
+  skillsL2?: string;
+  /**
+   * P2-9 fix (re-verification report item #11): the set of files the
+   * agent has read so far this run (via `read_file`). Tracked in
+   * `loop.ts` as `state.readFiles` (a `Set<string>` of resolved
+   * absolute paths) for Read-before-Edit enforcement, but previously
+   * NEVER injected into the system prompt — the agent had no
+   * prompt-level awareness of which files it had already read, so it
+   * would often re-read the same file or lose track of context after
+   * compaction.
+   *
+   * The assembler injects this as a "Recent File Reads" fragment
+   * listing the most recent N paths (capped to keep the prompt
+   * bounded). When undefined or empty, the fragment is omitted
+   * (backward-compatible for callers that don't track read files).
+   */
+  recentReadFiles?: string[];
+  /**
+   * P2-18 fix (remediation plan Phase 18): pre-formatted reflections
+   * from `ReflexionEngine.formatForPrompt()`. The AgentLoop instantiates
+   * a `ReflexionEngine` and calls `reflect()` after each tool-call
+   * failure (best-effort, non-blocking). The resulting reflections are
+   * accumulated in the engine and rendered as a "Recent Reflections
+   * (lessons from failures)" fragment by the system-prompt assembler
+   * so the agent adapts its strategy on subsequent turns.
+   *
+   * When undefined or empty, no reflections fragment is injected
+   * (backward-compatible for callers that don't wire ReflexionEngine).
+   */
+  reflections?: string;
 }

@@ -13,7 +13,7 @@
 export interface TrajectoryStep {
   /** The step ID (0-indexed). */
   stepId: number;
-  /** The agent's thinking (reasoning_content from GLM-5.2). */
+  /** The agent's thinking (reasoning_content from the model). */
   thinking?: string;
   /** The action taken (tool call). */
   action: {
@@ -42,7 +42,7 @@ export interface Trajectory {
   trajectoryId: string;
   /** The task description (user prompt). */
   taskDescription: string;
-  /** The model used (e.g. 'glm-5.2'). */
+  /** The model used (e.g. 'gpt-4o'). */
   model: string;
   /** The reasoning effort (low/high/max). */
   effort: string;

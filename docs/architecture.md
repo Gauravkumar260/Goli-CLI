@@ -10,33 +10,40 @@ Goli-CLI is an npm workspaces monorepo with 4 packages:
 goli-cli/
 ├── packages/
 │   ├── core/           @goli/core — the "Brain"
-│   │   ├── agent/        GLM client, agent loop, system prompt assembler
-│   │   ├── api/          HTTP API server (for IDE integrations)
-│   │   ├── approval/     diff-first approval flow (H14)
-│   │   ├── config/       TOML config loader
-│   │   ├── context/      hybrid retriever (structural + lexical + semantic)
-│   │   ├── evals/        SWE-bench evaluation harness
-│   │   ├── memory/       JSONL session store, SICA immutable registry, skills
-│   │   ├── observability/ audit log, error classifier
-│   │   ├── orchestration/ 11-agent swarm pipeline (Scout → Documenter)
-│   │   ├── plugins/      plugin registry + lifecycle
-│   │   ├── sandbox/      cgroups v2, Landlock, bubblewrap, seatbelt
-│   │   ├── tools/        21 registered tools (core + gap + spec + LSP + subagent)
-│   │   └── utils/        constants, logger, errors
+│   │   ├── agent/        ReAct loop, providers, budget, retry, reflexion, planner, effort router
+│   │   ├── api/          OpenAI-compatible HTTP API server (for IDE integrations)
+│   │   ├── approval/     diff-first approval flow + blast radius + enhanced approval
+│   │   ├── config/       TOML config loader + Zod schema + mode prompts + integrity manager
+│   │   ├── context/      hybrid retriever (structural + lexical + semantic) + compaction
+│   │   ├── evals/        SWE-bench evaluation harness + semantic evaluator + regression gate + redteam
+│   │   ├── gateway/      long-running gateway host
+│   │   ├── i18n/         5 locales: en, es, zh-CN, ja, de
+│   │   ├── memory/       JSONL session store, SICA immutable registry, trajectory, training, persistent
+│   │   ├── observability/ audit log, OTel tracing, Langfuse, alerts, error classifier
+│   │   ├── orchestration/ 8-agent swarm pipeline (Orchestrator → Data) + worktree + E2B + classifier
+│   │   ├── plugins/      plugin registry + lifecycle + middleware + hooks
+│   │   ├── providers/    Ollama (default), OpenAI, Anthropic, Gemini, Mock
+│   │   ├── sandbox/      cgroups v2, bubblewrap (Linux), seatbelt (macOS), network, path-validation, audit-log
+│   │   ├── tools/        21 registered tools (core + gap + spec + LSP + subagent) + MCP + hooks
+│   │   ├── types/        ambient declarations for optional deps
+│   │   └── utils/        constants, logger, errors, json-utils
 │   ├── cli/            @goli/cli — the TUI + binary
-│   │   ├── commands/     wakeup, doctor, status, audit, usage, commit, init, mcp
+│   │   ├── commands/     wakeup, doctor, status, audit, usage, commit, init, mcp, cron, profile
 │   │   ├── services/     CliAgentLoop, MockAgentLoop, IAgentLoop
-│   │   ├── tui/          14 Ink components + theme + hooks + lib
+│   │   ├── tui/          25+ Ink components + theme engine + 11 hooks + 25+ lib modules + state store
 │   │   ├── constants.ts  CLI-local constants (lazy-loaded for fast cold-start)
 │   │   └── index.ts      Commander entry point (lazy-loaded commands)
-│   ├── evals/          @goli/evals — SWE-bench-style evaluation harness
-│   └── vscode-ext/     standalone VS Code extension (NOT in workspaces — see ADR 0010)
-├── tests/              71 test files, 1117 tests (root-level vitest)
+│   ├── evals/          @goli/evals — SWE-bench-style evaluation harness (stub)
+│   └── vscode-ext/     standalone VS Code extension (NOT in workspaces — see ADR-0017)
+├── tests/              root-level vitest (unit + integration + e2e) — 3,053 tests
 ├── scripts/            bench, a11y-audit, gen-completions, gen-10k-repo, tti-bench, clean-room-verify
 ├── completions/        bash/zsh/fish shell completions
-├── docs/               decisions (ADRs), extensions, phases, api/_generated/
+├── docs/               decisions (45 ADRs), extensions, phases, api, tui, cli
 ├── examples/           mcp-hello-world/
+├── infra/              docker-compose + k8s manifests + LiteLLM router config
+├── python_ml/          GRPO + LoRA training pipeline (Module 5 ML side)
 ├── bench/              baseline.json + fixtures/repo-10k/
+├── legal/              PRIVACY_POLICY.md, TERMS_OF_SERVICE.md, ai-bom.spdx.json
 └── config/             default.toml
 ```
 
@@ -95,42 +102,47 @@ Result (content + tokens + cost + todos)
 ```
 
 Key components:
+
 - **`AgentLoop`** (`packages/core/src/agent/loop.ts`) — the loop itself
-- **`GLMClient`** (`packages/core/src/agent/glm-client.ts`) — OpenAI-compatible API client for GLM-5.2
-- **`SystemPromptAssembler`** — assembles role-specific prompts from fragments
-- **`Planner`** — maintains the TODO list
-- **`BudgetTracker`** — enforces token + cost limits
-- **`StallDetector`** — detects no-progress loops
-- **`ToolGuardrailController`** — detects exact-failure, same-tool-failure loops
-- **`AdvancedCompressor`** — summarizes old context when > 70% full
+- **`ProviderBackedModelClient`** (`packages/core/src/agent/provider-adapter.ts`) — wraps any `ModelProvider` (Ollama default, OpenAI, Anthropic, Gemini, Mock) as a uniform model client
+- **`SystemPromptAssembler`** (`packages/core/src/agent/system-prompt.ts`) — assembles role-specific prompts from 10 ordered, prefix-cache-friendly fragments
+- **`Planner`** (`packages/core/src/agent/planner.ts`) — maintains the TODO list (one `in_progress` at a time)
+- **`BudgetTracker`** (`packages/core/src/agent/budget.ts`) — enforces token + cost + iteration + wall-clock limits
+- **`StopEngine`** (`packages/core/src/agent/stop-engine.ts`) — 4-condition stop: natural completion / budget / stall / parse failures
+- **`StallDetector`** + **`LoopDetector`** + **`ToolGuardrailController`** — three layers of loop detection (prevents the $47K LangChain incident)
+- **`AdvancedCompressor`** — summarizes old context when > 50% full (in-loop trigger); safety-net at 85%
+- **`ReflexionEngine`** — generates natural-language reflection on structural failure (Shinn et al., 2023)
+- **`EffortRoutingClient`** — auto-routes reasoning effort (high for tools, max for planner/architect, max for final answer)
+- **`CredentialPool`** — round-robin through OK credentials; rotates on rate limit / billing
+- **`ProvenanceTracker`** — tags context blocks with TrustLevel (prompt-injection defense)
 
 ## Safety Gates
 
 Every tool call passes through tier-gated safety checks:
 
-| Tier | Description | Examples | Approval |
-|---|---|---|---|
-| T0 | Read-only | `read_file`, `list_directory`, `grep` | Auto-approved |
-| T1 | Workspace write | `write_file`, `edit_file`, `bash` (sandboxed) | Auto in `--auto`, else prompt |
-| T2 | Risky | `bash` (network), `web_fetch`, `spawn_subagent` | Always prompt (unless `--god`) |
-| T3 | Destructive | `bash` (`rm -rf`, `git push --force`) | Always prompt, even in `--god` |
-| BLK | Blocked | `bash` (`rm -rf /`), secrets exfiltration | Never allowed |
+| Tier | Description     | Examples                                        | Approval                       |
+| ---- | --------------- | ----------------------------------------------- | ------------------------------ |
+| T0   | Read-only       | `read_file`, `list_directory`, `grep`           | Auto-approved                  |
+| T1   | Workspace write | `write_file`, `edit_file`, `bash` (sandboxed)   | Auto in `--auto`, else prompt  |
+| T2   | Risky           | `bash` (network), `web_fetch`, `spawn_subagent` | Always prompt (unless `--god`) |
+| T3   | Destructive     | `bash` (`rm -rf`, `git push --force`)           | Always prompt, even in `--god` |
+| BLK  | Blocked         | `bash` (`rm -rf /`), secrets exfiltration       | Never allowed                  |
 
 The sandbox layer (`packages/core/src/sandbox/`) provides OS-level isolation:
+
 - **cgroups v2** — memory + CPU limits (Linux)
-- **Landlock** — filesystem path restrictions (Linux 5.13+)
-- **bubblewrap** — namespace isolation (Linux)
-- **seatbelt** — sandbox profiles (macOS)
+- **bubblewrap (`bwrap`)** — namespace isolation and filesystem path restrictions (Linux). The file `landlock.ts` is misnamed — it wraps bubblewrap, not native Landlock syscalls. Native Landlock is future work.
+- **seatbelt / sandbox-exec** — namespace isolation + sandbox profiles (macOS)
 
 ## Tool Registry (21 tools)
 
-| Category | Tools |
-|---|---|
-| Core (6) | `read_file`, `write_file`, `edit_file`, `list_directory`, `grep`, `bash` |
-| Gap (7) | `web_search`, `web_fetch`, `todo_write`, `bash_output`, `kill_shell`, `ask_user`, `notebook_edit` |
-| Spec (3) | `spec_write`, `spec_review`, `spec_update` |
-| Subagent (1) | `spawn_subagent` |
-| LSP (4) | `lsp_hover`, `lsp_goto_definition`, `lsp_references`, `lsp_diagnostics` |
+| Category     | Tools                                                                                             |
+| ------------ | ------------------------------------------------------------------------------------------------- |
+| Core (6)     | `read_file`, `write_file`, `edit_file`, `list_directory`, `grep`, `bash`                          |
+| Gap (7)      | `web_search`, `web_fetch`, `todo_write`, `bash_output`, `kill_shell`, `ask_user`, `notebook_edit` |
+| Spec (3)     | `spec_write`, `spec_review`, `spec_update`                                                        |
+| Subagent (1) | `spawn_subagent`                                                                                  |
+| LSP (4)      | `lsp_hover`, `lsp_goto_definition`, `lsp_references`, `lsp_diagnostics`                           |
 
 The registry is created by `createDefaultToolRegistry()` in `packages/core/src/tools/index.ts`. MCP servers add tools at runtime via `MCPClientManager.connectAll()`.
 
@@ -140,38 +152,73 @@ Goli-CLI reads from `config/default.toml` (project) and `~/.goli-cli/config.toml
 
 ```toml
 [model]
+# Default model — overridden by GOLI_DEFAULT_MODEL env var (e.g. ollama/gpt-oss:120b)
 modelId = "glm-5.2"
-baseUrl = "http://localhost:8000/v1"
-defaultEffort = "high"
-contextWindowTokens = 1_000_000
+baseUrl = "https://open.bigmodel.cn/api/paas/v4"
+defaultEffort = "high"        # routine tasks
+complexEffort = "max"         # refactor / debug / architecture
+complexTriggers = ["refactor", "design", "architecture", "debug", "migrate", "rewrite"]
+maxContextTokens = 1_000_000
+requestTimeoutMs = 120_000
+streaming = true
+
+[budget]
+maxTokens = 800_000           # 80% of 1M, leaves compaction room
+maxCostUsd = 5.0
+maxIterations = 50
+maxWallclockSeconds = 1800
+
+[retry]
+maxRetries = 3
+initialBackoffMs = 1000
+backoffMultiplier = 2.0
+maxBackoffMs = 30_000
+jitterFactor = 0.5
+
+[stall]
+identicalCallThreshold = 3   # 3 identical tool calls = stop
+windowSize = 5
+maxParseFailures = 3
 
 [sandbox]
-mode = "workspace-write"  # read-only | workspace-write | danger-full-access
+mode = "workspace-write"      # read-only | workspace-write | danger-full-access
+approvalPolicy = "on-request" # on-request | on-failure | never
+networkAllowlist = ["github.com:443", "pypi.org:443", "files.pythonhosted.org:443", "registry.npmjs.org:443", "crates.io:443"]
+memoryMaxMb = 4096
+cpuQuotaPercent = 200
+pidMax = 512
+diskMaxMb = 10_240
+wallclockTimeoutS = 1800
 
-[agent]
-maxIterations = 50
-budgetTokens = 2_000_000
-budgetCostUsd = 5.0
+[logging]
+level = "info"                # trace | debug | info | warn | error | silent
+format = "pretty"             # pretty (TTY) | json (pipelines)
 ```
 
-See `config/default.toml` for the full schema.
+See `config/default.toml` for the full schema. Zod schemas in
+`packages/core/src/config/schema.ts` validate every load; failure is fatal.
 
 ## Multi-Provider Support
 
 Goli-CLI supports multiple LLM providers via an integrated providers module at `packages/core/src/providers/`. The provider is selected via the `GOLI_DEFAULT_MODEL` env var (format: `provider/model`, e.g. `ollama/gpt-oss:120b`).
 
 Supported providers:
-- **Ollama** (default) — `ollama/<model>`, uses `OLLAMA_BASE_URL` + `OLLAMA_API_KEY`
-- **OpenAI** — `openai/<model>`, uses `OPENAI_API_KEY`
-- **Anthropic** — `anthropic/<model>`, uses `ANTHROPIC_API_KEY`
-- **Gemini** — `gemini/<model>`, uses `GEMINI_API_KEY` (requires `@google/generative-ai` package)
 
-The `ProviderBackedGLMClient` adapter (in `packages/core/src/agent/provider-adapter.ts`) wraps any provider as a `GLMClient`, so the existing `AgentLoop` works without modification. When `GOLI_DEFAULT_MODEL` starts with `ollama/`, `openai/`, or `anthropic/`, the adapter is used instead of the GLM client.
+- **Ollama** (default) — `ollama/<model>`, uses `OLLAMA_BASE_URL` + `OLLAMA_API_KEY`. Default model: `gpt-oss:120b` (open-weight).
+- **OpenAI** — `openai/<model>`, uses `OPENAI_API_KEY`. Default model: `gpt-4o`. Closed-weight; opt-in only.
+- **Anthropic** — `anthropic/<model>`, uses `ANTHROPIC_API_KEY`. Default model: `claude-3-5-sonnet-20241022`. Closed-weight; opt-in only. Only provider with `supportsCaching() === true`.
+- **Gemini** — `gemini/<model>`, uses `GEMINI_API_KEY`. Default model: `gemini-1.5-pro`. Closed-weight; opt-in only.
+- **Mock** — `mock/echo`, deterministic. Used by `--demo` mode and the test suite.
+
+The `ProviderBackedModelClient` adapter (`packages/core/src/agent/provider-adapter.ts`) wraps any provider as a uniform model client, so the existing `AgentLoop` works without modification. The factory `createProviderBackedClientSync` / `createProviderBackedClient` selects the provider via `GOLI_DEFAULT_MODEL`. A `.env` file with the Ollama Cloud config is shipped in the repo root — no external `dotenv` dependency is required (the loader reads `.env` directly).
 
 ## See Also
 
 - [Getting Started](getting-started.md) — 5-minute tutorial
 - [Agents](agents.md) — detailed per-agent reference
-- [API Reference](api/_generated/index.html) — typedoc HTML
+- [TUI Architecture](tui/architecture.md) — component tree + state model
+- [Theme Catalog](cli/themes.md) — 20 built-in themes + user YAML skins
 - [MCP Extensions](extensions/mcp.md) — how to add custom tools
-- [ADRs](decisions/) — architectural decision records
+- [ADRs](decisions/) — 45 architectural decision records
+- [Phase Plans](phases/README.md) — 13-phase implementation roadmap
+- [Coverage Report](coverage-report.md) — test coverage + gap analysis

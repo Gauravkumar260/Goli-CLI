@@ -60,6 +60,25 @@ export interface PostToolUseHookResult {
   feedback?: string;
   /** Whether to re-run the tool (e.g. formatter changed the file). */
   reRun?: boolean;
+  /**
+   * Modified tool result. Round-2 verification item A9: previously
+   * post-hooks could only inject `feedback` (a separate channel) or
+   * request a re-run — they could NOT rewrite the tool's actual
+   * output. With `modifiedResult`, a hook can substitute the tool's
+   * returned content (e.g. redact secrets, normalize JSON, truncate
+   * oversized output) before the result is added to the conversation.
+   *
+   * When multiple hooks return `modifiedResult`, the LAST non-undefined
+   * value wins (chained overrides). The engine also surfaces this in
+   * `PostToolUseResult.modifiedResult` so the caller can swap the
+   * result before persisting it to the message log.
+   */
+  modifiedResult?: {
+    /** The new tool result content (replaces the original). */
+    content: string;
+    /** Whether the modified result represents an error. */
+    isError?: boolean;
+  };
 }
 
 /** The result of a UserPromptSubmit hook. */
@@ -137,14 +156,27 @@ export type PreCompactHandler = (ctx: HookContext) => Promise<PreCompactHookResu
 /** A Stop hook handler. */
 export type StopHandler = (ctx: HookContext) => Promise<void> | void;
 
-/** A registered hook. */
-export interface Hook {
+/** A registered hook.
+ *
+ * MEDIUM-27: the previous `handler` field was a union of 6 handler
+ * types (`PreToolUseHandler | PostToolUseHandler | ...`). There was
+ * NO compile-time check that the `handler` matched the `event` — a
+ * caller could register `{ event: 'PreToolUse', handler: somePostToolUseHandler }`
+ * and TypeScript would accept it. The runtime hook engine would
+ * then call the wrong handler signature at the wrong time.
+ *
+ * We now use a conditional type that ties the handler to the event.
+ * Callers that mismatch get a compile error. Existing code that
+ * constructed hooks inline will continue to work as long as the
+ * handler matches the event.
+ */
+export interface Hook<E extends HookEvent = HookEvent> {
   /** The hook name (for debugging / logging). */
   name: string;
   /** The event this hook listens to. */
-  event: HookEvent;
-  /** The handler function. */
-  handler: PreToolUseHandler | PostToolUseHandler | UserPromptSubmitHandler | SessionStartHandler | PreCompactHandler | StopHandler;
+  event: E;
+  /** The handler function. Must match the event's handler signature. */
+  handler: HandlerForEvent<E>;
   /** Which tools to match (empty = all tools). */
   toolMatch?: string[];
   /** Priority (lower = runs first). Default: 100. */
@@ -152,3 +184,16 @@ export interface Hook {
   /** Whether this hook can be disabled. Default: false (safety hooks are mandatory). */
   disableable?: boolean;
 }
+
+/**
+ * Maps a HookEvent to its handler signature. Used by {@link Hook} to
+ * enforce that `handler` matches `event` at compile time.
+ */
+export type HandlerForEvent<E extends HookEvent> =
+  E extends 'PreToolUse' ? PreToolUseHandler :
+  E extends 'PostToolUse' ? PostToolUseHandler :
+  E extends 'UserPromptSubmit' ? UserPromptSubmitHandler :
+  E extends 'SessionStart' ? SessionStartHandler :
+  E extends 'PreCompact' ? PreCompactHandler :
+  E extends 'Stop' ? StopHandler :
+  never;

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "goli://tools/write-file.schema.json",
+  "title": "WriteFile",
+  "description": "Write a file with the given contents. Overwrites the file if it exists; creates it if it doesn't. A git checkpoint is created after the write. Requires user permission unless in yolo mode.",
+  "type": "object",
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Path to the file, relative to the workspace root or absolute. Must resolve to inside the workspace root."
+    },
+    "content": {
+      "type": "string",
+      "description": "The full contents of the file. Existing contents are replaced entirely; use edit_file for partial edits."
+    },
+    "create_dirs": {
+      "type": "boolean",
+      "default": true,
+      "description": "If true, create parent directories if they don't exist (mkdir -p)."
+    }
+  },
+  "required": ["path", "content"],
+  "additionalProperties": false
+}

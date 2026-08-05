@@ -1,0 +1,33 @@
+{
+  "name": "@goli-cli/sdk",
+  "version": "0.1.0",
+  "description": "Goli CLI public SDK — stable embedding API and HostProvider abstraction for multi-surface agents",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./host-provider": {
+      "types": "./dist/host-provider.d.ts",
+      "import": "./dist/host-provider.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  },
+  "dependencies": {
+    "@goli-cli/agent-core": "*",
+    "@goli-cli/shared": "*",
+    "@goli-cli/config": "*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

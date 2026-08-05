@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "goli://tools/list-directory.schema.json",
+  "title": "ListDirectory",
+  "description": "List the contents of a directory. Returns entries with type (file/directory/symlink), size, and modification time.",
+  "type": "object",
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Path to the directory, relative to the workspace root or absolute."
+    },
+    "recursive": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, list recursively. Use with caution on large directories — the result is truncated to the character budget."
+    },
+    "max_depth": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 3,
+      "description": "Maximum depth when recursive=true. Default 3."
+    },
+    "include_hidden": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, include hidden files (dotfiles). Default false."
+    }
+  },
+  "required": ["path"],
+  "additionalProperties": false
+}

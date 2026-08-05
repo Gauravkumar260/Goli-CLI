@@ -22,7 +22,7 @@
  */
 import React from 'react';
 import { Box, Text } from 'ink';
-import { T } from '../theme/tokens.js';
+import { T, getBorderStyle } from '../theme/tokens.js';
 
 interface Props {
   /** Total input tokens. */
@@ -35,6 +35,16 @@ interface Props {
   turnCount: number;
   /** Terminal width. */
   cols: number;
+  /**
+   * P1-12 fix (remediation plan Phase 12): optional per-model cost
+   * breakdown. When provided AND containing 2+ entries, the panel
+   * renders an additional "Per-model breakdown" section below the
+   * totals. When absent or single-entry, the section is omitted
+   * (single-model sessions don't need a breakdown).
+   */
+  perModelCosts?: Record<string, number>;
+  /** Per-model token breakdown (paired with `perModelCosts`). */
+  perModelTokens?: Record<string, { input: number; output: number }>;
 }
 
 /**
@@ -66,7 +76,9 @@ function formatRate(usd: number, tokens: number): string {
 
 /**
  * Live cost breakdown panel. Shows token counts, total cost, per-turn
- * average, and cost rate.
+ * average, and cost rate. P1-12 fix: optionally shows a per-model
+ * breakdown when the session has used more than one model (e.g.
+ * effort-routing or local-llms three-axis router sessions).
  */
 export function CostBreakdownPanel({
   inputTokens,
@@ -74,15 +86,22 @@ export function CostBreakdownPanel({
   totalCostUsd,
   turnCount,
   cols,
+  perModelCosts,
+  perModelTokens,
 }: Props): React.ReactElement {
   const totalTokens = inputTokens + outputTokens;
   const innerW = Math.min(cols - 4, 60);
   const avgCost = turnCount > 0 ? totalCostUsd / turnCount : 0;
+  // P1-12: only render the per-model section when there are 2+ entries.
+  // Single-model sessions have all their cost in one bucket and the
+  // breakdown would just duplicate the totals above.
+  const modelEntries = perModelCosts ? Object.entries(perModelCosts) : [];
+  const showPerModel = modelEntries.length >= 2;
 
   return (
     <Box
       flexDirection="column"
-      borderStyle="round"
+      borderStyle={getBorderStyle() as 'round'}
       borderColor={T.green}
       paddingX={1}
       width={cols}
@@ -109,6 +128,27 @@ export function CostBreakdownPanel({
           <Text color={T.gray}>Rate:   </Text>
           <Text color={T.teal}>{formatRate(totalCostUsd, totalTokens)}</Text>
         </Box>
+        {/* P1-12 fix (remediation plan Phase 12): per-model breakdown.
+            Rendered only when 2+ models have been used (e.g. effort
+            routing sent some calls to a different model). The
+            per-model token counts help debug routing decisions. */}
+        {showPerModel && (
+          <Box flexDirection="column" marginTop={1}>
+            <Text color={T.gray} underline>Per-model breakdown:</Text>
+            {modelEntries.map(([model, cost]) => {
+              const toks = perModelTokens?.[model];
+              const inT = toks?.input ?? 0;
+              const outT = toks?.output ?? 0;
+              return (
+                <Box key={model}>
+                  <Text color={T.fg}>  {model}</Text>
+                  <Text color={T.yellow}> {formatCost(cost)}</Text>
+                  <Text color={T.gray}> ({formatTokens(inT)} in / {formatTokens(outT)} out)</Text>
+                </Box>
+              );
+            })}
+          </Box>
+        )}
       </Box>
     </Box>
   );

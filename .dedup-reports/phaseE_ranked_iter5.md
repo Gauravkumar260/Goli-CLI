@@ -7,28 +7,28 @@
 
 ## Top 20 clusters by risk-adjusted value
 
-| Rank | Value | Lines | Copies | Files | Same file? | First instance |
-|------|-------|-------|--------|-------|------------|----------------|
-| 1 | 37.0 | 37 | 2 | 2 | no | `tests/unit/skin-themes-expansion.test.ts:47-83` |
-| 2 | 29.0 | 29 | 2 | 1 | yes | `packages/core/src/sandbox/executor.ts:156-184` |
-| 3 | 25.0 | 25 | 2 | 2 | no | `scripts/a11y-audit.ts:45-69` |
-| 4 | 24.0 | 24 | 2 | 1 | yes | `packages/core/src/memory/session/search-store.ts:237-260` |
-| 5 | 24.0 | 24 | 2 | 2 | no | `tests/integration/core-tools.test.ts:10-33` |
-| 6 | 23.0 | 23 | 2 | 2 | no | `packages/core/src/agent/glm-client.ts:198-220` |
-| 7 | 21.0 | 21 | 2 | 2 | no | `packages/core/src/agent/prompt-builder.ts:60-80` |
-| 8 | 21.0 | 21 | 2 | 1 | yes | `packages/core/src/memory/sica/loop.ts:158-178` |
-| 9 | 19.0 | 19 | 2 | 1 | yes | `packages/core/src/memory/sica/loop.ts:158-176` |
-| 10 | 18.0 | 18 | 3 | 1 | yes | `packages/core/src/tools/core/lsp-tools.ts:81-98` |
-| 11 | 18.0 | 18 | 2 | 1 | yes | `packages/cli/src/tui/lib/code-highlight.ts:213-230` |
-| 12 | 18.0 | 18 | 2 | 1 | yes | `packages/core/src/context/indexer/tree-sitter.ts:110-127` |
-| 13 | 18.0 | 18 | 2 | 2 | no | `packages/core/src/providers/anthropic.ts:75-92` |
-| 14 | 18.0 | 18 | 2 | 1 | yes | `tests/unit/parallel-execution.test.ts:163-180` |
-| 15 | 17.0 | 17 | 2 | 2 | no | `packages/cli/src/tui/lib/flickerStore.ts:38-54` |
-| 16 | 16.0 | 16 | 5 | 1 | yes | `tests/unit/flicker-detector-t060.test.tsx:24-39` |
-| 17 | 16.0 | 16 | 3 | 3 | no | `tests/unit/keybindings-vim-t071.test.tsx:71-86` |
-| 18 | 16.0 | 16 | 2 | 2 | no | `packages/core/src/providers/anthropic.ts:75-90` |
-| 19 | 16.0 | 16 | 2 | 2 | no | `packages/core/src/tools/core/edit-file.ts:40-55` |
-| 20 | 16.0 | 16 | 2 | 2 | no | `tests/unit/parallel-subagents.test.ts:24-39` |
+| Rank | Value | Lines | Copies | Files | Same file? | First instance                                             |
+| ---- | ----- | ----- | ------ | ----- | ---------- | ---------------------------------------------------------- |
+| 1    | 37.0  | 37    | 2      | 2     | no         | `tests/unit/skin-themes-expansion.test.ts:47-83`           |
+| 2    | 29.0  | 29    | 2      | 1     | yes        | `packages/core/src/sandbox/executor.ts:156-184`            |
+| 3    | 25.0  | 25    | 2      | 2     | no         | `scripts/a11y-audit.ts:45-69`                              |
+| 4    | 24.0  | 24    | 2      | 1     | yes        | `packages/core/src/memory/session/search-store.ts:237-260` |
+| 5    | 24.0  | 24    | 2      | 2     | no         | `tests/integration/core-tools.test.ts:10-33`               |
+| 6    | 23.0  | 23    | 2      | 2     | no         | `packages/core/src/agent/glm-client.ts:198-220`            |
+| 7    | 21.0  | 21    | 2      | 2     | no         | `packages/core/src/agent/prompt-builder.ts:60-80`          |
+| 8    | 21.0  | 21    | 2      | 1     | yes        | `packages/core/src/memory/sica/loop.ts:158-178`            |
+| 9    | 19.0  | 19    | 2      | 1     | yes        | `packages/core/src/memory/sica/loop.ts:158-176`            |
+| 10   | 18.0  | 18    | 3      | 1     | yes        | `packages/core/src/tools/core/lsp-tools.ts:81-98`          |
+| 11   | 18.0  | 18    | 2      | 1     | yes        | `packages/cli/src/tui/lib/code-highlight.ts:213-230`       |
+| 12   | 18.0  | 18    | 2      | 1     | yes        | `packages/core/src/context/indexer/tree-sitter.ts:110-127` |
+| 13   | 18.0  | 18    | 2      | 2     | no         | `packages/core/src/providers/anthropic.ts:75-92`           |
+| 14   | 18.0  | 18    | 2      | 1     | yes        | `tests/unit/parallel-execution.test.ts:163-180`            |
+| 15   | 17.0  | 17    | 2      | 2     | no         | `packages/cli/src/tui/lib/flickerStore.ts:38-54`           |
+| 16   | 16.0  | 16    | 5      | 1     | yes        | `tests/unit/flicker-detector-t060.test.tsx:24-39`          |
+| 17   | 16.0  | 16    | 3      | 3     | no         | `tests/unit/keybindings-vim-t071.test.tsx:71-86`           |
+| 18   | 16.0  | 16    | 2      | 2     | no         | `packages/core/src/providers/anthropic.ts:75-90`           |
+| 19   | 16.0  | 16    | 2      | 2     | no         | `packages/core/src/tools/core/edit-file.ts:40-55`          |
+| 20   | 16.0  | 16    | 2      | 2     | no         | `tests/unit/parallel-subagents.test.ts:24-39`              |
 
 ## Cluster details (top 20)
 
@@ -40,6 +40,7 @@
 - `tests/unit/skin-themes-t043.test.ts:42-78`
 
 **Fragment:**
+
 ```
   'monokai',
 ] as const;
@@ -88,6 +89,7 @@ describe('T-034: Built-in theme expansion', () => {
 - `packages/core/src/sandbox/executor.ts:252-270`
 
 **Fragment:**
+
 ```
     sandboxMode: opts.mode,
     approval: 'allow', // The approval engine decided before this point
@@ -128,6 +130,7 @@ function redactSecrets(command: string): string {
 - `tests/unit/skin-themes-t043.test.ts:246-269`
 
 **Fragment:**
+
 ```
 function hexToRgb(hex: string): [number, number, number] {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex);
@@ -164,6 +167,7 @@ function extractTokens(tokensFile: string): ColorToken[] {
 - `packages/core/src/memory/session/search-store.ts:275-294`
 
 **Fragment:**
+
 ```
     this.db.transaction(() => {
       this.stmts.insert!.run({
@@ -199,6 +203,7 @@ function extractTokens(tokensFile: string): ColorToken[] {
 - `tests/unit/competitive-gap-tools.test.ts:14-36`
 
 **Fragment:**
+
 ```
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
@@ -234,6 +239,7 @@ beforeEach(() => {
 - `packages/core/src/agent/provider-adapter.ts:40-53`
 
 **Fragment:**
+
 ```
   }
 
@@ -268,6 +274,7 @@ beforeEach(() => {
 - `packages/core/src/agent/system-prompt.ts:37-57`
 
 **Fragment:**
+
 ```
 export interface PromptBuildContext {
   /** The agent role. */
@@ -300,6 +307,7 @@ export interface PromptBuildContext {
 - `packages/core/src/memory/sica/loop.ts:241-261`
 
 **Fragment:**
+
 ```
         concerns: overseerVerdict.concerns.length,
       });
@@ -332,6 +340,7 @@ export interface PromptBuildContext {
 - `packages/core/src/memory/sica/loop.ts:208-225`
 
 **Fragment:**
+
 ```
         concerns: overseerVerdict.concerns.length,
       });
@@ -363,6 +372,7 @@ export interface PromptBuildContext {
 - `packages/core/src/tools/core/lsp-tools.ts:171-188`
 
 **Fragment:**
+
 ```
     'Line and column are 1-based (matching read_file output).',
   inputSchema: {
@@ -392,6 +402,7 @@ export interface PromptBuildContext {
 - `packages/cli/src/tui/lib/code-highlight.ts:357-370`
 
 **Fragment:**
+
 ```
   const tokens: Token[] = [];
   let i = 0;
@@ -421,6 +432,7 @@ export interface PromptBuildContext {
 - `packages/core/src/context/indexer/tree-sitter.ts:149-166`
 
 **Fragment:**
+
 ```
   indexFile(filePath: string): SemanticChunk[] {
     if (!existsSync(filePath)) {
@@ -450,6 +462,7 @@ export interface PromptBuildContext {
 - `packages/core/src/providers/openai.ts:67-84`
 
 **Fragment:**
+
 ```
       if (!reader) throw new Error('No response body from Anthropic');
 
@@ -479,6 +492,7 @@ export interface PromptBuildContext {
 - `tests/unit/parallel-execution.test.ts:189-206`
 
 **Fragment:**
+
 ```
       makeToolCall('read_file', { file_path: '/c' }),
     ];
@@ -508,6 +522,7 @@ export interface PromptBuildContext {
 - `packages/cli/src/tui/lib/fpsStore.ts:60-75`
 
 **Fragment:**
+
 ```
 const flickerHandlers = new Set<() => void>();
 
@@ -539,6 +554,7 @@ export function isFlickerEnabled(): boolean {
 - `tests/unit/flicker-detector-t060.test.tsx:402-417`
 
 **Fragment:**
+
 ```
 describe('T-060: flickerStore', () => {
   let origDebug: string | undefined;
@@ -567,6 +583,7 @@ describe('T-060: flickerStore', () => {
 - `tests/unit/vim-integration-t088.test.tsx:51-63`
 
 **Fragment:**
+
 ```
   it('shows [INSERT] indicator when vimEnabled=true', () => {
     const { lastFrame } = render(
@@ -594,6 +611,7 @@ describe('T-060: flickerStore', () => {
 - `packages/core/src/providers/ollama.ts:72-87`
 
 **Fragment:**
+
 ```
       if (!reader) throw new Error('No response body from Anthropic');
 
@@ -621,6 +639,7 @@ describe('T-060: flickerStore', () => {
 - `packages/core/src/tools/core/write-file.ts:22-37`
 
 **Fragment:**
+
 ```
 import { relative } from 'node:path';
 
@@ -648,6 +667,7 @@ export const EDIT_FILE_TOOL: Tool = {
 - `tests/unit/spec-driven-development.test.ts:25-41`
 
 **Fragment:**
+
 ```
 import type { SubagentSpawnInput, SubagentResult } from '../../packages/core/src/tools/core/spawn-subagent.js';
 import type { ToolContext } from '../../packages/core/src/tools/types.js';

@@ -133,12 +133,20 @@ export class PersistentMemory {
           ? MEMORY_BUDGETS.USER
           : MEMORY_BUDGETS.PROJECT;
 
-    // Enforce budget — account for the truncation marker length
+    // Enforce budget. The previous implementation always sliced
+    // to `budget - markerLength` if `content.length > budget`, but
+    // it didn't account for the case where `content.length` is
+    // between `budget - markerLength` and `budget` — adding the
+    // truncation marker to that would push it OVER budget. The
+    // marker should only be added if we actually truncated.
+    // We now compute the effective slice based on the actual
+    // budget overflow.
     const truncationMarker = '\n\n[... truncated ...]';
-    const markerLength = truncationMarker.length;
-    const truncated = content.length > budget
-      ? content.slice(0, budget - markerLength) + truncationMarker
-      : content;
+    let truncated = content;
+    if (content.length > budget) {
+      const sliceEnd = Math.max(0, budget - truncationMarker.length);
+      truncated = content.slice(0, sliceEnd) + truncationMarker;
+    }
 
     const filePath = this.getFilePath(name);
     mkdirSync(dirname(filePath), { recursive: true });

@@ -26,6 +26,7 @@ Phase 5 replaces the allowlist with an **OS-native sandbox**:
   (in production, this should refuse to run in non-god mode)
 
 The sandbox is combined with:
+
 1. **3-tier approval engine** (Safe / Risky / Destructive) — classifies
    commands and decides allow/deny/ask
 2. **Network egress filter** — SOCKS5 proxy + domain allowlist
@@ -37,17 +38,18 @@ The sandbox is combined with:
 
 ## The 3-Tier Model
 
-| Tier | Label | Examples | Sandbox Mode |
-|------|-------|----------|--------------|
-| T0 | Safe (read-only) | ls, cat, pwd, grep, git status | read-only + workspace-write |
-| T1 | Risky (file writes) | write_file, edit_file, tee | workspace-write |
-| T2 | Risky (state-modifying) | rm, mv, git commit, npm install | workspace-write |
-| T3 | Destructive (network) | curl, wget, npm publish, git push | danger-full-access only |
-| BLK | Always blocked | rm -rf /, mkfs, fork bomb, curl\|bash | never |
+| Tier | Label                   | Examples                              | Sandbox Mode                |
+| ---- | ----------------------- | ------------------------------------- | --------------------------- |
+| T0   | Safe (read-only)        | ls, cat, pwd, grep, git status        | read-only + workspace-write |
+| T1   | Risky (file writes)     | write_file, edit_file, tee            | workspace-write             |
+| T2   | Risky (state-modifying) | rm, mv, git commit, npm install       | workspace-write             |
+| T3   | Destructive (network)   | curl, wget, npm publish, git push     | danger-full-access only     |
+| BLK  | Always blocked          | rm -rf /, mkfs, fork bomb, curl\|bash | never                       |
 
 ## Consequences
 
 **Positive:**
+
 - Arbitrary command execution is now safe — the kernel enforces the
   boundary, not the prompt.
 - Approval fatigue is reduced: T0 commands auto-execute; T1/T2 auto-
@@ -56,6 +58,7 @@ The sandbox is combined with:
 - Resource limits prevent fork bombs and OOM kills.
 
 **Negative:**
+
 - macOS Seatbelt is technically deprecated since Sierra (2016) with no
   supported replacement. We monitor Apple's direction.
 - Windows has no native sandbox — WSL2 is a hard requirement (documented

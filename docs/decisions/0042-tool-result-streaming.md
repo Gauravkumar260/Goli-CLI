@@ -33,9 +33,9 @@ interface ToolContext {
 interface ToolResultChunk {
   toolCallId: string;
   toolName: string;
-  chunk: string;       // a line, a 4KB block, etc.
-  isFinal: boolean;    // true = end-of-stream
-  timestamp: string;   // ISO 8601
+  chunk: string; // a line, a 4KB block, etc.
+  isFinal: boolean; // true = end-of-stream
+  timestamp: string; // ISO 8601
 }
 ```
 

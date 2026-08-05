@@ -30,11 +30,12 @@
  * @module plugins/registry
  */
 
+import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { existsSync, readdirSync, statSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 
 import type { ToolCall } from '../agent/types.js';
 import type { Tool } from '../tools/types.js';
@@ -69,6 +70,24 @@ export const VALID_HOOKS = new Set([
   'session_start',
   'pre_compact',
   'stop',
+]);
+
+/**
+ * Hooks whose handlers MUST fail-closed on error. If a handler for one
+ * of these hooks throws, the entire hook chain is aborted and the
+ * calling action is blocked. Informational hooks (e.g., `post_tool_call`)
+ * remain fail-open — a thrown handler is logged and the chain continues.
+ *
+ * Without this distinction, a buggy or malicious `pre_tool_call`
+ * hook (e.g., `block_secrets`) that throws would silently let the
+ * tool call proceed, defeating the safety gate.
+ */
+const SECURITY_CRITICAL_HOOKS = new Set([
+  'pre_tool_call',
+  'pre_approval_request',
+  'pre_gateway_dispatch',
+  'pre_llm_call',
+  'pre_api_request',
 ]);
 
 /** Middleware kinds. */
@@ -240,14 +259,41 @@ export class PluginRegistry extends EventEmitter {
     if (!existsSync(packageJsonPath)) return null;
 
     try {
-      const packageJson = JSON.parse(
-        readFileSync(packageJsonPath, "utf-8"),
-      ) as { name: string; version: string; main?: string };
-
-      const name = packageJson.name;
-      const version = packageJson.version;
-      const mainFile = packageJson.main ?? 'index.js';
-      const mainPath = join(pluginDir, mainFile);
+      const raw = JSON.parse(
+        readFileSync(packageJsonPath, 'utf-8'),
+      ) as Record<string, unknown>;
+      // Validate package.json shape. The previous implementation used
+      // `as { name: string; version: string; main?: string }` which is
+      // an unchecked cast — a malformed package.json with missing
+      // `name`/`version` silently set `name=undefined`, then
+      // `this.plugins.set('undefined', plugin)` and `mod[undefined]`
+      // (always `undefined`) meant the plugin was silently loaded
+      // but never initialized.
+      if (typeof raw['name'] !== 'string' || typeof raw['version'] !== 'string') {
+        this.log?.error('Plugin package.json missing name or version', { path: packageJsonPath });
+        return null;
+      }
+      const name = raw['name'];
+      const version = raw['version'];
+      const mainFile = (typeof raw['main'] === 'string' ? raw['main'] : null) ?? 'index.js';
+      // Defense in depth: contain the entry point within the plugin
+      // directory. The previous implementation used `join(pluginDir,
+      // mainFile)` which would follow `../../../etc/...` or absolute
+      // paths out of `pluginDir`, letting a normal-looking plugin
+      // hide its actual payload in a system path.
+      const mainPath = resolve(pluginDir, mainFile);
+      const resolvedPluginDir = resolve(pluginDir);
+      if (
+        !mainPath.startsWith(resolvedPluginDir + sep) &&
+        mainPath !== resolvedPluginDir
+      ) {
+        this.log?.error('Plugin main path escapes plugin directory', {
+          pluginDir,
+          mainFile,
+          mainPath,
+        });
+        return null;
+      }
 
       if (!existsSync(mainPath)) return null;
 
@@ -297,7 +343,24 @@ export class PluginRegistry extends EventEmitter {
         getLogger: () => this.log,
       };
 
-      // Load and init the plugin
+      // Load and init the plugin.
+      //
+      // SECURITY: plugins are loaded via `createRequire`/dynamic
+      // `import()` and run with the FULL privileges of the goli-cli
+      // process. There is NO permission model, NO capability
+      // scoping, NO `vm` sandbox, NO worker_threads isolation. A
+      // malicious plugin can read/write any file the process can,
+      // make network requests, spawn child processes, and access
+      // `process.env` (including API keys).
+      //
+      // To partially mitigate this, we:
+      //   1. Audit-log every plugin load (name, version, source, hash).
+      //   2. Default-deny project plugins (enableProjectPlugins=false).
+      //   3. Validate the entry point stays within the plugin dir (above).
+      //
+      // Full hardening (worker_threads + permission manifest +
+      // `goli.permissions` field in package.json) is tracked as a
+      // follow-up — see CRITICAL finding in the audit.
       const require = createRequire(import.meta.url);
       let mod: Record<string, unknown>;
       try {
@@ -310,9 +373,26 @@ export class PluginRegistry extends EventEmitter {
         await initFn(ctx);
       }
 
+      // Audit-log the load with a content hash of the main file so
+      // post-incident forensics can verify which exact code ran.
+      let mainHash = 'unknown';
+      try {
+        const mainContent = readFileSync(mainPath, 'utf-8');
+        mainHash = createHash('sha256').update(mainContent).digest('hex').slice(0, 16);
+      } catch {
+        // Best-effort.
+      }
+      this.log?.info('Plugin loaded (audited)', {
+        name,
+        version,
+        source,
+        mainHash,
+        tools: plugin.tools.length,
+        commands: plugin.commands.length,
+      });
+
       // Override if plugin with same name already exists
       this.plugins.set(name, plugin);
-      this.log?.info('Plugin loaded', { name, version, source, tools: plugin.tools.length, commands: plugin.commands.length });
       return plugin;
     } catch (err) {
       this.log?.error('Failed to load plugin', {
@@ -327,7 +407,13 @@ export class PluginRegistry extends EventEmitter {
    * Run all hook handlers for a given hook.
    *
    * Handlers run in registration order. Errors are caught and logged
-   * (fail-open — don't let a plugin hook crash the agent).
+   * (fail-open) for informational hooks, but **fail-closed** for
+   * security-critical hooks (`pre_tool_call`, `pre_approval_request`,
+   * `pre_gateway_dispatch`, `pre_llm_call`, `pre_api_request`).
+   * The previous blanket fail-open policy meant a malicious or
+   * buggy `pre_tool_call` hook (e.g., `block_secrets`) that threw
+   * would silently let the tool call proceed, defeating the safety
+   * gate.
    * @param hook
    * @param ctx
    */
@@ -335,10 +421,19 @@ export class PluginRegistry extends EventEmitter {
     const handlers = this.hookHandlers.get(hook);
     if (!handlers) return;
 
+    const isSecurityCritical = SECURITY_CRITICAL_HOOKS.has(hook);
     for (const { handler, plugin } of handlers) {
       try {
         await handler({ ...ctx, hook });
       } catch (err) {
+        if (isSecurityCritical) {
+          this.log?.error('Security-critical hook failed (fail-closed)', {
+            plugin,
+            hook,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          throw err; // fail-closed — re-throw to abort the action.
+        }
         this.log?.warn('Plugin hook handler failed (fail-open)', {
           plugin,
           hook,
@@ -433,12 +528,45 @@ export class PluginRegistry extends EventEmitter {
 
   /**
    * Enable a plugin.
+   *
+   * The previous implementation only set `plugin.enabled = true` —
+   * it did NOT re-add the disabled plugin's tools, commands, hooks,
+   * and middleware to the active registries. After a disable→enable
+   * cycle, the plugin appeared enabled but none of its
+   * tools/hooks worked. We now re-register everything on enable
+   * so the round-trip is lossless.
    * @param name
    */
   enable(name: string): boolean {
     const plugin = this.plugins.get(name);
     if (!plugin) return false;
+    if (plugin.enabled) return true; // already enabled — no-op
     plugin.enabled = true;
+
+    // Re-register tools.
+    for (const tool of plugin.tools) {
+      this.tools.set(tool.name, { tool, plugin: name });
+    }
+    // Re-register commands.
+    for (const cmd of plugin.commands) {
+      this.commands.set(cmd.name, { command: cmd, plugin: name });
+    }
+    // Re-register hooks.
+    for (const [hook, handlers] of plugin.hooks) {
+      const existing = this.hookHandlers.get(hook) ?? [];
+      for (const handler of handlers) {
+        existing.push({ handler, plugin: name });
+      }
+      this.hookHandlers.set(hook, existing);
+    }
+    // Re-register middleware.
+    for (const [kind, chain] of plugin.middleware) {
+      const existing = this.middlewareChains.get(kind) ?? [];
+      for (const handler of chain) {
+        existing.push({ handler, plugin: name });
+      }
+      this.middlewareChains.set(kind, existing);
+    }
     return true;
   }
 
@@ -496,11 +624,32 @@ export class PluginRegistry extends EventEmitter {
     if (!existsSync(dir)) return 0;
 
     let count = 0;
-    const entries = readdirSync(dir);
+    // Sort entries alphabetically so the "later overrides earlier"
+    // rule for same-named plugins is deterministic across
+    // filesystems. The previous implementation used raw
+    // `readdirSync(dir)` which returns entries in filesystem
+    // order — on ext4 vs APFS vs NTFS, the same directory could
+    // yield different orders, causing different plugins to win
+    // the override race.
+    const entries = readdirSync(dir).sort();
 
     for (const entry of entries) {
       const pluginDir = join(dir, entry);
-      if (!statSync(pluginDir).isDirectory()) continue;
+      // The previous implementation used
+      // `statSync(pluginDir).isDirectory()` which throws if the
+      // entry is inaccessible (permissions, broken symlink, etc.).
+      // There was no try/catch, so one bad entry crashed the entire
+      // discovery loop, preventing subsequent plugins from loading.
+      // We now catch stat errors and skip the bad entry.
+      try {
+        if (!statSync(pluginDir).isDirectory()) continue;
+      } catch (err) {
+        this.log?.warn('Skipping inaccessible plugin entry', {
+          dir: pluginDir,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        continue;
+      }
 
       const plugin = await this.loadPlugin(pluginDir, source);
       if (plugin) count++;

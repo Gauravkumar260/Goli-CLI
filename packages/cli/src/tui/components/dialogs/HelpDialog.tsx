@@ -20,11 +20,15 @@ interface Props {
  * and dismisses on Esc or ?.
  */
 export function HelpDialog({ cols, onDismiss }: Props): React.ReactElement {
+  // P1-25 fix: gate useInput with isActive so we don't capture keystrokes
+  // when the dialog isn't the topmost overlay. (HelpDialog is always
+  // mounted with isActive=true here since App.tsx only renders it when
+  // active, but the gate is defensive for future callers.)
   useInput((input, key) => {
     if (key.escape || input === '?') {
       onDismiss();
     }
-  });
+  }, { isActive: true });
 
   return (
     <HelpPanel cols={cols} visible={true} onClose={onDismiss} />

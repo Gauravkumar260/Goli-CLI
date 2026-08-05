@@ -1,6 +1,6 @@
 # Phase 13 — Multi-Agent Orchestration (Module 7)
 
-**Status:** Pending
+**Status:** Substantially Complete
 **Modules touched:** M7 (parallel subagents, LiteLLM routing, E2B cloud sandbox, VS Code extension)
 **Compliance gates:** G5 (liability shield — complete: ToS + insurance + audit log)
 
@@ -11,6 +11,14 @@ shared-blackboard coordination, LiteLLM open-weight-only routing, the
 complexity classifier, the E2B Firecracker cloud sandbox integration,
 the VS Code extension with batch diff review, and the five orchestration
 patterns.
+
+## Current Implementation Status
+
+Swarm pipeline (11-agent sequential handoff Scout -> Documenter) + task splitter (decompose complex tasks) + worktree isolation (ADR-0036 — concurrency only, not security) + shared blackboard (file-based inter-agent coordination) + complexity classifier (single agent vs full pipeline routing) + E2B cloud sandbox (Firecracker) + orchestration patterns library + VS Code extension with batch diff review all shipped at packages/core/src/orchestration/ and packages/vscode-ext/. Open-weight-only routing (ADR-0034) enforced via BLOCKED_PROVIDERS in classifier.ts.
+
+See the per-module sections in [docs/architecture.md](../architecture.md)
+for the current code locations and `AGENTS.md` for accumulated
+implementation patterns and gotchas.
 
 ## Definition of Done
 
@@ -31,12 +39,12 @@ patterns.
 - [ ] `src/orchestration/patterns/swarm.ts` — avoid (87% failure rate)
 - [ ] `src/vscode-extension/` — LSP-based VS Code extension with batch diff review
 - [ ] `config/orchestration.toml` + `config/routing.toml` + `config/cloud.toml`
-- [ ] ADR-0038 (restraint over default multi-agent)
+- [ ] ADR-0035 (sequential 11-agent pipeline over parallel swarm)
 - [ ] ADR-0039 (open-weight-only routing, hard-blocked providers)
-- [ ] ADR-0040 (worktree is concurrency, not security)
+- [ ] ADR-0036 (worktree is concurrency, not security)
 - [ ] ADR-0041 (E2B managed vs Firecracker self-hosted; data residency dictates)
 - [ ] ADR-0042 (batch diff review as the third UX mode)
-- [ ] ADR-0043 (centralized control over open mesh)
+- [ ] ADR-0035 (sequential 11-agent pipeline) covers centralized control
 
 ## Steps (P13.x)
 

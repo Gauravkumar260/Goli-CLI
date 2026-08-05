@@ -21,6 +21,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import type { AllowlistEntry, AppStateSnapshot, BusyInputMode, PendingPermission, QueuedMessage, RunMode, SessionPhase } from './types.js';
+import type { CompactionInfo } from '../../services/IAgentLoop.js';
 import type { TierId, AppMode } from '../theme/agents.js';
 import { modeToTierId, modeToRunMode, modeToPermissionMode, getModeColor, getModeDesc } from '../theme/agents.js';
 
@@ -45,6 +46,8 @@ class AppStateStoreClass {
     totalCostUsd: 0,
     totalInputTokens: 0,
     totalOutputTokens: 0,
+    // P1-13: 0 until a thinking-capable model is used.
+    totalThinkingTokens: 0,
     tokens: 0,
     tokenLimit: 200000,
     turn: 0,
@@ -55,6 +58,13 @@ class AppStateStoreClass {
     queuedMessages: [],
     pastePlaceholder: null,
     compactHint: false,
+    // P1-11: null until the first compaction event arrives.
+    lastCompaction: null,
+    // P1-12: empty until the first run completes; populated with
+    // per-model cost/token tallies as `addUsage` is called with a
+    // model tag.
+    perModelCosts: {},
+    perModelTokens: {},
   };
 
   private pending: PendingPermission | null = null;
@@ -112,14 +122,60 @@ class AppStateStoreClass {
     this.scheduleNotify();
   }
 
-  addUsage(inputTokens: number, outputTokens: number, costUsd: number): void {
-    const total = inputTokens + outputTokens;
+  addUsage(inputTokens: number, outputTokens: number, costUsd: number, thinkingTokens: number = 0): void {
+    const total = inputTokens + outputTokens + thinkingTokens;
     this.snap = {
       ...this.snap,
       totalInputTokens: this.snap.totalInputTokens + inputTokens,
       totalOutputTokens: this.snap.totalOutputTokens + outputTokens,
+      // P1-13: accumulate thinking tokens separately so TokenBar can
+      // render them as a third bar.
+      totalThinkingTokens: this.snap.totalThinkingTokens + thinkingTokens,
       tokens: this.snap.tokens + total,
       totalCostUsd: this.snap.totalCostUsd + costUsd,
+    };
+    this.scheduleNotify();
+  }
+
+  /**
+   * P1-12 fix (remediation plan Phase 12): per-model cost/token
+   * accumulator. Called by `useAgentLoop` after a run completes with
+   * the model ID that serviced the run (from `AgentLoopResult.model`
+   * or the runtime config). When `model` is undefined, falls back to
+   * the snapshot's `model` field (the configured default).
+   *
+   * The totals are also forwarded to `addUsage()` so the existing
+   * `totalCostUsd` / `totalInputTokens` / `totalOutputTokens` fields
+   * stay in sync (callers don't need to call both methods).
+   */
+  addUsageForModel(
+    model: string | undefined,
+    inputTokens: number,
+    outputTokens: number,
+    costUsd: number,
+  ): void {
+    const modelId = model ?? this.snap.model;
+    // Always update the grand totals so callers don't have to call
+    // `addUsage()` separately.
+    this.addUsage(inputTokens, outputTokens, costUsd);
+    // Then accumulate the per-model breakdown. We shallow-copy the
+    // existing records and add the deltas — React's referential-
+    // equality check picks up the new object identity.
+    const prevCosts = this.snap.perModelCosts;
+    const prevTokens = this.snap.perModelTokens;
+    const newCosts = { ...prevCosts, [modelId]: (prevCosts[modelId] ?? 0) + costUsd };
+    const prevModelTokens = prevTokens[modelId] ?? { input: 0, output: 0 };
+    const newTokens = {
+      ...prevTokens,
+      [modelId]: {
+        input: prevModelTokens.input + inputTokens,
+        output: prevModelTokens.output + outputTokens,
+      },
+    };
+    this.snap = {
+      ...this.snap,
+      perModelCosts: newCosts,
+      perModelTokens: newTokens,
     };
     this.scheduleNotify();
   }
@@ -257,6 +313,10 @@ class AppStateStoreClass {
   }
 
   // ─── T-MODE: Cycle through read-only → plan → build → god ─────────────
+  // local-llms is intentionally excluded from the Shift+Tab cycle because
+  // it's an opt-in mode (the three-axis router requires local Ollama
+  // workers to be configured). If the current mode is local-llms, the
+  // cycle drops back to 'build' as a safe default.
   cyclePermissionMode(): void {
     const current = this.getAppMode();
     const cycle: AppMode[] = ['build', 'read-only', 'plan', 'god'];
@@ -277,6 +337,18 @@ class AppStateStoreClass {
     this.scheduleNotify();
   }
 
+  // ─── P1-11: last compaction info ──────────────────────────────────────
+  /**
+   * P1-11 fix (remediation plan Phase 11): record the most recent
+   * compaction event so `CompactionBanner` can render a transient
+   * banner showing the token delta. Called from `useAgentLoop` when
+   * the agent loop emits `kind: 'compaction'`.
+   */
+  setLastCompaction(info: CompactionInfo): void {
+    this.snap = { ...this.snap, lastCompaction: info };
+    this.scheduleNotify();
+  }
+
   checkCompactThreshold(): void {
     const pct = this.snap.tokenLimit > 0
       ? (this.snap.tokens / this.snap.tokenLimit) * 100
@@ -291,7 +363,31 @@ class AppStateStoreClass {
   }
 
   // ─── Permission flow ───────────────────────────────────────────────────────
+  /**
+   * Wait for the user to approve or deny a permission request.
+   *
+   * P0-10 fix: Previously, calling `waitForApproval` while a previous
+   * `approvalResolver` was still pending would silently overwrite the
+   * old resolver. The previous Promise would then NEVER resolve — any
+   * `await`-er (e.g. `useAgentLoop.ts` line 338) would hang forever,
+   * leaking memory and freezing the agent loop. Concurrent permission
+   * requests (which can happen if the agent emits two tool calls in
+   * quick succession before the user resolves the first) would trigger
+   * this.
+   *
+   * We now reject the prior resolver with `{ approve: false, always: false }`
+   * (treat as denied) before installing the new one. This matches the
+   * existing semantics of `clearConfirmationQueue()` (which also denies
+   * the pending approval) and is the safest default — if the user
+   * never answered the old prompt, we assume "no".
+   */
   waitForApproval(permission: PendingPermission): Promise<{ approve: boolean; always: boolean }> {
+    // If there's an unresolved prior approval, deny it before replacing.
+    if (this.approvalResolver) {
+      const prior = this.approvalResolver;
+      this.approvalResolver = null;
+      prior({ approve: false, always: false });
+    }
     this.pending = permission;
     this.snap = { ...this.snap, pendingPermission: permission };
     this.notify();
@@ -333,6 +429,24 @@ class AppStateStoreClass {
   }
 
   // T-062: Confirmation queue + session allowlist
+
+  // ─── T-062: Confirmation queue + session allowlist ────────────────────
+  //
+  // P2-26 note: The confirmation-queue subsystem (enqueuePermission,
+  // getQueueLength, getQueue, clearConfirmationQueue, isAllowlisted,
+  // updateQueuePositions, advanceQueue) is currently DEAD CODE — no
+  // external caller invokes `enqueuePermission`. The TUI shows one
+  // permission at a time via `pendingPermission` and `waitForApproval`.
+  //
+  // The session allowlist (addToAllowlist, getAllowlist, clearAllowlist)
+  // IS used by CommandRegistry's /allowlist command and by
+  // `resolveApproval` (when the user picks "always approve").
+  //
+  // We keep the queue methods here as a planned feature (T-062) so the
+  // API surface is stable when the UI is wired up to show queued
+  // permissions. If you're confident the feature won't ship, deleting
+  // these methods + `confirmationQueue` field + `advanceQueue` +
+  // `updateQueuePositions` would remove ~95 LOC of dead code.
 
   /**
    * Enqueue a permission for confirmation. If the queue was empty,

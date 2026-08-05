@@ -102,16 +102,26 @@ export class TaskSplitter {
    */
   private classifyRole(description: string): AgentRole {
     const d = description.toLowerCase();
+    // Specificity-first ordering: check more specific roles
+    // BEFORE broader ones. The previous implementation checked
+    // `implement|write|...|fix` (implementer) and
+    // `debug|fix|error` (debugger) BEFORE `test|spec|coverage|qa`
+    // (qa-tester), so "fix the failing test" was classified as
+    // 'debugger' (matched `fix`) instead of the more specific
+    // 'qa-tester'. We now check qa-tester and security-auditor
+    // before implementer/debugger.
     if (d.match(/explore|scan|map|understand|survey/)) return 'scout';
     if (d.match(/research|analyze|study|investigate/)) return 'researcher';
     if (d.match(/design|architect|plan|blueprint|strategy/)) return 'architect';
-    if (d.match(/decompose|break down|todo|steps|plan/)) return 'planner';
-    if (d.match(/implement|write|code|build|create|add|fix|refactor/)) return 'implementer';
-    if (d.match(/debug|fix|error|crash|trace|diagnose/)) return 'debugger';
+    if (d.match(/decompose|break down|todo|steps/)) return 'planner';
+    // Specific roles first.
     if (d.match(/test|spec|coverage|qa/)) return 'qa-tester';
-    if (d.match(/security|audit|vulnerab|secret|scan/)) return 'security-auditor';
+    if (d.match(/security|audit|vulnerab|secret/)) return 'security-auditor';
     if (d.match(/review|check|approve|inspect/)) return 'reviewer';
     if (d.match(/document|readme|docs?|comment/)) return 'documenter';
+    // Broader roles.
+    if (d.match(/implement|write|code|build|create|add|refactor/)) return 'implementer';
+    if (d.match(/debug|fix|error|crash|trace|diagnose/)) return 'debugger';
     return 'orchestrator';
   }
 
@@ -150,7 +160,11 @@ export class TaskSplitter {
     if (subtasks.length <= 1) return 'single-loop';
     if (parallelRecommended && subtasks.length >= 4) return 'fan-out-fan-in';
     if (subtasks.length >= 3 && subtasks.every((s) => !s.independent)) return 'handoff';
-    if (subtasks.length === 2 && task.match(/debate|compare|pros.*cons/i)) return 'debate';
+    // Use word boundaries + bounded distance between "pros" and
+    // "cons" so "prosperous considerations" or "process consultants"
+    // don't match. The previous implementation used greedy `.*`
+    // which matched across the entire string.
+    if (subtasks.length === 2 && task.match(/\bdebate\b|\bcompare\b|\bpros\b.{0,40}\bcons\b/i)) return 'debate';
     return 'handoff'; // Default to sequential pipeline
   }
 }

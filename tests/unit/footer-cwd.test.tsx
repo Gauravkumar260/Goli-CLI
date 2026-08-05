@@ -170,8 +170,8 @@ describe('T-039: StatusBar integration (AC #1, #3)', () => {
     expect(frame).toContain('claude-sonnet');
     // Tokens.
     expect(frame).toContain('12,400');
-    // Mode.
-    expect(frame).toContain('SAFE');
+    // Mode — legacy 'SAFE' RunMode maps to the canonical 'build' AppMode.
+    expect(frame).toContain('build');
     // Tier.
     expect(frame).toContain('T1');
     // Cost.
@@ -235,8 +235,9 @@ describe('T-039: StatusBar integration (AC #1, #3)', () => {
     const { lastFrame } = render(<StatusBar {...baseProps} cols={60} />);
     const frame = lastFrame() ?? '';
     // Narrow layout shows model + tokens + token bar + mode + tier + secs.
+    // Legacy 'SAFE' RunMode maps to the canonical 'build' AppMode.
     expect(frame).toContain('claude-sonnet');
-    expect(frame).toContain('SAFE');
+    expect(frame).toContain('build');
     expect(frame).toContain('T1');
     // Cost should NOT appear in narrow layout.
     expect(frame).not.toContain('$0.0012');

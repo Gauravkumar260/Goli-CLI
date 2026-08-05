@@ -42,6 +42,7 @@ import {
   appendFileSync,
   readdirSync,
   rmSync,
+  renameSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -245,12 +246,31 @@ export class JsonlSessionStore {
       parentId: sessionId,
       tags: [...original.metadata.tags, 'branched'],
     });
-    // Write the truncated transcript.
+    // Write the truncated transcript. The previous
+    // implementation did `writeFileSync(...)` outside any
+    // try/catch — if it failed (disk full, permissions), the
+    // child session existed with empty JSONL and
+    // `messageCount: 0`, but the caller expected N messages. No
+    // rollback, so the orphan child session remained. We now
+    // wrap in try/catch and delete the orphan child on failure.
     if (messages.length > 0) {
-      const lines = messages.map((m) => JSON.stringify(m)).join('\n') + '\n';
-      writeFileSync(this.messagesPath(child.id), lines, 'utf-8');
-      child.messageCount = messages.length;
-      this.writeMetadata(child);
+      try {
+        const lines = messages.map((m) => JSON.stringify(m)).join('\n') + '\n';
+        writeFileSync(this.messagesPath(child.id), lines, 'utf-8');
+        child.messageCount = messages.length;
+        this.writeMetadata(child);
+      } catch (err) {
+        // Rollback: delete the orphan child session (metadata
+        // + empty JSONL) so the caller doesn't get a half-baked
+        // branch with no transcript.
+        try {
+          rmSync(this.messagesPath(child.id), { force: true });
+        } catch { /* ignore */ }
+        try {
+          rmSync(this.metadataPath(child.id), { force: true });
+        } catch { /* ignore */ }
+        throw new Error(`Branch failed while writing transcript: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
     return child;
   }
@@ -318,7 +338,22 @@ export class JsonlSessionStore {
   }
 
   private writeMetadata(metadata: SessionMetadata): void {
-    writeFileSync(this.metadataPath(metadata.id), JSON.stringify(metadata, null, 2), 'utf-8');
+    // Atomic write via tmp + rename. The previous
+    // implementation used `writeFileSync(this.metadataPath(...))`
+    // directly — if the process crashed mid-write, the metadata
+    // JSON was truncated / partially written, and the next reader
+    // got a corrupt session metadata. `rename` is atomic on POSIX
+    // filesystems, so a crash before rename leaves the OLD
+    // metadata intact.
+    const path = this.metadataPath(metadata.id);
+    const tmp = `${path}.tmp-${process.pid}`;
+    writeFileSync(tmp, JSON.stringify(metadata, null, 2), 'utf-8');
+    try {
+      renameSync(tmp, path);
+    } catch (err) {
+      try { rmSync(tmp, { force: true }); } catch { /* ignore */ }
+      throw err;
+    }
   }
 
   private readMetadata(sessionId: string): SessionMetadata | null {

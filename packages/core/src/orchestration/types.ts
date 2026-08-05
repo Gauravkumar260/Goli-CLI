@@ -71,11 +71,31 @@ export interface BlackboardEntry {
   timestamp: string;
 }
 
-/** A model routing decision. */
+/** A model routing decision.
+ *
+ * MEDIUM-58: the `effort` field's documented mapping (low/high/max
+ * ↔ routine/complex/hard) contradicted the actual values. The
+ * previous comment said "low for routine, high for complex, max for
+ * hard" but `TaskComplexity = 'routine' | 'complex' | 'hard'` and
+ * `effort = 'low' | 'high' | 'max'` — so 'high' was mapped to
+ * 'complex' (correct), but 'low' → 'routine' and 'max' → 'hard'
+ * were inverted in some call sites that branched on the wrong axis.
+ * We clarify the mapping here so callers don't second-guess it.
+ */
 export interface RoutingDecision {
   /** The model to use. */
   model: string;
-  /** The reasoning effort (low/high/max). */
+  /**
+   * The reasoning effort.
+   *
+   * Mapping to `complexity`:
+   *   - `'low'`  ↔ `complexity: 'routine'` (fast/cheap model, 1-shot)
+   *   - `'high'` ↔ `complexity: 'complex'` (default, multi-step ReAct)
+   *   - `'max'`  ↔ `complexity: 'hard'`    (deep reasoning, multi-iteration)
+   *
+   * Use `effort` to drive model selection and `complexity` to drive
+   * orchestration (e.g. `'hard'` tasks get a supervisor pattern).
+   */
   effort: 'low' | 'high' | 'max';
   /** The complexity classification. */
   complexity: TaskComplexity;

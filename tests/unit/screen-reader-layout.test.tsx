@@ -99,7 +99,7 @@ describe('T-033: ScreenReaderAppLayout exists (acceptance #1)', () => {
         mode="GOD"
       />,
     );
-    expect(lastFrame()).toContain('GOD mode');
+    expect(lastFrame()).toMatch(/GOD mode/i);
   });
 });
 

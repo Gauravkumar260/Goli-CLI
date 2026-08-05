@@ -19,6 +19,7 @@ export interface GlobalOptions {
   auto?: boolean;
   sandbox?: 'read-only' | 'workspace-write' | 'danger-full-access';
   effort?: 'low' | 'high' | 'max';
+  localLlms?: boolean;
 }
 
 /**
@@ -34,6 +35,7 @@ export function extractGlobalOptions(opts: Record<string, unknown>): GlobalOptio
     auto: opts.auto as boolean | undefined,
     sandbox: opts.sandbox as GlobalOptions['sandbox'],
     effort: opts.effort as GlobalOptions['effort'],
+    localLlms: opts.localLlms as boolean | undefined,
   };
 }
 

@@ -75,6 +75,11 @@ const SKIN_BACKGROUNDS: Record<string, string> = {
   'xcode-light': '#ffffff',
   'github-dark-colorblind': '#0d1117',
   'github-light-colorblind': '#ffffff',
+  // Hermes-inspired additions (matching the skin descriptions in skin-engine.ts)
+  'hermes-gold': '#1a1410',     // warm dark parchment background
+  'ares-crimson': '#1a0a0a',    // dark crimson-tinged background
+  'slate-cool': '#1e293b',      // "deep ocean dark" per skin description
+  'daylight': '#ffffff',        // "pure black on white" per skin description
 };
 
 const ALL_SKINS: Array<[string, Skin]> = BUILTIN_SKIN_NAMES.map(

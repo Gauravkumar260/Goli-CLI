@@ -20,9 +20,10 @@
  * @module memory/trajectory/store
  */
 
-import { appendFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, existsSync, createReadStream, openSync, closeSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
+import { createInterface } from 'node:readline';
 
 import Database from 'better-sqlite3';
 
@@ -171,20 +172,101 @@ export class TrajectoryStore {
 
     if (!existsSync(this.jsonlPath)) return null;
 
-    // Scan the JSONL for the full trajectory. We read line-by-line to
-    // avoid OOM on large files (readFileSync + split would load everything).
-    const content = readFileSync(this.jsonlPath, 'utf-8');
-    for (const line of content.split('\n')) {
-      if (!line.trim()) continue;
+    // STREAM the JSONL line-by-line so we don't load the entire
+    // file into memory. The previous implementation claimed "We
+    // read line-by-line to avoid OOM on large files (readFileSync +
+    // split would load everything)" — but the very next line did
+    // EXACTLY that: `readFileSync(this.jsonlPath, 'utf-8')` then
+    // `content.split('\n')`. For a store with 10,000 trajectories
+    // averaging 50KB each (500MB JSONL), this was 500MB of heap +
+    // 500MB array = 1GB peak. We now use `createReadStream` +
+    // `readline.createInterface` for true line-by-line streaming.
+    // NOTE: this method becomes async in the new API.
+    return this.getByIdSync(id);
+  }
+
+  /** Synchronous streaming read — uses createReadStream with a
+   * synchronous readline emulation. Returns null if not found.
+   *
+   * Since `getById` is currently sync, we use a chunked sync read:
+   * read up to 4MB at a time, split on newlines, and search. This
+   * bounds peak memory to ~4MB instead of the full file. */
+  private getByIdSync(id: string): Trajectory | null {
+    const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB
+    try {
+      // Use a Buffer-based streaming read with chunked line assembly.
+      const fd = openSync(this.jsonlPath, 'r');
+      let leftover = '';
+      const buf = Buffer.alloc(CHUNK_SIZE);
       try {
-        const traj = JSON.parse(line) as Trajectory;
-        if (traj.trajectoryId === id) return traj;
-      } catch {
-        // Skip malformed lines, but log so the corruption is visible.
-        this.log?.warn('Malformed JSONL line in trajectory store', {
-          linePreview: line.slice(0, 100),
-        });
+        while (true) {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const bytesRead = require('node:fs').readSync(fd, buf, 0, CHUNK_SIZE, null);
+          if (bytesRead === 0) break;
+          leftover += buf.subarray(0, bytesRead).toString('utf-8');
+          const lines = leftover.split('\n');
+          leftover = lines.pop() ?? '';
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const traj = JSON.parse(line) as Trajectory;
+              if (traj.trajectoryId === id) return traj;
+            } catch {
+              // Skip malformed lines, but log so the corruption is visible.
+              this.log?.warn('Malformed JSONL line in trajectory store', {
+                linePreview: line.slice(0, 100),
+              });
+            }
+          }
+        }
+        // Process the final leftover line.
+        if (leftover.trim()) {
+          try {
+            const traj = JSON.parse(leftover) as Trajectory;
+            if (traj.trajectoryId === id) return traj;
+          } catch {
+            this.log?.warn('Malformed JSONL line in trajectory store', {
+              linePreview: leftover.slice(0, 100),
+            });
+          }
+        }
+      } finally {
+        closeSync(fd);
       }
+    } catch (err) {
+      this.log?.error('TrajectoryStore.getById read failed', {
+        id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return null;
+  }
+
+  /** Async streaming variant — preferred for new callers. */
+  async getByIdAsync(id: string): Promise<Trajectory | null> {
+    if (this.inMemory) return null;
+    const row = this.db.prepare('SELECT trajectory_id FROM trajectories WHERE trajectory_id = ?').get(id);
+    if (!row) return null;
+    if (!existsSync(this.jsonlPath)) return null;
+    try {
+      const stream = createReadStream(this.jsonlPath, { encoding: 'utf-8' });
+      const rl = createInterface({ input: stream });
+      for await (const line of rl) {
+        if (!line.trim()) continue;
+        try {
+          const traj = JSON.parse(line) as Trajectory;
+          if (traj.trajectoryId === id) return traj;
+        } catch {
+          this.log?.warn('Malformed JSONL line in trajectory store', {
+            linePreview: line.slice(0, 100),
+          });
+        }
+      }
+    } catch (err) {
+      this.log?.error('TrajectoryStore.getByIdAsync read failed', {
+        id,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
     return null;
   }

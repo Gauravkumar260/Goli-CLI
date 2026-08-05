@@ -4,17 +4,17 @@
 **Status:** Accepted
 **Hermes Item:** H15 — Parallel Sub-Agents
 **Supersedes:** ADR-0035 (sequential pipeline) — partially. ADR-0035's
-default (sequential) is preserved; this ADR adds *opt-in* parallelism.
+default (sequential) is preserved; this ADR adds _opt-in_ parallelism.
 
 ## Context
 
 ADR-0035 chose a sequential 11-agent pipeline as the default
 orchestration pattern, citing a 15× token cost for parallel sub-agents
 (each subagent has its own context window). The cost concern is valid
-as a *default* — most tasks are not parallelizable enough to justify
+as a _default_ — most tasks are not parallelizable enough to justify
 the overhead.
 
-However, ADR-0035 also blocked *opt-in* parallelism, which is a
+However, ADR-0035 also blocked _opt-in_ parallelism, which is a
 competitive gap:
 
 - **Claude Code** supports parallel sub-agents with git worktree
@@ -34,6 +34,7 @@ Add **opt-in parallel sub-agents** via a new `spawn_subagent` tool:
 ### Tool
 
 `spawn_subagent` takes:
+
 - `prompt` (required) — the subtask prompt
 - `role` (required) — the agent role (implementer, qa-tester, etc.)
 - `use_worktree` (default true) — whether to create a git worktree
@@ -70,7 +71,7 @@ helpful message.
 
 ADR-0035's default (sequential pipeline) is preserved. The
 `SwarmPipeline` still runs sequentially by default. `spawn_subagent`
-is an *opt-in* escape hatch for genuinely parallel tasks. The system
+is an _opt-in_ escape hatch for genuinely parallel tasks. The system
 prompt guides the model to use it only when subtasks are independent.
 
 ## Consequences

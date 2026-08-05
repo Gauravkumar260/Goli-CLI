@@ -79,6 +79,22 @@ export function AgentMessage({ message }: Props): React.ReactElement {
   // and keybindings can toggle expansion. Auto-expand for failed calls
   // is handled inside ToolMessage/DenseToolMessage.
   const expandedIds = useExpandedTools();
+
+  // T-089 (refinement): ALL hooks must be called before any early return
+  // to satisfy the Rules of Hooks. Previously `useMemo` was called after
+  // the type-narrowing guard, which would crash React if a non-agent
+  // message was ever routed here (hook order would change between renders).
+  const rendered = React.useMemo(() => {
+    if (message.type !== 'agent') return null;
+    // T-040: Use markdown rendering for completed messages; fall back to
+    // the indexOf-based line splitter during streaming (so partial markdown
+    // constructs don't flicker as they accumulate).
+    if (message.streaming) {
+      return renderLines(message.content);
+    }
+    return renderMarkdown(message.content);
+  }, [message]);
+
   if (message.type !== 'agent') {
     // Type narrowing guard — should never fire because MessageBubble
     // only routes agent messages here.
@@ -87,15 +103,6 @@ export function AgentMessage({ message }: Props): React.ReactElement {
   const agentId = message.agentId ?? 'orchestrator';
   const ag = getAgent(agentId);
   const tok = message.tok;
-  const rendered = React.useMemo(() => {
-    // T-040: Use markdown rendering for completed messages; fall back to
-    // the indexOf-based line splitter during streaming (so partial markdown
-    // constructs don't flicker as they accumulate).
-    if (message.streaming) {
-      return renderLines(message.content);
-    }
-    return renderMarkdown(message.content);
-  }, [message.content, message.streaming]);
 
   return (
     <Box flexDirection="column" marginY={1} paddingLeft={1}>

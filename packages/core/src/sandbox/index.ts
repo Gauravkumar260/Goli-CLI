@@ -33,9 +33,14 @@ export {
   openSafeWrite,
 } from './path-validation.js';
 /**
- *
+ * Public seatbelt exports. `buildSeatbeltCommandArgs` is the
+ * SAFE arg-array form (no shell re-parse). `buildSeatbeltCommand`
+ * (string form) is deprecated and shell-injection-vulnerable via
+ * `execSync` which invokes `/bin/sh -c <string>` — it is kept here
+ * only for backward compatibility with external callers that have
+ * not yet migrated. New callers MUST use `buildSeatbeltCommandArgs`.
  */
-export { generateSeatbeltProfile, buildSeatbeltCommand } from './seatbelt.js';
+export { generateSeatbeltProfile, buildSeatbeltCommandArgs, buildSeatbeltCommand } from './seatbelt.js';
 /**
  *
  */

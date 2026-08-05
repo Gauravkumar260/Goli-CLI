@@ -40,7 +40,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 
-import { REFERENCE_MCP_SERVERS, type MCPServerConfig } from '@goli/core';
+import { buildReferenceMcpServers, type MCPServerConfig } from '@goli/core';
 
 /** The MCP config file path. */
 export function defaultMcpConfigPath(): string {
@@ -108,14 +108,17 @@ function parseMcpToml(content: string): MCPServerConfig[] {
         const items = arrMatch[1]!
           .split(',')
           .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+          .map((s) => unescapeTomlString(s))
           .filter((s) => s.length > 0);
         (current as Record<string, unknown>)[key] = items;
       }
     } else if (value === 'true' || value === 'false') {
       (current as Record<string, unknown>)[key] = value === 'true';
     } else {
-      // String (strip quotes)
-      (current as Record<string, unknown>)[key] = value.replace(/^["']|["']$/g, '');
+      // String (strip quotes, then unescape TOML escapes)
+      (current as Record<string, unknown>)[key] = unescapeTomlString(
+        value.replace(/^["']|["']$/g, ''),
+      );
     }
   }
   if (current) servers.push(finalizeServer(current));
@@ -139,19 +142,69 @@ function finalizeServer(partial: Partial<MCPServerConfig>): MCPServerConfig {
  * Serialize an array of `MCPServerConfig` to TOML.
  * @param servers
  */
+/**
+ * P1-21 fix: Escape a string for inclusion in a TOML double-quoted value.
+ *
+ * Previously `serializeMcpToml` only escaped `"` inside `args` — `name`,
+ * `command`, `url`, and `token` were interpolated verbatim. A user
+ * running `goli mcp add 'foo"bar' npx …` (or any value containing a
+ * quote or backslash) would produce corrupt TOML that wouldn't
+ * round-trip through `parseMcpToml`, silently losing the server config.
+ *
+ * We escape per the TOML spec: backslash first, then double-quote, then
+ * the control characters that have short escapes. Other control chars
+ * are emitted as `\uXXXX` for safety.
+ */
+function escapeTomlString(s: string): string {
+  return s
+    .replace(/\\/g, '\\\\')   // backslash first (so we don't double-escape the escapes we add)
+    .replace(/"/g, '\\"')     // double quote
+    .replace(/\n/g, '\\n')    // newline
+    .replace(/\r/g, '\\r')    // carriage return
+    .replace(/\t/g, '\\t')    // tab
+    // eslint-disable-next-line no-control-regex -- escape C0 controls + DEL for TOML string literal
+    .replace(/[\x00-\x1f\x7f]/g, (ch) => {  // other C0 controls + DEL
+      const code = ch.charCodeAt(0);
+      return '\\u' + code.toString(16).padStart(4, '0');
+    });
+}
+
+/**
+ * Unescape a TOML double-quoted string value back to its literal form.
+ *
+ * Mirrors `escapeTomlString` so that values round-trip exactly. Notably,
+ * on Windows an `args` entry like `F:\examples\server.js` is written as
+ * `"F:\\examples\\server.js"`; without this unescape step, the parsed
+ * value would retain the doubled backslashes (`F:\\examples\\server.js`).
+ */
+function unescapeTomlString(s: string): string {
+  // Process `\uXXXX` first (4 hex digits), then the short escapes.
+  // `\\` must be handled last so the backslashes we restore from the
+  // other escapes aren't re-processed.
+  return s
+    // \uXXXX ranges are ASCII hex, so no-control-regex doesn't apply
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, '\\');
+}
+
 function serializeMcpToml(servers: MCPServerConfig[]): string {
   const lines: string[] = ['# MCP server configurations (managed by `goli mcp`)', ''];
   for (const s of servers) {
     lines.push('[[servers]]');
-    lines.push(`name = "${s.name}"`);
-    lines.push(`transport = "${s.transport}"`);
-    if (s.command) lines.push(`command = "${s.command}"`);
+    // P1-21 fix: escape ALL string values, not just `args`.
+    lines.push(`name = "${escapeTomlString(s.name)}"`);
+    lines.push(`transport = "${escapeTomlString(s.transport)}"`);
+    if (s.command) lines.push(`command = "${escapeTomlString(s.command)}"`);
     if (s.args && s.args.length > 0) {
-      const argsStr = s.args.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(', ');
+      const argsStr = s.args.map((a: string) => `"${escapeTomlString(a)}"`).join(', ');
       lines.push(`args = [${argsStr}]`);
     }
-    if (s.url) lines.push(`url = "${s.url}"`);
-    if (s.token) lines.push(`token = "${s.token}"`);
+    if (s.url) lines.push(`url = "${escapeTomlString(s.url)}"`);
+    if (s.token) lines.push(`token = "${escapeTomlString(s.token)}"`);
     if (s.autoConnect !== undefined) lines.push(`autoConnect = ${s.autoConnect}`);
     lines.push('');
   }
@@ -257,7 +310,10 @@ export function scanMcpServers(
   // REFERENCE_MCP_SERVERS is imported at the top of the file via ESM
   // (the previous require() failed because @goli/core is ESM-only with
   // no CJS export in its `exports` map).
+  // Use buildReferenceMcpServers() which resolves lazy `() => string` args
+  // to plain strings, giving us a properly-typed MCPServerConfig[] return.
   const configured = loadMcpServers(configPath);
   const configuredNames = new Set(configured.map((s) => s.name));
-  return REFERENCE_MCP_SERVERS.filter((s) => !configuredNames.has(s.name));
+  const allResolved = buildReferenceMcpServers();
+  return allResolved.filter((s: MCPServerConfig) => !configuredNames.has(s.name));
 }

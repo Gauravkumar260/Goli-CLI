@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "goli://tools/bash.schema.json",
+  "title": "Bash",
+  "description": "Execute a shell command. The command is checked against an allowlist first; non-allowlisted commands require explicit user approval. The command runs inside the kernel-enforced sandbox (Landlock / Seatbelt / cgroups). Network egress is blocked by default.",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string",
+      "description": "The shell command to execute. Parsed with shell-quote; no shell interpolation."
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Optional working directory. Default: workspace root. Must be inside the workspace."
+    },
+    "timeout_ms": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 600000,
+      "default": 30000,
+      "description": "Optional timeout in milliseconds. Default 30s. Maximum 600s (10 min)."
+    },
+    "env": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Optional environment variables to set (merged with the existing env)."
+    },
+    "stream": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, stream stdout/stderr to the TUI in real-time (line-buffered). Use for long-running commands."
+    }
+  },
+  "required": ["command"],
+  "additionalProperties": false
+}

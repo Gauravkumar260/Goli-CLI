@@ -20,8 +20,8 @@
 
 import type { BudgetTracker } from './budget.js';
 import type { StallDetector } from './stall-detector.js';
-import type { StallConfig } from '../config/schema.js';
 import type { ToolCall } from './types.js';
+import type { StallConfig } from '../config/schema.js';
 
 /** Minimal response shape needed by the stop engine. */
 interface ModelResponse {
@@ -74,6 +74,12 @@ export class StopEngine {
     this.aborted = true;
   }
 
+  /** Reset the abort state for a new run. */
+  resetAbort(): void {
+    this.aborted = false;
+    this.parseFailures = 0;
+  }
+
   /**
    * Record a JSON parse failure (from tool-call argument parsing).
    */
@@ -112,7 +118,23 @@ export class StopEngine {
     // the response. Instead, treat as 'error' so the caller knows the
     // response was incomplete (and can retry with a higher max_tokens or
     // ask the model to continue).
-    if (response.finishReason === 'length' && response.toolCalls.length === 0) {
+    //
+    // IMPORTANT: if `finishReason === 'length'` AND there are tool calls,
+    // the tool-call arguments may be truncated mid-JSON — executing them
+    // would dispatch a tool with malformed/empty arguments. The previous
+    // implementation only caught `length && !toolCalls`, falling through
+    // to budget/stall checks. If those didn't fire, it returned
+    // `{ shouldStop: false }` and the loop tried to execute the
+    // (potentially truncated) tool calls. We now also stop on
+    // `length && toolCalls.length > 0` and ask the caller to retry.
+    if (response.finishReason === 'length') {
+      if (response.toolCalls.length > 0) {
+        return {
+          shouldStop: true,
+          reason: 'error',
+          message: 'Agent stopped: max output length reached mid-tool-call (arguments may be truncated). Retry with a higher max_tokens.',
+        };
+      }
       return {
         shouldStop: true,
         reason: 'error',

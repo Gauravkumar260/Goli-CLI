@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "goli://tools/todo-write.schema.json",
+  "title": "TodoWrite",
+  "description": "Write or update the agent's todo list. The list is shown in the TUI and is used to track progress on multi-step tasks. The full list is replaced on every call (not appended).",
+  "type": "object",
+  "properties": {
+    "todos": {
+      "type": "array",
+      "description": "The full todo list (replaces the existing list).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable ID for this todo. Re-use IDs to update existing todos; generate new IDs for new todos."
+          },
+          "content": {
+            "type": "string",
+            "description": "The todo content. One sentence, action-oriented (e.g. 'Add input validation to the login form')."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "in_progress", "completed"],
+            "description": "Status of the todo. Only one todo should be 'in_progress' at a time."
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "default": "medium",
+            "description": "Priority of the todo."
+          }
+        },
+        "required": ["id", "content", "status"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["todos"],
+  "additionalProperties": false
+}

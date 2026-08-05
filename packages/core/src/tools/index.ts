@@ -15,6 +15,8 @@ export type {
   ToolInputSchema,
   ToolHandler,
   PermissionTier,
+  ToolApprovalRequest,
+  ToolApprovalDecision,
 } from './types.js';
 /**
  *
@@ -72,13 +74,23 @@ export {
   AUTO_FORMAT_HOOK,
   GIT_CHECKPOINT_HOOK,
   AUDIT_LOG_HOOK,
+  // P0-8: user-defined hook configuration
+  loadUserHooks,
+  saveUserHooks,
+  hookMatches,
+  UserHookSchema,
+  UserHookConfigSchema,
 } from './hooks/index.js';
+/**
+ *
+ */
+export type { UserHook, UserHookConfig } from './hooks/index.js';
 
 // MCP client (Phase 6)
 /**
  *
  */
-export { MCPClientManager, REFERENCE_MCP_SERVERS } from './mcp/index.js';
+export { MCPClientManager, REFERENCE_MCP_SERVERS, buildReferenceMcpServers } from './mcp/index.js';
 /**
  *
  */
@@ -90,6 +102,7 @@ export type {
   MCPConnectionState,
   MCPClientManagerOptions,
   MCPToolCallResult,
+  ReferenceMcpServer,
 } from './mcp/index.js';
 
 // Self-registering registry + toolsets (Hermes improvement H1)
@@ -109,6 +122,31 @@ export { TOOLSETS, resolveToolset, listToolsets, getToolsetDefinitions, CORE_TOO
  *
  */
 export type { Toolset } from './toolsets.js';
+
+// Footprint Ladder (T-020) — tool classification + rung descriptions.
+// The previous barrel omitted these exports, leaving three fully-
+// implemented modules as dead code (callable only via deep imports).
+/**
+ *
+ */
+export {
+  FOOTPRINT_LADDER_RUNGS,
+  RUNG_DESCRIPTIONS,
+  TOOL_CLASSIFICATIONS,
+  describeRung,
+  recommendRung,
+  classifyAllTools,
+} from './footprint-ladder.js';
+/**
+ *
+ */
+export type { FootprintLadderRung, ToolClassification } from './footprint-ladder.js';
+
+// Shared path-safety utilities (used by all core file tools).
+/**
+ *
+ */
+export { resolveUserPath, checkPathInWorkspace, isSymlink } from './core/path-safety.js';
 
 // Parallel execution (Hermes improvement H4)
 /**
@@ -286,6 +324,11 @@ export type {
  *
  */
 export { formatLocation, formatDiagnostic } from './core/lsp-types.js';
+// P3-4: Concrete LSP client implementation (TypeScript).
+/**
+ *
+ */
+export { TypeScriptLspClient } from './core/typescript-lsp-client.js';
 
 // Internal imports for createDefaultToolRegistry
 import { ASK_USER_QUESTION_TOOL } from './core/ask-user.js';
@@ -318,11 +361,20 @@ import { ToolRegistry } from './registry.js';
  * Create a ToolRegistry with all default core tools + builtin hooks registered.
  *
  * The registry includes:
- * - 12 core tools (read_file, write_file, edit_file, list_directory, grep, bash,
- *   web_search, web_fetch, todo_write, bash_output, kill_shell, ask_user,
- *   notebook_edit)
+ * - 21 core tools across 3 tiers:
+ *   - T0 (Safe, 12): read_file, list_directory, grep, web_search, web_fetch,
+ *     todo_write, bash_output, ask_user, lsp_hover, lsp_goto_definition,
+ *     lsp_references, lsp_diagnostics
+ *   - T1 (Risky, 7): write_file, edit_file, notebook_edit, spec_write,
+ *     spec_review, spec_update, kill_shell
+ *   - T2 (Destructive, 2): bash, spawn_subagent
  * - 6 builtin hooks (block_destructive, block_secrets, block_writes_outside_workspace,
  *   audit_log, auto_format, git_checkpoint)
+ *
+ * P1-8 fix (verification report item #14): the previous docstring said
+ * "12 core tools" which was stale — the registry grew to 21 tools as
+ * LSP, spec, and other tools were added. The actual count is verified
+ * by `tests/unit/tool-registry.test.ts` and `footprint-ladder.ts:79`.
  *
  * @param opts
  */

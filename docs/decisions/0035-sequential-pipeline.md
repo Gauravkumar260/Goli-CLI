@@ -8,6 +8,7 @@
 
 The 11-agent swarm (Scout → Documenter) could run in parallel or
 sequentially. Research shows:
+
 - Multi-agent burns ~15× more tokens than single-thread
 - 36.94% of AutoGen/CrewAI/LangGraph failures are coordination failures
 - GLM-5.2's 1M context raises the bar for "too big for one agent"

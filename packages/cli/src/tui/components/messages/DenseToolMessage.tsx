@@ -43,11 +43,15 @@ export const COMPACT_TOOL_ALLOWLIST: readonly string[] = [
   'edit_file',
   'write_file',
   'grep',
-  'glob',
-  'ls',
+  'list_directory',
   'web_search',
   'web_fetch',
-  'read_many_files',
+  // Round-2 verification item T1: removed dead refs `glob`, `ls`,
+  // `read_many_files` — none of those are registered tool names.
+  // Added `list_directory` (the actual name for the ls-equivalent
+  // tool). The LLM only emits names from the tool definitions sent
+  // to it, so the dead names never matched anything, but they
+  // created the false impression that those tools existed.
 ];
 
 /**

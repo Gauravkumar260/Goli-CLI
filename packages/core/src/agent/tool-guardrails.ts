@@ -127,7 +127,14 @@ export interface ToolGuardrailControllerOptions {
  */
 export class ToolGuardrailController {
   private readonly config: ToolGuardrailConfig;
+  // Bounded to MAX_CALLS — the previous implementation
+  // pushed to this array on every `check()` call but only
+  // read it via `getSummary()` for debugging. The array grew
+  // unbounded across the controller's lifetime — a long
+  // agent session could accumulate tens of thousands of
+  // entries, each holding toolName, argsHash, and timestamp.
   private readonly calls: TrackedCall[] = [];
+  private static readonly MAX_CALLS = 1000;
   private readonly exactFailureCounts = new Map<string, number>();
   private readonly sameToolFailureCounts = new Map<string, number>();
   private noProgressCount = 0;
@@ -135,6 +142,79 @@ export class ToolGuardrailController {
 
   constructor(opts: ToolGuardrailControllerOptions = {}) {
     this.config = { ...DEFAULT_GUARDRAIL_CONFIG, ...opts.config };
+  }
+
+  /**
+   * Peek at the guardrail state WITHOUT recording a new call.
+   *
+   * The pre-execution check in the agent loop needs to know whether
+   * a tool call would be blocked (e.g., the exact-failure threshold
+   * has already been reached for this tool+args combination). The
+   * previous implementation called `check(tc, false)` for the pre-
+   * check, which recorded `success: false` and incremented the
+   * failure counter BEFORE the tool even ran. Then the post-
+   * execution `check(toolCall, ok)` recorded the actual result. So
+   * a tool that failed ONCE got `exactFailureCounts[exactKey] = 1`
+   * (pre-check) + `1` (post-check) = `2`, which already hits the
+   * `exactFailureWarnAfter: 2` threshold on the first real failure.
+   *
+   * `peek()` computes the decision based on the CURRENT state
+   * without mutating it, so the pre-check is a pure read.
+   *
+   * @param toolCall - The tool call that would be made.
+   * @returns The guardrail decision based on the current state.
+   */
+  peek(toolCall: ToolCall): ToolGuardrailDecision {
+    const argsHash = this.hashArgs(toolCall);
+    const toolName = toolCall.name;
+    const exactKey = `${toolName}:${argsHash}`;
+
+    // Exact failure: would this call already trigger halt/warn?
+    const exactCount = this.exactFailureCounts.get(exactKey) ?? 0;
+    if (exactCount >= this.config.exactFailureBlockAfter) {
+      return this.decision(
+        'halt',
+        `Exact failure loop: ${toolName} with identical args failed ${exactCount} times (block threshold: ${this.config.exactFailureBlockAfter}). Halting to prevent infinite retry.`,
+        'exact_failure',
+        exactCount,
+        this.config.exactFailureBlockAfter,
+      );
+    }
+    if (exactCount >= this.config.exactFailureWarnAfter) {
+      return this.decision(
+        'warn',
+        `Exact failure warning: ${toolName} with identical args failed ${exactCount} times (warn threshold: ${this.config.exactFailureWarnAfter}). Consider changing approach.`,
+        'exact_failure',
+        exactCount,
+        this.config.exactFailureWarnAfter,
+      );
+    }
+
+    // Same-tool failure: would this call already trigger halt/warn?
+    const sameToolCount = this.sameToolFailureCounts.get(toolName) ?? 0;
+    if (sameToolCount >= this.config.sameToolFailureHaltAfter) {
+      return this.decision(
+        'halt',
+        `Same-tool failure loop: ${toolName} failed ${sameToolCount} times (halt threshold: ${this.config.sameToolFailureHaltAfter}). Halting to prevent infinite retry.`,
+        'same_tool_failure',
+        sameToolCount,
+        this.config.sameToolFailureHaltAfter,
+      );
+    }
+    if (sameToolCount >= this.config.sameToolFailureWarnAfter) {
+      return this.decision(
+        'warn',
+        `Same-tool failure warning: ${toolName} failed ${sameToolCount} times (warn threshold: ${this.config.sameToolFailureWarnAfter}). Consider using a different approach.`,
+        'same_tool_failure',
+        sameToolCount,
+        this.config.sameToolFailureWarnAfter,
+      );
+    }
+
+    // No state mutation; no injection decision for no-progress (that
+    // requires `workingTreeHash` which the loop does not currently
+    // pass to the pre-check — see the loop's no-progress finding).
+    return this.decision('allow', 'No loop detected (peek)', 'none', 0, 0);
   }
 
   /**
@@ -153,13 +233,16 @@ export class ToolGuardrailController {
     const argsHash = this.hashArgs(toolCall);
     const toolName = toolCall.name;
 
-    // Record the call
+    // Record the call (bounded — see MAX_CALLS comment above).
     this.calls.push({
       toolName,
       argsHash,
       success,
       timestamp: Date.now(),
     });
+    if (this.calls.length > ToolGuardrailController.MAX_CALLS) {
+      this.calls.splice(0, this.calls.length - ToolGuardrailController.MAX_CALLS);
+    }
 
     // ─── 1. Exact failure detection ────────────────────────────
     // Same tool + same args failing repeatedly

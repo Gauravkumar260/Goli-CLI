@@ -1,16 +1,27 @@
 /**
  * Compaction engine (Module 2).
  *
- * Triggers at 70% of the context window (~700K of 1M tokens). Summarizes
+ * Triggers at 50% of the context window (~500K of 1M tokens) for the
+ * in-loop trigger, with a safety-net at 85% (~850K). Summarizes
  * the entire conversation history, preserving architectural decisions
  * and unresolved bugs, and restarts with the summary + the 5 most
  * recently accessed files.
  *
- * ## Why 70%, not 95%?
+ * ## Why 50%, not 95%?
  *
  * At 90% of 1M, only ~100K free — too tight for the 15-20K compaction
  * overhead. Retrieval accuracy drops from 93% (256K) to 76% (1M).
- * Compacting at 70% leaves ~300K free headroom. (ADR-0023)
+ * Compacting at 50% leaves ~500K free headroom for the next iteration,
+ * and the 85% safety-net catches runaway growth if 50% is somehow
+ * bypassed. (ADR-0023 — revised 2026-07-30 with the dual-trigger
+ * Revision Notes; previously 70%.)
+ *
+ * NOTE (Round-2 verification, item #4 sibling): `AgentLoop` itself
+ * uses `AdvancedCompression` (50% / 85%) as its in-loop compressor.
+ * This standalone `CompactionEngine` is exported via
+ * `createContextEngine()` for external callers and as a library
+ * primitive — its `triggerRatio` is now aligned with ADR-0023 so
+ * both code paths agree on the trigger threshold.
  *
  * @module context/compaction/engine
  */
@@ -23,10 +34,10 @@ import type { CompactionState } from '../types.js';
 export interface CompactionEngineOptions {
   /** The max context tokens (default: 1,000,000). */
   maxContextTokens: number;
-  /** The trigger ratio (default: 0.70). */
+  /** The trigger ratio (default: 0.50, per ADR-0023 dual-trigger). */
   triggerRatio: number;
-  /** The GLM client (for summarization). */
-  glmClient?: {
+  /** The LLM client (for summarization). */
+  llmClient?: {
     call: (params: {
       messages: Message[];
       effort?: string;
@@ -63,13 +74,13 @@ Format the summary as a concise markdown document with clear sections. Keep it u
 export class CompactionEngine {
   private readonly maxContextTokens: number;
   private readonly triggerRatio: number;
-  private readonly glmClient?: CompactionEngineOptions['glmClient'];
+  private readonly llmClient?: CompactionEngineOptions['llmClient'];
   private readonly log?: Logger;
 
   constructor(opts: CompactionEngineOptions) {
     this.maxContextTokens = opts.maxContextTokens;
     this.triggerRatio = opts.triggerRatio;
-    this.glmClient = opts.glmClient;
+    this.llmClient = opts.llmClient;
     this.log = opts.logger;
   }
 
@@ -117,9 +128,8 @@ export class CompactionEngine {
 
     let summary: string;
 
-    if (this.glmClient) {
-      // Use GLM-5.2 to summarize
-      const response = await this.glmClient.call({
+    if (this.llmClient) {
+      const response = await this.llmClient.call({
         messages: [
           { role: 'system', content: COMPACTION_PROMPT, timestamp: new Date().toISOString() },
           { role: 'user', content: serialized, timestamp: new Date().toISOString() },
@@ -127,9 +137,19 @@ export class CompactionEngine {
         effort: 'max',
         stream: false,
       });
-      summary = response.content;
+      // Enforce the summary budget the prompt asks for. The
+      // previous implementation trusted the LLM to keep it
+      // "under 5000 tokens" — if the LLM returned 50K tokens,
+      // the compacted context was larger than the original,
+      // the opposite of compaction. We now cap at 20K chars
+      // (~5K tokens) and add a truncation marker if exceeded.
+      const MAX_SUMMARY_CHARS = 20_000;
+      if (response.content.length > MAX_SUMMARY_CHARS) {
+        summary = response.content.slice(0, MAX_SUMMARY_CHARS) + '\n\n[... summary truncated to fit budget ...]';
+      } else {
+        summary = response.content;
+      }
     } else {
-      // Fallback: extract key info without GLM
       summary = this.fallbackSummarize(messages);
     }
 
@@ -142,11 +162,34 @@ export class CompactionEngine {
       },
     ];
 
-    // Add recent file contents as context
+    // Add recent file contents as context. The previous
+    // implementation included the FULL content of each recent file —
+    // a 100 MB minified bundle or large generated file would
+    // dominate the context window and defeat the purpose of
+    // compaction. We now cap each file at 8 KB (≈2k tokens) and
+    // the total at 32 KB (≈8k tokens), preferring earlier files
+    // (oldest first) so the most recently-read files are kept.
+    const MAX_PER_FILE_BYTES = 8 * 1024;
+    const MAX_TOTAL_BYTES = 32 * 1024;
+    let totalIncluded = 0;
     for (const file of recentFiles) {
+      const remaining = MAX_TOTAL_BYTES - totalIncluded;
+      if (remaining <= 0) {
+        compactedMessages.push({
+          role: 'system',
+          content: `[... ${recentFiles.length - compactedMessages.length + 1} more recent files omitted to fit compaction budget ...]`,
+          timestamp: new Date().toISOString(),
+        });
+        break;
+      }
+      const cap = Math.min(MAX_PER_FILE_BYTES, remaining);
+      const content = file.content.length > cap
+        ? file.content.slice(0, cap) + `\n[... file truncated at ${cap} bytes ...]`
+        : file.content;
+      totalIncluded += content.length;
       compactedMessages.push({
         role: 'system',
-        content: `[Recent File: ${file.path}]\n\`\`\`\n${file.content}\n\`\`\``,
+        content: `[Recent File: ${file.path}]\n\`\`\`\n${content}\n\`\`\``,
         timestamp: new Date().toISOString(),
       });
     }
@@ -197,7 +240,7 @@ export class CompactionEngine {
   }
 
   /**
-   * Fallback summarization without GLM (extracts key info heuristically).
+   * Fallback summarization without LLM (extracts key info heuristically).
    * @param messages
    */
   private fallbackSummarize(messages: Message[]): string {

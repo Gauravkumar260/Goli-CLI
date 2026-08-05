@@ -36,7 +36,7 @@ export async function runUsage(): Promise<number> {
   process.stdout.write('  Session budget cap:   $' + config.budget.maxCostUsd + '\n');
   process.stdout.write('\n');
   process.stdout.write('  ⏳ Usage tracking (trajectory store) lands in Phase 10.\n');
-  process.stdout.write('  Self-hosted GLM-5.2 = $0/token (cost rates stay at 0).\n\n');
+  process.stdout.write('  Self-hosted models = $0/token (cost rates stay at 0).\n\n');
 
   return 0;
 }

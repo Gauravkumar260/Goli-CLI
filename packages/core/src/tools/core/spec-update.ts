@@ -18,12 +18,13 @@
  * @module tools/core/spec-update
  */
 
-import { writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import { relative } from 'node:path';
 
 import { ToolExecutionError } from '../../utils/errors.js';
 
-import { resolveUserPath } from './path-safety.js';
+import { resolveUserPath, checkPathInWorkspace } from './path-safety.js';
 import { specRegistry, renderSpecMarkdown, type SpecStatus } from './spec-registry.js';
 
 import type { Tool, ToolResult, ToolContext } from '../types.js';
@@ -85,6 +86,12 @@ async function specUpdateHandler(
   const specPathArg = args['spec_path'] as string;
   const resolvedSpecPath = resolveUserPath(specPathArg, ctx.workspaceRoot);
 
+  // Boundary check (workspace escape defense).
+  const boundaryCheck = checkPathInWorkspace(resolvedSpecPath, ctx.workspaceRoot, ctx.godMode);
+  if (!boundaryCheck.ok) {
+    throw new ToolExecutionError(boundaryCheck.reason, 'spec_update');
+  }
+
   const spec = specRegistry.get(resolvedSpecPath);
   if (!spec) {
     throw new ToolExecutionError(
@@ -139,10 +146,21 @@ async function specUpdateHandler(
 
   const updated = specRegistry.update(resolvedSpecPath, updates);
 
-  // Re-write the markdown file.
+  // Re-write the markdown file using an atomic temp-file + rename
+  // pattern (consistent with write_file/edit_file — MEDIUM-21). The
+  // previous implementation called `writeFileSync` directly, which
+  // truncates the file before writing — a crash mid-write leaves a
+  // partial spec on disk that the next session can't parse.
+  const tempPath = `${resolvedSpecPath}.goli-tmp-${randomUUID().slice(0, 8)}`;
   try {
     const markdown = renderSpecMarkdown(updated);
-    writeFileSync(resolvedSpecPath, markdown, 'utf-8');
+    writeFileSync(tempPath, markdown, 'utf-8');
+    try {
+      renameSync(tempPath, resolvedSpecPath);
+    } catch (err) {
+      try { unlinkSync(tempPath); } catch { /* best-effort */ }
+      throw err;
+    }
   } catch (err) {
     throw new ToolExecutionError(
       `Failed to update spec file ${specPathArg}: ${err instanceof Error ? err.message : String(err)}`,

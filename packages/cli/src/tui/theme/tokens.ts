@@ -82,19 +82,54 @@ export function applySkinToTokens(skin: {
 }): boolean {
   const c = skin.colors;
   let changed = false;
-  if (c.fg     !== undefined && T.fg     !== c.fg)     { T.fg     = c.fg;     changed = true; }
-  if (c.blue   !== undefined && T.blue   !== c.blue)   { T.blue   = c.blue;   changed = true; }
-  if (c.green  !== undefined && T.green  !== c.green)  { T.green  = c.green;  changed = true; }
-  if (c.red    !== undefined && T.red    !== c.red)    { T.red    = c.red;    changed = true; }
-  if (c.yellow !== undefined && T.yellow !== c.yellow) { T.yellow = c.yellow; changed = true; }
-  if (c.purple !== undefined && T.purple !== c.purple) { T.purple = c.purple; changed = true; }
-  if (c.teal   !== undefined && T.teal   !== c.teal)   { T.teal   = c.teal;   changed = true; }
-  if (c.gray   !== undefined && T.gray   !== c.gray)   { T.gray   = c.gray;   changed = true; }
-  if (c.border !== undefined && T.border !== c.border) { T.border = c.border; changed = true; }
-  if (c.orange !== undefined && T.orange !== c.orange) { T.orange = c.orange; changed = true; }
+  // Track which keys were just set from the input so we only run
+  // resolveColor() downsampling on those (not on every T key). This
+  // preserves the partial-application contract: colors NOT in the
+  // input are left untouched, including their existing downsampling.
+  const touched: Array<keyof typeof T> = [];
+  if (c.fg     !== undefined && T.fg     !== c.fg)     { T.fg     = c.fg;     changed = true; touched.push('fg'); }
+  if (c.blue   !== undefined && T.blue   !== c.blue)   { T.blue   = c.blue;   changed = true; touched.push('blue'); }
+  if (c.green  !== undefined && T.green  !== c.green)  { T.green  = c.green;  changed = true; touched.push('green'); }
+  if (c.red    !== undefined && T.red    !== c.red)    { T.red    = c.red;    changed = true; touched.push('red'); }
+  if (c.yellow !== undefined && T.yellow !== c.yellow) { T.yellow = c.yellow; changed = true; touched.push('yellow'); }
+  if (c.purple !== undefined && T.purple !== c.purple) { T.purple = c.purple; changed = true; touched.push('purple'); }
+  if (c.teal   !== undefined && T.teal   !== c.teal)   { T.teal   = c.teal;   changed = true; touched.push('teal'); }
+  if (c.gray   !== undefined && T.gray   !== c.gray)   { T.gray   = c.gray;   changed = true; touched.push('gray'); }
+  if (c.border !== undefined && T.border !== c.border) { T.border = c.border; changed = true; touched.push('border'); }
+  if (c.orange !== undefined && T.orange !== c.orange) { T.orange = c.orange; changed = true; touched.push('orange'); }
   // T-087: Apply border style from skin.
   if (skin.borderStyle !== undefined && applyBorderStyle(skin.borderStyle)) {
     changed = true;
+  }
+  // P2-27 fix: Apply resolveColor() downsample to live tokens so the
+  // T-093 color-tier adaptation actually works on 256-color and 16-color
+  // terminals. Previously resolveColor() was defined but never called,
+  // so `T.red` stayed `'#f7768e'` even on a 256-color terminal that
+  // can't render truecolor — Ink/chalk would then either silently fail
+  // or do its own (possibly different) downsampling. We now run each
+  // TOUCHED token through resolveColor() after applying the skin so
+  // the stored value matches the terminal's actual capability.
+  //
+  // We only downsample if the terminal reports < truecolor; on
+  // truecolor terminals resolveColor() returns the hex unchanged.
+  //
+  // IMPORTANT: downsampling is a terminal-capability adaptation, NOT a
+  // user-initiated theme change. We therefore do NOT fold downsampling
+  // deltas into the `changed` flag — otherwise the first call after a
+  // DEFAULT_PALETTE reset would always report "changed" and fire
+  // subscribers, even when the caller passed the same colors back
+  // (T-076 contract: subscribeToThemeVersion must NOT fire when
+  // applySkinToTokens is called with unchanged colors). We also only
+  // downsample the TOUCHED keys so partial application leaves other
+  // colors untouched (T-076 partial-application contract).
+  for (const key of touched) {
+    const original = T[key];
+    if (typeof original === 'string' && original.startsWith('#')) {
+      const resolved = resolveColor(original);
+      if (resolved !== original) {
+        (T[key] as string) = resolved;
+      }
+    }
   }
   if (changed) {
     // Bump the theme version counter to trigger re-renders.

@@ -47,10 +47,29 @@ beforeEach(() => {
   cleanupAllShells();
 });
 
-afterEach(() => {
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function removeWorkspaceDir(): Promise<void> {
+  // On Windows a just-killed child process may still hold the workspace
+  // dir as its CWD; the OS releases the handle asynchronously. Retry a
+  // few times with a short delay before giving up.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      rmSync(workspace, { recursive: true, force: true });
+      return;
+    } catch {
+      await sleep(25);
+    }
+  }
   rmSync(workspace, { recursive: true, force: true });
-  clearTodos();
+}
+
+afterEach(async () => {
+  // Kill any live shells BEFORE removing the workspace dir — on Windows a
+  // spawned child holding the dir as its CWD makes rmSync throw EPERM.
   cleanupAllShells();
+  await removeWorkspaceDir();
+  clearTodos();
 });
 
 describe('Competitive gap tools registered', () => {

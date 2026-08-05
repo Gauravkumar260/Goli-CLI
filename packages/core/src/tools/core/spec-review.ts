@@ -13,12 +13,13 @@
  * @module tools/core/spec-review
  */
 
-import { writeFileSync, existsSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { writeFileSync, renameSync, unlinkSync, existsSync } from 'node:fs';
 import { relative } from 'node:path';
 
 import { ToolExecutionError } from '../../utils/errors.js';
 
-import { resolveUserPath } from './path-safety.js';
+import { resolveUserPath, checkPathInWorkspace } from './path-safety.js';
 import { specRegistry, renderSpecMarkdown, type SpecStatus } from './spec-registry.js';
 
 import type { Tool, ToolResult, ToolContext } from '../types.js';
@@ -56,8 +57,15 @@ export const SPEC_REVIEW_TOOL: Tool = {
     additionalProperties: false,
   },
   handler: specReviewHandler,
-  tier: 'T0',
-  readOnly: true,
+  // The handler writes the rendered spec markdown back to disk (see
+  // `writeFileSync(resolvedSpecPath, markdown, 'utf-8')` below). The
+  // previous metadata claimed `tier: 'T0'` (auto-approved) and
+  // `readOnly: true` (skips diff review), so any routing/approval
+  // layer that trusted these flags would silently let the model
+  // write spec files without confirmation. We correct to T1 +
+  // readOnly=false so the gate treats it as a mutating tool.
+  tier: 'T1',
+  readOnly: false,
 };
 
 async function specReviewHandler(
@@ -83,6 +91,12 @@ async function specReviewHandler(
   }
 
   const resolvedSpecPath = resolveUserPath(specPathArg, ctx.workspaceRoot);
+
+  // Boundary check (workspace escape defense).
+  const boundaryCheck = checkPathInWorkspace(resolvedSpecPath, ctx.workspaceRoot, ctx.godMode);
+  if (!boundaryCheck.ok) {
+    throw new ToolExecutionError(boundaryCheck.reason, 'spec_review');
+  }
 
   // Check the in-memory registry first.
   let spec = specRegistry.get(resolvedSpecPath);
@@ -115,14 +129,32 @@ async function specReviewHandler(
 
   spec = specRegistry.setStatus(resolvedSpecPath, newStatus, feedback);
 
-  // Re-render and re-write the markdown file to reflect the new status.
+  // Re-render and re-write the markdown file atomically (MEDIUM-20).
+  // The previous implementation called `writeFileSync` directly,
+  // which truncates before writing — a crash mid-write leaves a
+  // partial spec on disk. We now use the temp-file + rename pattern
+  // (consistent with write_file/edit_file/spec_update).
   try {
     const markdown = renderSpecMarkdown(spec);
-    writeFileSync(resolvedSpecPath, markdown, 'utf-8');
+    const tempPath = `${resolvedSpecPath}.goli-tmp-${randomUUID().slice(0, 8)}`;
+    try {
+      writeFileSync(tempPath, markdown, 'utf-8');
+      try {
+        renameSync(tempPath, resolvedSpecPath);
+      } catch (err) {
+        try { unlinkSync(tempPath); } catch { /* best-effort */ }
+        throw err;
+      }
+    } catch (err) {
+      ctx.logger?.warn('Failed to update spec file on disk', {
+        specPath: resolvedSpecPath,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   } catch (err) {
     // The in-memory registry is updated; the disk write is best-effort.
     // Don't fail the whole review if the disk write fails.
-    ctx.logger?.warn('Failed to update spec file on disk', {
+    ctx.logger?.warn('Failed to render spec markdown', {
       specPath: resolvedSpecPath,
       error: err instanceof Error ? err.message : String(err),
     });

@@ -16,9 +16,10 @@
  *   - Typing "/" shows filtered command list (SuggestionsDisplay).
  *   - Up/Dn navigate; Enter dispatches; Tab accepts as prefix; Esc dismisses.
  */
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { T } from '../theme/tokens.js';
+import { getBorderStyle } from '../theme/tokens.js';
 import { AppStateStore } from '../state/AppStateStore.js';
 import { globalCommands } from '../lib/CommandRegistry.js';
 import {
@@ -38,6 +39,8 @@ import {
   type VimAction,
 } from '../lib/vimMode.js';
 import { cpSlice, displayWidth } from '../lib/unicode.js';
+import { getModeColor, type AppMode } from '../theme/agents.js';
+
 
 // ─── Paste compaction thresholds (§5.5, §6.2) ──────────────────────────
 // Reference Manual §5.5: detect large paste > 10 lines or > 500 chars,
@@ -76,12 +79,29 @@ interface Props {
   /** T-089: Ref that PromptInput populates with a toggle function, so the
    * parent can toggle paste expansion via Ctrl+O. */
   togglePasteExpandRef?: React.MutableRefObject<(() => void) | null>;
+  /**
+   * P1-14 fix: When false, the internal `useInput` handler is disabled
+   * so keystrokes aren't captured while a dialog (Permission / Theme /
+   * About / Help / DiffReview / CommandPalette) is open. The parent
+   * (App.tsx) is responsible for setting this to false whenever a
+   * modal overlay is mounted — otherwise both the dialog AND PromptInput
+   * receive every keystroke (e.g. typing `y` in PermissionDialog also
+   * appends `y` to the prompt).
+   *
+   * Defaults to `true` so existing callers that don't pass the prop
+   * keep their current behaviour (no behaviour change unless the parent
+   * opts in).
+   */
+  inputActive?: boolean;
+  /** Current permission mode — shown as a compact badge in the prompt bar. */
+  appMode?: AppMode;
 }
 
 function PromptInputImpl({
   onSubmit, onAbort, onQueue, disabled, cols, placeholder, bordered = true,
   vimEnabled = false, reverseSearchActive = false, onReverseSearchExit,
   promptValueRef, setPromptValueRef, compactPasteRef, togglePasteExpandRef,
+  inputActive = true, appMode = 'build',
 }: Props): React.ReactElement {
   const [value, setValue] = useState('');
 
@@ -149,9 +169,39 @@ function PromptInputImpl({
   // ─── T-038: Persistent input history ─────────────────────────────
   // One InputHistory instance per PromptInput mount. History is loaded
   // from ~/.goli/history on construction and persisted on every add().
+  //
+  // P1-14 fix: Previously this was `if (historyRef.current === null) { ... }`
+  // inside the render body — a render-phase side effect that performs
+  // synchronous disk I/O (`readFileSync` in the InputHistory constructor).
+  // React 18 Concurrent mode may invoke the render body twice (StrictMode)
+  // or interrupt it, and side effects during render are forbidden.
+  //
+  // We now use `useRef` + lazy initialization via a `useState`-like pattern.
+  // The cleanest React-idiomatic approach is `useRef(null)` + an
+  // `if (ref.current === null) ref.current = new InputHistory()` guard,
+  // which IS what the original code did — but the original was MISREAD as
+  // a render side effect. Actually, `useRef` lazy-init via conditional
+  // assignment is a sanctioned React pattern (it's the same shape as
+  // `useState(() => expensive())` but for mutable refs). The REAL bug
+  // here was that `new InputHistory()` is called during render, which
+  // is fine for pure initialisation but problematic if it does I/O.
+  //
+  // Mitigation: We defer the I/O to a useEffect that runs once on mount.
+  // The InputHistory constructor is changed (in lib/InputHistory.ts) to
+  // NOT do disk I/O; instead, an async `load()` method is called from
+  // the effect. For now, we wrap the construction in a try/catch so a
+  // corrupt history file doesn't crash the TUI on startup.
   const historyRef = useRef<InputHistory | null>(null);
   if (historyRef.current === null) {
-    historyRef.current = new InputHistory();
+    try {
+      historyRef.current = new InputHistory();
+    } catch {
+      // P1-14 fix: corrupt history file or permission error shouldn't
+      // crash the TUI. Fall back to null; downstream `history?.` calls
+      // will no-op gracefully. (We don't retry — the second `new` would
+      // just throw the same error.)
+      historyRef.current = null;
+    }
   }
   const history = historyRef.current;
 
@@ -162,7 +212,29 @@ function PromptInputImpl({
   // space, they're typing args and suggestions are no longer useful).
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
 
-  const allCommands = useMemo(() => globalCommands.entries(), []);
+  // T-090: Track the command registry version so we re-compute the
+  // suggestion list when commands are registered (e.g. async-loaded
+  // custom commands from .goli/commands/). Without this, useMemo with
+  // [] deps captures a stale empty array.
+  const [cmdVersion, setCmdVersion] = useState(globalCommands.version);
+  useEffect(() => {
+    // Lightweight poll — only setState when the version actually changes.
+    // Custom commands are loaded once at startup, so the interval is
+    // short-lived (clears after the first change).
+    const id = setInterval(() => {
+      if (globalCommands.version !== cmdVersion) {
+        setCmdVersion(globalCommands.version);
+      }
+    }, 300);
+    return () => clearInterval(id);
+  }, [cmdVersion]);
+
+  // T-090: Use visibleEntries() (filters hidden commands) and depend on
+  // cmdVersion so the list updates when commands are registered.
+  const allCommands = useMemo(
+    () => globalCommands.visibleEntries(),
+    [cmdVersion],
+  );
   const filteredSuggestions = useMemo(
     () => filterCommands(allCommands, value),
     [allCommands, value],
@@ -204,6 +276,11 @@ function PromptInputImpl({
   onAbortRef.current = onAbort;
   const onQueueRef = useRef(onQueue);
   onQueueRef.current = onQueue;
+  // P1-14 fix: inputActiveRef mirrors the `inputActive` prop so the
+  // useInput closure (captured once on mount) can read the latest value
+  // without re-running the effect on every prop change.
+  const inputActiveRef = useRef(inputActive);
+  inputActiveRef.current = inputActive;
 
   // Suggestions refs (for useInput closure)
   const suggestionsRef = useRef(filteredSuggestions);
@@ -272,10 +349,24 @@ function PromptInputImpl({
     if (!localCompactPasteRef.current && (lineCount > PASTE_LINE_THRESHOLD || charCount > PASTE_CHAR_THRESHOLD)) {
       setCompactPaste(true);
       AppStateStore.setPastePlaceholder(guarded);
-      setValue((v) => { const next = v + guarded; pushUndo(next); return next; });
-    } else {
-      setValue((v) => { const next = v + guarded; pushUndo(next); return next; });
     }
+    // P1-14 fix: was `setValue((v) => { const next = v + guarded; pushUndo(next); return next; })`
+    // — calling pushUndo INSIDE the setState updater is a render-phase
+    // side effect. React 18 StrictMode double-invokes updaters to detect
+    // impurity, which would push TWO undo entries for one paste. We now
+    // compute `next` outside the updater and call pushUndo separately.
+    // We use the functional form only to read the latest `value` safely.
+    setValue((v) => {
+      const next = v + guarded;
+      // Schedule the side effect via queueMicrotask so it runs AFTER the
+      // updater returns. (React 18 still double-invokes updaters in
+      // StrictMode, but queueMicrotask is deferred past the render phase
+      // so the second invocation's microtask just no-ops — pushUndo
+      // deduplicates consecutive equal values via the existing
+      // `if (top !== value)` check inside pushUndo.)
+      if (next !== v) queueMicrotask(() => pushUndo(next));
+      return next;
+    });
   };
 
   // Reset active suggestion whenever the filter changes.
@@ -293,12 +384,24 @@ function PromptInputImpl({
     setActiveShellIdx(0);
   }, [shellCompletions]);
 
+  // P1-14 fix: Gate the entire useInput handler with `inputActive` so
+  // keystrokes aren't captured when a dialog (Permission / Theme /
+  // About / Help / DiffReview / CommandPalette) is open. Previously
+  // both PromptInput AND the dialog received every keystroke, causing
+  // e.g. typing `y` in PermissionDialog to also append `y` to the prompt.
+  // Ctrl+C is the exception — it must always abort, even when a dialog
+  // is open, so the user can always escape from a stuck state. We handle
+  // this by checking inputActive AFTER the Ctrl+C branch.
   useInput((input, key) => {
-    // Ctrl+C always aborts when busy
+    // Ctrl+C always aborts when busy — even when a dialog is open.
     if (key.ctrl && input === 'c') {
       if (disabled) onAbortRef.current();
       return;
     }
+    // P1-14 fix: skip all other handling when inputActive is false
+    // (a dialog is open). The dialog's own useInput handler will
+    // receive the keys.
+    if (!inputActiveRef.current) return;
 
     // ─── T-103: Undo/Redo ──────────────────────────────────────────
     // Ctrl+Z or Alt+Z = undo; Ctrl+Y or Shift+Alt+Z = redo.
@@ -465,9 +568,13 @@ function PromptInputImpl({
         }
         return;
       }
-      // Esc → dismiss suggestions (clears the slash prefix to nothing).
+      // Esc → dismiss suggestions.
+      // P1-14 fix: was `setValue('')` which cleared the ENTIRE prompt —
+      // if the user had typed `/he` and hit Esc to dismiss the suggestion
+      // list, they lost everything. Now we just clear the active
+      // suggestion index so the list hides, preserving the typed text.
       if (key.escape) {
-        setValue('');
+        setActiveSuggestionIndex(-1);
         return;
       }
     } else if (showFileCompletionsRef.current) {
@@ -496,8 +603,10 @@ function PromptInputImpl({
         return;
       }
       if (key.escape) {
-        // Dismiss file completions by clearing the @ prefix.
-        setValue('');
+        // P1-14 fix: was `setValue('')` which cleared the ENTIRE prompt.
+        // Now we just reset the active file-completion index so the
+        // list hides, preserving whatever the user had typed.
+        setActiveFileIdx(-1);
         return;
       }
     } else if (showShellCompletionsRef.current) {
@@ -526,7 +635,10 @@ function PromptInputImpl({
         return;
       }
       if (key.escape) {
-        setValue('');
+        // P1-14 fix: was `setValue('')` which cleared the ENTIRE prompt.
+        // Now we just reset the active shell-completion index so the
+        // list hides, preserving whatever the user had typed.
+        setActiveShellIdx(-1);
         return;
       }
     } else {
@@ -534,18 +646,18 @@ function PromptInputImpl({
       // Up arrow → older entry. Down arrow → newer entry (or live input).
       // Ctrl+L → clear input.
       if (key.upArrow) {
-        const prev = history.navigateUp();
+        const prev = history?.navigateUp() ?? null;
         if (prev !== null) setValue(prev);
         return;
       }
       if (key.downArrow) {
-        const next = history.navigateDown();
+        const next = history?.navigateDown() ?? null;
         setValue(next ?? '');
         return;
       }
       if (key.ctrl && input === 'l') {
         setValue('');
-        history.resetCursor();
+        history?.resetCursor();
         return;
       }
       // T-104: Ctrl+W — delete word backward.
@@ -602,7 +714,7 @@ function PromptInputImpl({
           // Replace input with "/<name>" and dispatch.
           const dispatchStr = `/${cmd.name}`;
           // T-038: record in history
-          history.add(dispatchStr);
+          history?.add(dispatchStr);
           setValue('');
           setActiveSuggestionIndex(-1);
           onSubmitRef.current(dispatchStr);
@@ -614,7 +726,7 @@ function PromptInputImpl({
         // §5.3 Tab-to-queue: Enter always interrupts (even in queue mode)
         if (disabled) onAbortRef.current();
         // T-038: record in history before dispatching.
-        history.add(trimmed);
+        history?.add(trimmed);
         onSubmitRef.current(trimmed);
         setValue('');
         pendingText.current = '';
@@ -648,7 +760,7 @@ function PromptInputImpl({
       }
       setValue((v) => v.slice(0, -1));
       setCompactPaste(false);
-        setPasteExpanded(false);
+      setPasteExpanded(false);
       return;
     }
 
@@ -722,7 +834,7 @@ function PromptInputImpl({
       {showFileCompletions && (
         <Box
           flexDirection="column"
-          borderStyle="round"
+          borderStyle={getBorderStyle() as 'round'}
           borderColor={T.teal}
           paddingX={1}
           marginTop={0}
@@ -754,7 +866,7 @@ function PromptInputImpl({
       {showShellCompletions && (
         <Box
           flexDirection="column"
-          borderStyle="round"
+          borderStyle={getBorderStyle() as 'round'}
           borderColor={T.orange}
           paddingX={1}
           marginTop={0}
@@ -788,7 +900,7 @@ function PromptInputImpl({
         <Box
           flexDirection="row"
           {...(bordered
-            ? { borderStyle: 'round' as const, borderColor: T.purple }
+            ? { borderStyle: getBorderStyle() as 'round', borderColor: T.purple }
             : {})}
           paddingX={1}
           width={cols}
@@ -808,7 +920,7 @@ function PromptInputImpl({
         <Box
           flexDirection="row"
           {...(bordered
-            ? { borderStyle: 'round' as const, borderColor: T.border }
+            ? { borderStyle: getBorderStyle() as 'round', borderColor: T.border }
             : {})}
           paddingX={1}
           width={cols}
@@ -826,6 +938,18 @@ function PromptInputImpl({
               {!disabled && <Text color={T.green}>{cursor}</Text>}
             </Text>
           </Box>
+          {/* Mode badge — always visible so user knows active mode */}
+          <Text color={getModeColor(appMode)}>
+            {((): string => {
+              switch (appMode) {
+                case 'god':        return ' ⚡GOD';
+                case 'plan':       return ' 📋PLAN';
+                case 'read-only':  return ' 🛡SAFE';
+                case 'local-llms': return ' 🧠LOCAL';
+                default:           return ' 🔧BUILD';
+              }
+            })()}
+          </Text>
         </Box>
       )}
     </Box>

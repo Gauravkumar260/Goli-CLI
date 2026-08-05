@@ -50,6 +50,7 @@ top of the loop, not a replacement for it.
 Phase 13 (Module 7) will add **opt-in parallel subagents** for genuinely
 independent subtasks (e.g. "implement feature A and feature B in
 parallel"). These use:
+
 - Git worktree isolation (one branch per subagent)
 - File-based shared-blackboard coordination (propose-validate-commit)
 - A supervisor/arbiter that reviews intermediate outputs
@@ -60,12 +61,14 @@ sequential 11-agent pipeline.
 ## Consequences
 
 **Positive:**
+
 - 15× lower token cost than default-multi-agent.
 - 37% fewer coordination failures.
 - Simpler debugging (one stack trace, one conversation).
 - The 11-agent swarm is still expressible — just sequential.
 
 **Negative:**
+
 - Wall-clock time is longer for tasks that could be parallelized.
   Mitigation: Phase 13 adds opt-in parallelism.
 - The "swarm" branding might mislead users into expecting parallel

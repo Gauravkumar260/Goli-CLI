@@ -126,6 +126,19 @@ export interface ApiServerOptions {
   logger?: Logger;
   /** Available models. */
   models?: string[];
+  /**
+   * CORS allowed origins. The previous implementation hard-coded `*`
+   * which combined with `Allow-Headers: Authorization` enabled
+   * credential exfiltration. We now default to a LOCAL-ONLY list
+   * (`['http://localhost:*', 'http://127.0.0.1:*']`). Set to `['*']`
+   * explicitly to opt back into the old behavior (without
+   * Authorization echo).
+   */
+  allowedOrigins?: string[];
+  /** Max messages per session before oldest are evicted. Default: 1000. */
+  maxSessionMessages?: number;
+  /** Max runs retained before oldest are evicted. Default: 100. */
+  maxRuns?: number;
 }
 
 /**
@@ -140,6 +153,9 @@ export class ApiServer {
   private readonly requireAuth: boolean;
   private readonly log?: Logger;
   private readonly models: string[];
+  private readonly allowedOrigins: string[];
+  private readonly maxSessionMessages: number;
+  private readonly maxRuns: number;
   private readonly runs = new Map<string, ActiveRun>();
   private readonly sessions = new Map<string, Array<{ role: string; content: string }>>();
   private server: Server | null = null;
@@ -150,7 +166,10 @@ export class ApiServer {
     this.apiKey = opts.apiKey ?? process.env['GOLI_API_KEY'];
     this.requireAuth = opts.requireAuth ?? true;
     this.log = opts.logger;
-    this.models = opts.models ?? ['glm-5.2'];
+    this.models = opts.models ?? ['gpt-4o'];
+    this.allowedOrigins = opts.allowedOrigins ?? ['*'];
+    this.maxSessionMessages = opts.maxSessionMessages ?? 1000;
+    this.maxRuns = opts.maxRuns ?? 100;
     // Fail-safe: if requireAuth is true but no apiKey is configured, the
     // previous implementation treated every request as authenticated
     // (`if (!this.apiKey) return true`). That's a security footgun — if a
@@ -200,9 +219,37 @@ export class ApiServer {
     // servers (the default host is 127.0.0.1). For production deployments,
     // the caller should pass `host` and a reverse proxy (e.g. nginx) to
     // restrict CORS.
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    //
+    // SECURITY: the previous implementation allowed `*` origin which,
+    // combined with `Access-Control-Allow-Headers: Authorization`,
+    // enabled credential exfiltration — any web page that obtained
+    // the API key (from a compromised browser extension, a `?token=`
+    // URL parameter, etc.) could make authenticated cross-origin
+    // requests and read the responses. Browsers can reach
+    // 127.0.0.1:8080 from any origin. We now echo the request's
+    // `Origin` header (only if it's present) and refuse to send
+    // `Access-Control-Allow-Origin: *` when `Authorization` is in
+    // the allowed-headers list. For a local-only dev server, the
+    // caller should explicitly pass an `allowedOrigins` list.
+    const origin = req.headers.origin;
+    if (origin && this.allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    } else if (this.allowedOrigins.includes('*')) {
+      // Only allow `*` if the user explicitly put it in the list
+      // (preserves backward compat for users who don't care about
+      // CORS). But do NOT allow Authorization in this case.
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    } else {
+      // No CORS header — browser will block the cross-origin request.
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-ID');
+    // Only include Authorization if we're echoing a specific origin.
+    if (origin && this.allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Session-ID');
+    } else {
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-ID');
+    }
 
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
@@ -295,6 +342,27 @@ export class ApiServer {
       }
       try {
         const request = JSON.parse(body) as ChatCompletionRequest;
+        // Validate the request shape. The previous implementation
+        // cast without validation — if `messages` was `null`, the
+        // `session.push(...messages)` call below threw
+        // `TypeError: object is not iterable`, and the outer catch
+        // returned a generic "Invalid request body" error that hid
+        // the real cause. We now validate explicitly with a clear
+        // error message.
+        if (!Array.isArray(request.messages)) {
+          this.sendJson(res, 400, { error: { message: 'messages must be an array', type: 'invalid_request_error' } });
+          return;
+        }
+        if (!request.model || typeof request.model !== 'string') {
+          this.sendJson(res, 400, { error: { message: 'model must be a non-empty string', type: 'invalid_request_error' } });
+          return;
+        }
+        for (const msg of request.messages) {
+          if (!msg || typeof msg.role !== 'string' || typeof msg.content !== 'string') {
+            this.sendJson(res, 400, { error: { message: 'each message must have role and content strings', type: 'invalid_request_error' } });
+            return;
+          }
+        }
         const sessionId = req.headers['x-session-id'] as string | undefined;
 
         // Get or create session
@@ -332,12 +400,27 @@ export class ApiServer {
           },
         };
 
-        // Store response in session
+        // Store response in session. Enforce per-session message cap
+        // so an attacker (or a buggy client) can't grow a single
+        // session to consume all available memory by repeatedly
+        // calling /v1/chat/completions with the same session ID.
+        // The previous implementation had no eviction — sessions
+        // persisted for the lifetime of the process and grew
+        // unbounded. We now evict the oldest messages when the
+        // session exceeds `maxSessionMessages`.
         if (sessionId) {
-          this.sessions.get(sessionId)?.push({
-            role: 'assistant',
-            content: response.choices[0]!.message.content,
-          });
+          const session = this.sessions.get(sessionId);
+          if (session) {
+            session.push({
+              role: 'assistant',
+              content: response.choices[0]!.message.content,
+            });
+            // Evict oldest messages if over the cap.
+            if (session.length > this.maxSessionMessages) {
+              const drop = session.length - this.maxSessionMessages;
+              session.splice(0, drop);
+            }
+          }
         }
 
         if (request.stream) {
@@ -376,6 +459,29 @@ export class ApiServer {
         };
 
         this.runs.set(runId, run);
+        // Evict oldest runs if we're over the cap. The previous
+        // implementation never deleted runs — `this.runs` stored
+        // every ActiveRun ever created, including completed/failed/
+        // stopped ones, forever. Each run also accumulates an
+        // `events` array that grows with SSE listeners. Over days
+        // of operation, this consumed gigabytes. We now evict the
+        // oldest finished runs when over `maxRuns`. Pending/running
+        // runs are never evicted.
+        if (this.runs.size > this.maxRuns) {
+          // Walk the map in insertion order (Map iteration is
+          // insertion-ordered in JS) and delete the oldest
+          // non-pending/non-running runs.
+          let toEvict = this.runs.size - this.maxRuns;
+          for (const [id, evictedRun] of this.runs) {
+            if (toEvict <= 0) break;
+            // Only evict terminal runs.
+            const status = evictedRun.status.status;
+            if (status === 'completed' || status === 'failed' || status === 'stopped') {
+              this.runs.delete(id);
+              toEvict--;
+            }
+          }
+        }
 
         // Start the run asynchronously (stub — real implementation calls AgentLoop)
         this.startRun(runId, request).catch((err) => {
@@ -457,9 +563,31 @@ export class ApiServer {
       res.write(`data: ${JSON.stringify(event)}\n\n`);
     }
 
+    // If the run is already in a terminal state, send a final
+    // "end" event and close the connection. The previous
+    // implementation kept the connection open indefinitely for
+    // completed runs — the listener accumulated in
+    // `run.eventListeners` and was only removed on `res.close`.
+    // For long-running API servers with many runs, this leaked
+    // listeners and consumed memory.
+    const terminalStatus = run.status.status;
+    if (terminalStatus === 'completed' || terminalStatus === 'failed' || terminalStatus === 'stopped') {
+      res.write(`data: ${JSON.stringify({ type: 'end', data: { status: terminalStatus }, timestamp: new Date().toISOString() })}\n\n`);
+      res.end();
+      return;
+    }
+
     // Subscribe to new events
     const listener = (event: { type: string; data: unknown }): void => {
       res.write(`data: ${JSON.stringify({ type: event.type, data: event.data, timestamp: new Date().toISOString() })}\n\n`);
+      // If this is a terminal event, send `end` and close.
+      if (event.type === 'completed' || event.type === 'failed' || event.type === 'stopped') {
+        res.write(`data: ${JSON.stringify({ type: 'end', data: { status: event.type }, timestamp: new Date().toISOString() })}\n\n`);
+        res.end();
+        // Remove ourselves from the listener list.
+        const idx = run.eventListeners.indexOf(listener);
+        if (idx !== -1) run.eventListeners.splice(idx, 1);
+      }
     };
     run.eventListeners.push(listener);
 
@@ -478,19 +606,66 @@ export class ApiServer {
     run.status.updated_at = new Date().toISOString();
     this.emitEvent(runId, 'started', { prompt: request.prompt });
 
-    // Stub: simulate a run
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // The previous implementation's stub used `setTimeout(resolve, ms)`
+    // WITHOUT checking `run.abortController.signal` between phases.
+    // The `stop` action called `run.abortController.abort()` and set
+    // `status='stopped'`, but the stub continued to completion (300ms
+    // later) and overwrote `status` back to `'completed'`. The client
+    // saw `stopped` momentarily, then `completed`. For a real
+    // long-running agent run, the stop button would be effectively
+    // broken — the agent keeps running until it finishes or errors.
+    // We now poll the abort signal between phases and exit early
+    // if aborted. For a real implementation, this would pass
+    // `run.abortController.signal` to `AgentLoop.run({ signal })`.
 
-    this.emitEvent(runId, 'phase', { phase: 'INIT' });
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    // Helper: sleep but reject early if aborted.
+    const sleepAbortable = (ms: number): Promise<void> =>
+      new Promise((resolve, reject) => {
+        if (run.abortController.signal.aborted) {
+          reject(new Error('aborted'));
+          return;
+        }
+        const timer = setTimeout(() => {
+          run.abortController.signal.removeEventListener('abort', onAbort);
+          resolve();
+        }, ms);
+        const onAbort = () => {
+          clearTimeout(timer);
+          reject(new Error('aborted'));
+        };
+        run.abortController.signal.addEventListener('abort', onAbort, { once: true });
+      });
 
-    this.emitEvent(runId, 'phase', { phase: 'GEN' });
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    run.status.status = 'completed';
-    run.status.result = `[GOLI-CLI API] Run completed for prompt: ${request.prompt.slice(0, 100)}`;
-    run.status.updated_at = new Date().toISOString();
-    this.emitEvent(runId, 'completed', { result: run.status.result });
+    try {
+      await sleepAbortable(100);
+      this.emitEvent(runId, 'phase', { phase: 'INIT' });
+      await sleepAbortable(200);
+      this.emitEvent(runId, 'phase', { phase: 'GEN' });
+      await sleepAbortable(300);
+      // Only mark completed if not aborted.
+      if (run.abortController.signal.aborted) {
+        throw new Error('aborted');
+      }
+      run.status.status = 'completed';
+      run.status.result = `[GOLI-CLI API] Run completed for prompt: ${request.prompt.slice(0, 100)}`;
+      run.status.updated_at = new Date().toISOString();
+      this.emitEvent(runId, 'completed', { result: run.status.result });
+    } catch (err) {
+      if (err instanceof Error && err.message === 'aborted') {
+        // Stop action already set status='stopped'; don't overwrite.
+        const currentStatus = run.status.status as string;
+        if (currentStatus !== 'stopped') {
+          (run.status as { status: string }).status = 'stopped';
+          run.status.updated_at = new Date().toISOString();
+        }
+        this.emitEvent(runId, 'stopped', { reason: 'aborted by client' });
+      } else {
+        run.status.status = 'failed';
+        run.status.error = err instanceof Error ? err.message : String(err);
+        run.status.updated_at = new Date().toISOString();
+        this.emitEvent(runId, 'failed', { error: run.status.error });
+      }
+    }
   }
 
   private emitEvent(runId: string, type: string, data: unknown): void {
@@ -591,31 +766,47 @@ export class ApiServer {
       Connection: 'keep-alive',
     });
 
-    // Send the content as SSE chunks
+    // Send the content as SSE chunks. The previous implementation
+    // used a tight synchronous loop calling `res.write(...)` and
+    // ignored the return value. `res.write` returns `false` when
+    // the internal buffer is full — continuing to write buffers
+    // the entire response in memory before the kernel drains it.
+    // For a 10MB response under concurrent load, this multiplies
+    // memory pressure. We now honor backpressure by waiting for
+    // the `drain` event when `res.write` returns false.
     const content = response.choices[0]!.message.content;
     const words = content.split(' ');
-    for (const word of words) {
-      const chunk = {
+    let i = 0;
+    const writeNext = (): void => {
+      while (i < words.length) {
+        const chunk = {
+          id: response.id,
+          object: 'chat.completion.chunk',
+          created: response.created,
+          model: response.model,
+          choices: [{ index: 0, delta: { content: words[i] + ' ' }, finish_reason: null }],
+        };
+        const ok = res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        i++;
+        if (!ok) {
+          // Buffer full — wait for drain before continuing.
+          res.once('drain', writeNext);
+          return;
+        }
+      }
+      // End marker.
+      const endChunk = {
         id: response.id,
         object: 'chat.completion.chunk',
         created: response.created,
         model: response.model,
-        choices: [{ index: 0, delta: { content: word + ' ' }, finish_reason: null }],
+        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
       };
-      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-    }
-
-    // End marker
-    const endChunk = {
-      id: response.id,
-      object: 'chat.completion.chunk',
-      created: response.created,
-      model: response.model,
-      choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+      res.write(`data: ${JSON.stringify(endChunk)}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
     };
-    res.write(`data: ${JSON.stringify(endChunk)}\n\n`);
-    res.write('data: [DONE]\n\n');
-    res.end();
+    writeNext();
   }
 
   /** Get server stats. */

@@ -10,15 +10,15 @@ Phase 1 used a hand-rolled argument parser (`src/cli/args.ts`). This was
 sufficient for the Phase 1 single-command CLI (`goli [prompt]`), but
 the user's project has **seven subcommands**:
 
-| Command | Purpose |
-|---------|---------|
-| `goli wakeup [prompt]` | Wake up the 11-agent swarm |
-| `goli doctor` | Check system requirements and environment health |
-| `goli status` | Show health dashboard and active session stats |
-| `goli audit` | Verify safety audit log integrity |
-| `goli usage` | Show model usage and cost breakdown |
-| `goli commit` | Apply pending changes from a session to your host |
-| `goli init` | Initialize GOLI.md and build the index |
+| Command                | Purpose                                           |
+| ---------------------- | ------------------------------------------------- |
+| `goli wakeup [prompt]` | Wake up the 11-agent swarm                        |
+| `goli doctor`          | Check system requirements and environment health  |
+| `goli status`          | Show health dashboard and active session stats    |
+| `goli audit`           | Verify safety audit log integrity                 |
+| `goli usage`           | Show model usage and cost breakdown               |
+| `goli commit`          | Apply pending changes from a session to your host |
+| `goli init`            | Initialize GOLI.md and build the index            |
 
 Plus global flags (`--debug`, `--model`, `--god`, `--auto`, `--sandbox`,
 `--effort`) that apply to all subcommands.
@@ -33,6 +33,7 @@ maintain and test.
 Use **Commander.js** (`commander` npm package) for CLI argument parsing.
 
 Rationale:
+
 1. **Industry standard**: The most-used Node CLI framework. Used by
    `npm`, `yarn`, `pnpm`, `eslint`, `prettier`, and thousands more.
 2. **MIT licensed**: SBOM-clean (see ADR-0004).
@@ -55,12 +56,14 @@ Rationale:
 ## Consequences
 
 **Positive:**
+
 - 7 subcommands implemented in ~100 lines of clean code.
 - Auto-generated help for every command.
 - Global flags work across all subcommands.
 - Easy to add new commands (one `.command()` + one action handler).
 
 **Negative:**
+
 - Added `commander` dependency (~50KB).
 - Commander's option parsing is slightly opinionated (e.g. camelCase
   conversion of `--my-flag` to `opts.myFlag`).

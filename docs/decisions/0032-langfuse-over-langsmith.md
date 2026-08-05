@@ -19,6 +19,7 @@ two main options:
 Use **self-hosted Langfuse** (not LangSmith).
 
 Rationale:
+
 1. **Zero data egress.** The entire GOLI-CLI legal posture is built on
    zero data egress (GDPR, EU AI Act, enterprise customer DPAs). Sending
    traces to LangSmith's SaaS would violate this.

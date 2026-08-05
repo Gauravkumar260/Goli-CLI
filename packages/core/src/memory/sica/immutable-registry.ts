@@ -7,7 +7,9 @@
  * - `src/sandbox/` — OS-native sandbox implementation
  * - `src/approval/` — approval policy engine
  * - `src/tools/hooks/builtin/` — safety hook scripts
- * - `src/sica/` — SICA evaluation harness + overseer
+ * - `src/memory/sica/` — SICA evaluation harness + overseer (the
+ *   SICA loop must not be able to edit its own safety code — that
+ *   would be a privilege-escalation vector).
  * - `configs/sandbox.toml` — sandbox profiles
  *
  * ## How it works
@@ -21,10 +23,20 @@
  * equivalent on macOS). For Phase 11, the registry is enforced in
  * software (the SICA loop checks before applying).
  *
+ * ## P1-2 fix (audit Finding 4.27 / 6.19)
+ *
+ * The previous implementation protected `packages/core/src/sica/`,
+ * a path that DOES NOT EXIST in the source tree. The actual SICA
+ * code lives at `packages/core/src/memory/sica/`. This meant a
+ * misbehaving SICA cycle could edit `immutable-registry.ts` itself
+ * (or `overseer.ts`, `overfit-detector.ts`, `rate-limiter.ts`,
+ * `loop.ts`) without triggering the immutability check — a
+ * privilege-escalation vector. The path is now correct.
+ *
  * @module memory/sica/immutable-registry
  */
 
-import { existsSync, chmodSync, statSync } from 'node:fs';
+import { existsSync, chmodSync, statSync, realpathSync } from 'node:fs';
 import { join, resolve, relative } from 'node:path';
 
 import type { SicaTarget } from './types.js';
@@ -39,12 +51,21 @@ export class ImmutableSafetyRegistry {
     this.log = opts.logger;
     const root = opts.workspaceRoot ?? process.cwd();
 
-    // Default immutable paths — these CANNOT be modified by SICA
+    // Default immutable paths — these CANNOT be modified by SICA.
+    //
+    // P1-2 fix (audit Finding 4.27 / 6.19): the previous entry
+    // `packages/core/src/sica/` pointed at a directory that does
+    // NOT exist in the source tree. The actual SICA code lives at
+    // `packages/core/src/memory/sica/`. We correct the path AND
+    // add `packages/core/src/tools/hooks/` (the parent of `builtin/`)
+    // so user-defined hooks AND the HookEngine itself are also
+    // protected — the audit noted only `builtin/` was protected,
+    // leaving `engine.ts` and `types.ts` mutable.
     this.immutablePaths = new Set([
       join(root, 'packages/core/src/sandbox/'), // OS-native sandbox
       join(root, 'packages/core/src/approval/'), // Approval policy engine
-      join(root, 'packages/core/src/tools/hooks/builtin/'), // Safety hooks
-      join(root, 'packages/core/src/sica/'), // SICA itself (meta-safety)
+      join(root, 'packages/core/src/tools/hooks/'), // Hook engine + builtins
+      join(root, 'packages/core/src/memory/sica/'), // SICA itself (meta-safety) — corrected path
       join(root, 'packages/core/src/evals/redteam/'), // Red-team harness
       join(root, 'packages/core/src/orchestration/routing/'), // Provider blocklist
       join(root, 'config/sandbox.toml'), // Sandbox profiles
@@ -54,10 +75,28 @@ export class ImmutableSafetyRegistry {
 
   /**
    * Check if a path is immutable (protected from SICA modification).
+   *
+   * The previous implementation used `resolve(filePath)` which only
+   * normalizes the path string — it does NOT resolve symlinks.
+   * An attacker (or a compromised SICA proposal) could create a
+   * symlink from a mutable location to an immutable location, and
+   * `isImmutable` would return false (because the symlink path is
+   * outside the immutable directory). We now use `realpathSync` to
+   * follow the symlink chain before checking.
+   *
    * @param filePath
    */
   isImmutable(filePath: string): boolean {
-    const resolved = resolve(filePath);
+    let resolved: string;
+    try {
+      resolved = realpathSync(filePath);
+    } catch {
+      // File doesn't exist (write_file case) or realpath failed.
+      // Fall back to `resolve()` which normalizes the path string
+      // without following symlinks. For non-existent paths, this
+      // is correct (no symlink to follow).
+      resolved = resolve(filePath);
+    }
     for (const immutablePath of this.immutablePaths) {
       const rel = relative(immutablePath, resolved);
       // If the file is inside an immutable directory, or IS an immutable file

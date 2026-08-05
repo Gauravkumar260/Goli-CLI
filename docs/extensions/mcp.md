@@ -78,35 +78,37 @@ examples/mcp-hello-world/
 // Add to Goli-CLI with:
 //   goli mcp add hello --transport stdio --command node --args $(pwd)/server.js
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 const server = new Server(
-  { name: 'hello-world', version: '0.1.0' },
+  { name: "hello-world", version: "0.1.0" },
   { capabilities: { tools: {} } },
 );
 
 // Register the `greet` tool.
-server.setRequestHandler({ method: 'tools/list' }, async () => ({
-  tools: [{
-    name: 'greet',
-    description: 'Greet a person by name.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', description: 'The name to greet.' },
+server.setRequestHandler({ method: "tools/list" }, async () => ({
+  tools: [
+    {
+      name: "greet",
+      description: "Greet a person by name.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "The name to greet." },
+        },
+        required: ["name"],
       },
-      required: ['name'],
     },
-  }],
+  ],
 }));
 
 // Handle tool calls.
-server.setRequestHandler({ method: 'tools/call' }, async (req) => {
-  if (req.params.name === 'greet') {
-    const name = req.params.arguments?.name ?? 'world';
+server.setRequestHandler({ method: "tools/call" }, async (req) => {
+  if (req.params.name === "greet") {
+    const name = req.params.arguments?.name ?? "world";
     return {
-      content: [{ type: 'text', text: `Hello, ${name}!` }],
+      content: [{ type: "text", text: `Hello, ${name}!` }],
     };
   }
   throw new Error(`Unknown tool: ${req.params.name}`);

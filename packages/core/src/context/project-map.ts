@@ -2,10 +2,19 @@
  * Project map generator (Module 2, next-gen context layer).
  *
  * Generates a compressed, ranked map of the project's structure —
- * the Aider "Repo Map" pattern. Uses tree-sitter to extract symbols
- * (functions, classes, methods) from every file, ranks them by
- * importance (PageRank-style via the symbol graph), and produces a
- * compact text representation that fits in the system prompt.
+ * the Aider "Repo Map" pattern. Uses lightweight regex-based
+ * heuristics to extract symbols (functions, classes, methods) from
+ * every file, ranks them by importance (heuristic weighting via
+ * the symbol graph), and produces a compact text representation
+ * that fits in the system prompt.
+ *
+ * NOTE (Round-2 verification, item CI4): the file-level docstring
+ * previously claimed "Uses tree-sitter to extract symbols". That
+ * was inaccurate — the implementation has always used regex
+ * patterns (see `extractSymbolsFromContent` below). A future
+ * improvement will swap the regex extractor for tree-sitter
+ * (tracked in the H-onwards roadmap); until then, the docstring
+ * now honestly reflects the actual implementation.
  *
  * This gives the agent global context about the project without
  * burning the context window. The agent knows "the auth module is
@@ -21,8 +30,8 @@
  * @module context/project-map
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative, extname } from 'node:path';
+import { readdirSync, readFileSync, statSync, realpathSync } from 'node:fs';
+import { join, relative, extname, dirname, resolve } from 'node:path';
 
 import type { Logger } from '../utils/logger.js';
 
@@ -67,10 +76,25 @@ const DEFAULT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs', '
  */
 export class ProjectMapGenerator {
   private readonly workspaceRoot: string;
-  
   private readonly maxTokens: number;
   private readonly skipDirs: Set<string>;
   private readonly extensions: Set<string>;
+  private walkVisited?: Set<string>; // symlink-loop detection per walk
+  /**
+   * P1-19 fix (remediation plan Phase 19): cached project map. The
+   * cache is keyed by the set of files + their mtimes, so a no-op
+   * re-generation returns the cached string in O(1). When any source
+   * file changes (mtime differs), the cache is busted and the map
+   * is rebuilt from scratch.
+   *
+   * We use mtime-based invalidation rather than a file watcher
+   * (chokidar) to avoid adding a native-dep footprint. The tradeoff:
+   * the cache is only checked when `generate()` is called, not
+   * proactively invalidated. For the typical "generate once per
+   * session" usage pattern, this is fine.
+   */
+  private cachedMap: string | null = null;
+  private cacheFingerprint: string | null = null;
 
   constructor(opts: ProjectMapGeneratorOptions) {
     this.workspaceRoot = opts.workspaceRoot;
@@ -82,10 +106,24 @@ export class ProjectMapGenerator {
   /**
    * Generate the project map.
    *
+   * P1-19: results are cached by a fingerprint of the collected files
+   * + their mtimes. Re-calling `generate()` without any file changes
+   * returns the cached string in O(1). When files change, the cache
+   * is busted and the map is rebuilt.
+   *
    * @returns A compressed text representation of the project structure.
    */
   generate(): string {
+    // P1-19: check the cache. The fingerprint is computed during
+    // `collectFiles()` (which we'd call anyway), so we do a two-pass:
+    // collect files + compute fingerprint, then check the cache, then
+    // (on miss) extract symbols + format.
     const files = this.collectFiles();
+    const fingerprint = this.computeFingerprint(files);
+    if (this.cachedMap !== null && this.cacheFingerprint === fingerprint) {
+      return this.cachedMap;
+    }
+
     const entries = this.extractSymbols(files);
     this.rankByImportance(entries);
 
@@ -109,7 +147,45 @@ export class ProjectMapGenerator {
       lines.push('(No source files found in workspace.)');
     }
 
-    return lines.join('\n');
+    const map = lines.join('\n');
+    // P1-19: populate the cache.
+    this.cachedMap = map;
+    this.cacheFingerprint = fingerprint;
+    return map;
+  }
+
+  /**
+   * P1-19: compute a fingerprint for the collected files. The
+   * fingerprint is `${fileCount}:${totalMtime}` — a cheap hash that
+   * changes when files are added/removed (fileCount changes) or when
+   * any file is modified (totalMtime changes). We use the SUM of
+   * mtimes rather than a sorted concatenation to keep this O(n)
+   * instead of O(n log n).
+   *
+   * Collisions are theoretically possible (two file sets with the
+   * same count + total mtime) but extremely unlikely in practice.
+   */
+  private computeFingerprint(files: string[]): string {
+    let totalMtime = 0;
+    for (const f of files) {
+      try {
+        totalMtime += statSync(f).mtimeMs;
+      } catch {
+        // File was deleted between collectFiles() and the stat —
+        // treat as mtime=0 (effectively skipped).
+      }
+    }
+    return `${files.length}:${totalMtime}`;
+  }
+
+  /**
+   * P1-19: bust the cache. Call this when you know the workspace has
+   * changed (e.g., after a git checkout or a bulk edit) and you want
+   * the next `generate()` call to rebuild from scratch.
+   */
+  invalidateCache(): void {
+    this.cachedMap = null;
+    this.cacheFingerprint = null;
   }
 
   /**
@@ -119,6 +195,9 @@ export class ProjectMapGenerator {
    */
   private collectFiles(): string[] {
     const files: string[] = [];
+    // Reset the visited set for this walk so it doesn't accumulate
+    // across calls.
+    this.walkVisited = new Set();
     this.walk(this.workspaceRoot, files);
     return files;
   }
@@ -135,6 +214,20 @@ export class ProjectMapGenerator {
     } catch {
       return;
     }
+
+    // Track visited canonical paths to detect symlink loops.
+    // The previous implementation didn't check for cycles — a
+    // symlink creating a cycle (e.g., `a/b/c -> a/`) would
+    // infinite-loop until stack overflow or OOM.
+    if (!this.walkVisited) this.walkVisited = new Set();
+    let canonicalDir: string;
+    try {
+      canonicalDir = realpathSync(dir);
+    } catch {
+      canonicalDir = dir;
+    }
+    if (this.walkVisited.has(canonicalDir)) return;
+    this.walkVisited.add(canonicalDir);
 
     for (const entry of entries) {
       if (entry.name.startsWith('.') && entry.name !== '.goli') continue;
@@ -157,13 +250,30 @@ export class ProjectMapGenerator {
    *
    * For production, this should use tree-sitter. For now, we use
    * lightweight regex patterns that work across languages.
+   *
+   * We now skip files larger than 1 MB (configurable via
+   * `MAX_FILE_BYTES`). The previous implementation read every file
+   * fully into memory — for a codebase with many large files
+   * (generated code, minified bundles, large JSON schemas), this
+   * could OOM the process.
    * @param files
    */
   private extractSymbols(files: string[]): FileEntry[] {
     const entries: FileEntry[] = [];
+    const MAX_FILE_BYTES = 1 * 1024 * 1024; // 1 MB — skip larger files.
 
     for (const file of files) {
       try {
+        // Skip large files to avoid OOM. `statSync` is cheaper than
+        // `readFileSync` for the size check.
+        let size = Number.MAX_SAFE_INTEGER;
+        try {
+          size = statSync(file).size;
+        } catch {
+          // stat failed — fall through and try readFileSync (which
+          // will throw if the file is unreadable, caught below).
+        }
+        if (size > MAX_FILE_BYTES) continue;
         const content = readFileSync(file, 'utf-8');
         const symbols = this.extractSymbolsFromContent(content, extname(file));
         if (symbols.length > 0 || content.length < 5000) {
@@ -231,23 +341,53 @@ export class ProjectMapGenerator {
    *   1. Number of symbols (more = more important).
    *   2. Number of imports (files imported by many others = important).
    *   3. File name significance (index.ts, main.ts, app.ts get boosts).
+   *
+   * The previous implementation was O(n²) and re-read every file
+   * (10,000-file codebase → 10,000 file reads + 10,000 × imports ×
+   * 10,000 comparisons ≈ billions of operations). We now build a
+   * reverse-index from each import string to candidate paths ONCE,
+   * then look up the path in O(1) per import — no inner loop and
+   * no per-file re-read (we use the symbols array already
+   * captured by `extractSymbols`).
    * @param entries
    */
   private rankByImportance(entries: FileEntry[]): void {
-    // Build an import count map.
+    // Build a reverse-index from "import target (without extension)"
+    // → array of paths that match it. Each entry's path is normalized
+    // to a relative path with no extension, so a relative import like
+    // `'./utils/foo'` matches `/workspace/src/utils/foo.ts`.
+    const pathIndex = new Map<string, string[]>();
+    for (const entry of entries) {
+      const relPath = relative(this.workspaceRoot, entry.path);
+      const stem = relPath.replace(/\.[^.]+$/, ''); // strip extension
+      const existing = pathIndex.get(stem);
+      if (existing) existing.push(entry.path);
+      else pathIndex.set(stem, [entry.path]);
+    }
+
+    // Build an import count map. We re-read each file ONCE here to
+    // extract imports (this is the unavoidable cost; we avoid the
+    // inner O(n) loop). Files larger than 1 MB are skipped (same
+    // cap as `extractSymbols`).
+    const MAX_FILE_BYTES = 1 * 1024 * 1024;
     const importCounts = new Map<string, number>();
     for (const entry of entries) {
       try {
+        let size = Number.MAX_SAFE_INTEGER;
+        try { size = statSync(entry.path).size; } catch { /* ignore */ }
+        if (size > MAX_FILE_BYTES) continue;
         const content = readFileSync(entry.path, 'utf-8');
         const importMatches = content.matchAll(/(?:import|require|from)\s+['"]([^'"]+)['"]/g);
         for (const m of importMatches) {
           const imported = m[1] ?? '';
-          // Count how many times each file is imported.
-          for (const other of entries) {
-            const relPath = relative(this.workspaceRoot, other.path);
-            if (imported.includes(relPath.replace(extname(relPath), ''))) {
-              importCounts.set(other.path, (importCounts.get(other.path) ?? 0) + 1);
-            }
+          // Only relative imports can resolve to in-workspace files.
+          if (!imported.startsWith('.') && !imported.startsWith('/')) continue;
+          // Try resolving the import relative to the importing file's
+          // directory. We don't need a full module-resolution here —
+          // the reverse-index lookup is O(1) per candidate.
+          const candidates = this.resolveImportCandidates(imported, entry.path, pathIndex);
+          for (const cand of candidates) {
+            importCounts.set(cand, (importCounts.get(cand) ?? 0) + 1);
           }
         }
       } catch {
@@ -265,6 +405,31 @@ export class ProjectMapGenerator {
 
     // Sort by importance (descending).
     entries.sort((a, b) => b.importance - a.importance);
+  }
+
+  /**
+   * Resolve a relative import string to candidate file paths
+   * using the pathIndex. Returns 0-3 candidates (exact stem match
+   * + index-of-dir + ext variants).
+   */
+  private resolveImportCandidates(
+    imported: string,
+    importingFile: string,
+    pathIndex: Map<string, string[]>,
+  ): string[] {
+    const out: string[] = [];
+    // Resolve relative to importing file's directory.
+    const dir = dirname(importingFile);
+    const resolved = resolve(dir, imported);
+    const relToWorkspace = relative(this.workspaceRoot, resolved);
+    const stem = relToWorkspace.replace(/\.[^.]+$/, '');
+    // Try the stem as-is.
+    const direct = pathIndex.get(stem);
+    if (direct) out.push(...direct);
+    // Try index-of-directory (`./utils` → `utils/index`).
+    const indexCandidate = pathIndex.get(`${stem}/index`);
+    if (indexCandidate) out.push(...indexCandidate);
+    return out;
   }
 
   /**

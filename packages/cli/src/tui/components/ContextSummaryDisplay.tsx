@@ -31,6 +31,14 @@ interface Props {
   mcpServerCount?: number;
   /** Number of skills in the catalog. */
   skillCount?: number;
+  /**
+   * P0-6 fix (remediation plan Phase 6): names of L2 skills whose
+   * full instructions were loaded on-demand for this turn. When
+   * non-empty, the display shows "loaded: <name1>, <name2>" after
+   * the skill count so the user knows which skill playbooks are
+   * active (not just how many skills exist in the catalog).
+   */
+  loadedSkillNames?: string[];
   /** Number of open IDE files (if IDE integration is active). */
   ideFileCount?: number;
   /** Number of background processes. */
@@ -50,6 +58,7 @@ export function ContextSummaryDisplay({
   agentsMdCount = 0,
   mcpServerCount = 0,
   skillCount = 0,
+  loadedSkillNames = [],
   ideFileCount = 0,
   backgroundProcessCount = 0,
   cols,
@@ -69,7 +78,7 @@ export function ContextSummaryDisplay({
   // On wide terminals, show all (including zeros for transparency).
   const visible = narrow ? items.filter((i) => i.count > 0) : items;
 
-  if (visible.length === 0) {
+  if (visible.length === 0 && loadedSkillNames.length === 0) {
     return srEnabled ? (
       <Text color={T.gray}>No context sources.</Text>
     ) : null;
@@ -95,6 +104,18 @@ export function ContextSummaryDisplay({
           </Text>
         </React.Fragment>
       ))}
+      {/* P0-6 fix: show which L2 skills are loaded on-demand this turn. */}
+      {loadedSkillNames.length > 0 && (
+        <>
+          <Text color={T.gray}> · </Text>
+          <Text color={T.purple} bold>
+            {srEnabled ? 'loaded: ' : '↳ '}
+          </Text>
+          <Text color={T.purple}>
+            {loadedSkillNames.join(', ')}
+          </Text>
+        </>
+      )}
     </Box>
   );
 }

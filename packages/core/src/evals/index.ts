@@ -2,6 +2,18 @@
  * Evals module public exports (Module 6).
  *
  * @module evals
+ *
+ * ## Layering
+ *
+ * The previous barrel re-exported observability modules
+ * (`OtelTracer`, `LangfuseClient`, `AlertManager`) — creating a
+ * circular dependency: `evals` depends on `observability`, and
+ * `observability` (via tracing) depends on `evals` types for span
+ * attributes. The circular import didn't crash because ES modules
+ * resolve lazily, but it caused confusing "module not initialized"
+ * errors in some bundlers. We now keep `evals` focused on eval
+ * primitives only — callers that need observability should import
+ * from `observability` directly.
  */
 
 /**
@@ -33,7 +45,7 @@ export type { SWEBenchHarnessOptions } from './swebench/harness.js';
 /**
  *
  */
-export { SemanticErrorEvaluator } from './semantic-check/evaluator.js';
+export { SemanticErrorEvaluator, extractFirstJsonObject } from './semantic-check/evaluator.js';
 /**
  *
  */
@@ -64,28 +76,5 @@ export type {
   RedTeamGateResult,
 } from './redteam/promptfoo.js';
 
-// Re-export observability (tracing, Langfuse, alerts) for convenience
-/**
- *
- */
-export { OtelTracer } from '../observability/tracing/otel.js';
-/**
- *
- */
-export type { OtelSpan, OtelTracerOptions } from '../observability/tracing/otel.js';
-/**
- *
- */
-export { LangfuseClient } from '../observability/langfuse/client.js';
-/**
- *
- */
-export type { LangfuseClientOptions } from '../observability/langfuse/client.js';
-/**
- *
- */
-export { AlertManager } from '../observability/alerts/manager.js';
-/**
- *
- */
-export type { AlertManagerOptions } from '../observability/alerts/manager.js';
+// Observability re-exports REMOVED (MEDIUM-72: circular dependency).
+// Import directly from '../observability/index.js' if needed.

@@ -1,6 +1,6 @@
 # Phase 9 — Skill Accumulation (Module 5, part 2)
 
-**Status:** Pending
+**Status:** Partial
 **Modules touched:** M5 (skill accumulation)
 **Compliance gates:** none new
 
@@ -9,6 +9,14 @@
 Build the skill writer (`SKILL.md` with YAML frontmatter), catalog,
 3-level progressive disclosure (L1 metadata / L2 instructions / L3 deep
 reference), 5-10 seed skills, and 90-day auto-archive.
+
+## Current Implementation Status
+
+Skills system design complete (ADR-0026 — SKILL.md format + 3-level progressive disclosure: L1 metadata / L2 instructions / L3 deep reference, 90-day auto-archive). Implementation gap: packages/core/src/memory/skills/ is referenced by imports in memory/index.ts and tests but the directory itself is not present in the current source snapshot — needs to be scaffolded or the imports pruned.
+
+See the per-module sections in [docs/architecture.md](../architecture.md)
+for the current code locations and `AGENTS.md` for accumulated
+implementation patterns and gotchas.
 
 ## Definition of Done
 
@@ -19,7 +27,7 @@ reference), 5-10 seed skills, and 90-day auto-archive.
 - [ ] `src/memory/skills/seed/` — 5-10 seed skills (YAML + Markdown)
 - [ ] Wire skill loader into system prompt assembler (L1 metadata at startup)
 - [ ] ADR-0026 (Agent Skills spec adoption)
-- [ ] ADR-0027 (3-level progressive disclosure)
+- [ ] 3-level progressive disclosure is part of ADR-0026 (Agent Skills spec)
 
 ## Steps (P9.x)
 

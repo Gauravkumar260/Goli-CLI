@@ -28,6 +28,7 @@ export default [
       '**/dist/**',
       '**/coverage/**',
       '**/node_modules/**',
+      '**/.next/**',
       'docs/api/_generated/**',
       'sbom/**',
       '*.log',
@@ -56,7 +57,15 @@ export default [
 
   // ─── TypeScript project files ─────────────────────────────────────
   {
-    files: ['packages/*/src/**/*.ts', 'packages/*/src/**/*.tsx', 'tests/**/*.ts', 'tests/**/*.tsx', 'scripts/**/*.ts'],
+    files: [
+      'packages/*/src/**/*.ts',
+      'packages/*/src/**/*.tsx',
+      'packages/*/__tests__/**/*.ts',
+      'packages/*/__tests__/**/*.tsx',
+      'tests/**/*.ts',
+      'tests/**/*.tsx',
+      'scripts/**/*.ts',
+    ],
     languageOptions: {
       parser: tsparser,
       parserOptions: {
@@ -237,6 +246,7 @@ export default [
   {
     files: [
       'packages/cli/src/index.ts',
+      'packages/cli/src/commands/**/*.ts',
       'packages/cli/src/tui/cli.tsx',
       'packages/cli/src/tui/launcher.ts',
       'packages/cli/src/tui/lib/gracefulExit.ts',
@@ -249,6 +259,7 @@ export default [
     rules: {
       'n/no-process-exit': 'off', // CLI entry points exit with status codes
       'no-console': 'off', // CLI reports to stdout/stderr
+      '@typescript-eslint/no-require-imports': 'off', // CLI lazy-loads optional deps via require()
       'unicorn/prefer-top-level-await': 'off', // CLI uses async main() pattern
     },
   },
@@ -269,7 +280,7 @@ export default [
   // T-029: scoped override — locale codes use hyphens (zh-CN, ja-JP) which
   // don't match kebab/pascal/camel case. These filenames are standard.
   {
-    files: ['packages/core/src/i18n/catalogs/**/*.ts'],
+    files: ['packages/i18n/src/catalogs/**/*.ts', 'packages/core/src/i18n/catalogs/**/*.ts'],
     rules: {
       'unicorn/filename-case': 'off',
     },
@@ -290,8 +301,18 @@ export default [
 
   // ─── Test files (relaxed) ─────────────────────────────────────────
   {
-    files: ['tests/**/*.ts', 'tests/**/*.tsx', 'src/**/*.test.ts', 'src/**/*.spec.ts'],
+    files: [
+      'tests/**/*.ts',
+      'tests/**/*.tsx',
+      'src/**/*.test.ts',
+      'src/**/*.spec.ts',
+      'packages/*/__tests__/**/*.js',
+      'packages/*/__tests__/**/*.ts',
+      'packages/*/__tests__/**/*.tsx',
+      'packages/test-utils/src/**/*.ts',
+    ],
     rules: {
+      'unicorn/filename-case': 'off', // test helpers use __test_dirname.ts-style names
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-unused-vars': 'off', // tests import symbols for side effects
       'no-unused-vars': 'off',

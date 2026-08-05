@@ -1,42 +1,106 @@
 /**
  * Dynamic system-prompt assembler (Module 1).
  *
- * The system prompt is NOT a static string — it's assembled from 9+
+ * The system prompt is NOT a static string — it's assembled from 13
  * conditional fragments based on runtime state. This gives a 10–20%
  * SWE-bench lift over static prompts (per the upstream Module 1 spec).
  *
  * ## Fragment List (in stable order for prefix-cache friendliness)
  *
- * 1. **Identity** — who the agent is, what it does
- * 2. **Tool definitions** — what tools are available (summary, not full schemas)
- * 3. **Sandbox mode** — current sandbox mode (read-only / workspace-write / danger)
- * 4. **Language** — the user's preferred response language
- * 5. **Git context** — current branch, repo state
- * 6. **TODO** — current task and in-progress item (from the planner)
- * 7. **Memory** — frozen snapshot of MEMORY.md / USER.md / PROJECT.md (Phase 8)
- * 8. **Safety** — safety rules (deferred to hooks in Phase 6; prompt-level until then)
- * 9. **Output format** — how to format responses (markdown, code blocks, etc.)
+ * 1.  **Identity** — who the agent is, what it does
+ * 2.  **Tool definitions** — what tools are available (summary, not full schemas)
+ * 3.  **Sandbox mode** — current sandbox mode (read-only / workspace-write / danger)
+ * 4.  **Mode** — mode-specific prompt (T-MODE: read-only / plan / build / god / local-llms)
+ * 5.  **Language** — the user's preferred response language
+ * 6.  **Git context** — current branch, repo state
+ * 7.  **TODO** — current task and in-progress item (from the planner)
+ * 8.  **Memory** — frozen snapshot of MEMORY.md / USER.md / PROJECT.md (Phase 8)
+ * 9.  **Retrieved context** — P2-7: code-intelligence results from the hybrid retriever
+ * 10. **Skills** — P1-4 fix: L1 metadata from SkillLoader (ADR-0026)
+ * 11. **Recent file reads** — P2-9 fix: files the agent has read this session (capped at 20)
+ * 12. **Safety** — safety rules (deferred to hooks in Phase 6; prompt-level until then)
+ * 13. **Output format** — how to format responses (markdown, code blocks, etc.)
  *
  * ## Why stable order?
  *
- * GLM-5.2 (like most LLMs) uses prefix caching: if the start of the
+ * The model (like most LLMs) uses prefix caching: if the start of the
  * prompt is identical to a previous call, the cached prefix is reused
  * (free — no re-compute). Keeping fragment order stable maximizes cache
- * hits. Variable content (TODO state, memory snapshot) goes LAST.
+ * hits. Variable content (TODO state, memory snapshot, retrieved
+ * context) goes LAST.
+ *
+ * ## P2-10 note (audit Finding CC-5 / 2.4) — superseded by P2-18
+ *
+ * The audit originally recommended replacing SystemPromptAssembler with
+ * a `PromptBuilder` class to "get all 9 brief-listed fragments." After
+ * review, SystemPromptAssembler already had MORE fragments than
+ * PromptBuilder (12 vs 8) and included the brief-listed ones
+ * PromptBuilder lacked (mode, todo, memory, retrieved-context, skills).
+ * P2-18 (remediation plan Phase 18) then deleted `prompt-builder.ts`
+ * entirely as dead code — it was never instantiated in production.
+ * SystemPromptAssembler is now the sole canonical assembler (13
+ * fragments after the P2-9 recentReadFilesFragment addition).
+ *
+ * ## P1-4 note (verification report item #4 — Skills subsystem)
+ *
+ * The skills subsystem (SkillLoader, SkillCatalog, SkillWriter,
+ * SkillArchiver) was fully implemented and unit-tested but had zero
+ * production callers — `formatL1ForPrompt()` was never invoked from
+ * the agent loop or the system-prompt assembler. We now wire it up:
+ * the assembler accepts an optional `skillsL1` string (produced by
+ * `SkillLoader.formatL1ForPrompt()`) and injects it as the "Skills"
+ * fragment. The AgentLoop constructs a SkillLoader lazily and passes
+ * the L1 summary to the assembler via `SystemPromptContext.skillsL1`.
  *
  * @module agent/system-prompt
  */
 
-import { AGENT_ROLE_LABELS } from './types.js';
+import { relative, sep } from 'node:path';
+
 import { MODE_PROMPTS } from '../config/mode-prompts.js';
 
+import { AGENT_ROLE_LABELS } from './types.js';
+
+import type { AgentRole } from './types.js';
 import type { BasePromptContext } from './types.js';
 import type { SandboxMode } from '../config/schema.js';
 
+/**
+ * Per-role mission statements. Each role in the 11-agent swarm has a
+ * specialized one-sentence mission that replaces the generic "help the
+ * user with software engineering tasks" line. This gives the model
+ * clear role-specific guidance without busting the prefix cache (the
+ * mission is stable for the lifetime of a conversation).
+ */
+const ROLE_MISSIONS: Record<AgentRole, string> = {
+  orchestrator:
+    'Your job is to coordinate the agent pipeline: decompose the task, delegate to specialist roles, track budget, and merge results into a coherent final answer.',
+  scout:
+    'Your job is to explore the repository and identify the minimal set of files needed to accomplish the task. Do NOT modify any files. Report file paths with a one-line relevance explanation.',
+  researcher:
+    'Your job is to gather external context (library docs, API references, best practices) that will help the Architect design the solution. Cite your sources.',
+  architect:
+    'Your job is to design the solution approach. Consider alternatives, trade-offs, and edge cases. Do NOT write implementation code — produce a design doc the Planner can break into steps.',
+  planner:
+    'Your job is to break the design into atomic, testable steps. Each step must be independently verifiable. Use the `plan_task` tool to create the tracked TODO list.',
+  implementer:
+    'Your job is to execute the TODO list step by step. After each step, verify the change works. Use `edit_file` for surgical changes, `write_file` for new files. Follow project conventions.',
+  debugger:
+    'Your job is to run the test suite, identify failures, and fix the root cause — not the symptom. Do NOT weaken tests. If a test is wrong, fix the test; if the code is wrong, fix the code.',
+  'qa-tester':
+    'Your job is to write tests for the new functionality. Cover happy path, edge cases, and error conditions. Run the full suite to verify no regressions.',
+  'security-auditor':
+    'Your job is to review the diff for security vulnerabilities, secrets, and unsafe patterns. Report findings by severity. Read-only — do NOT modify files.',
+  reviewer:
+    'Your job is to review the diff for code quality, naming conventions, error handling, and adherence to project conventions. Be specific — cite line numbers.',
+  documenter:
+    'Your job is to update README, CHANGELOG, and inline JSDoc/TSDoc to reflect the changes. Do NOT modify implementation code — only docs.',
+};
+
 /** Runtime context for assembling the system prompt. */
 export interface SystemPromptContext extends BasePromptContext {
-  /** T-MODE: The current app mode (read-only/plan/build/god). */
-  appMode?: 'read-only' | 'plan' | 'build' | 'god';
+  /** T-MODE: The current app mode (read-only/plan/build/god/local-llms). */
+  appMode?: 'read-only' | 'plan' | 'build' | 'god' | 'local-llms';
 }
 
 /** A single fragment of the system prompt. */
@@ -81,6 +145,39 @@ export class SystemPromptAssembler {
       this.gitFragment(ctx),
       this.todoFragment(ctx),
       this.memoryFragment(ctx),
+      // P2-7: Code-intelligence context (from createContextEngine's
+      // hybrid retriever). Injected before the safety fragment so the
+      // agent sees relevant symbols before its first tool call.
+      this.retrievedContextFragment(ctx),
+      // P1-4 fix (verification report item #4): Skills L1 metadata
+      // from SkillLoader. Injected before the safety fragment so the
+      // agent knows which skills are available before its first tool
+      // call. When no SkillLoader is configured, this fragment is
+      // empty (filtered out by the assembler).
+      this.skillsFragment(ctx),
+      // P0-6 fix (remediation plan Phase 6): L2 skill instructions
+      // loaded on-demand. When the user's query matches skill
+      // triggers, the AgentLoop calls `loadL2Instructions()` for the
+      // top matches and concatenates their full playbooks here. The
+      // agent sees the complete instructions — not just the L1
+      // metadata — so it can follow the skill's playbook directly.
+      // When undefined or empty, no L2 fragment is injected.
+      this.skillsL2Fragment(ctx),
+      // P2-9 fix (re-verification report item #11): Recent file reads.
+      // `state.readFiles` was tracked in loop.ts for Read-before-Edit
+      // enforcement but never injected into the prompt — the agent
+      // had no prompt-level awareness of which files it had already
+      // read. We now surface the most recent N paths so the agent
+      // can reference them without re-reading. When undefined or
+      // empty, this fragment is omitted (backward-compatible).
+      this.recentReadFilesFragment(ctx),
+      // P2-18 fix (remediation plan Phase 18): Reflexion notes from
+      // prior tool failures. Injected after recent-reads and before
+      // the safety fragment so the agent sees prior lessons before its
+      // next tool call. When undefined or empty, the fragment is
+      // omitted (backward-compatible for callers that don't wire
+      // ReflexionEngine).
+      this.reflectionsFragment(ctx),
       this.safetyFragment(ctx),
       this.outputFormatFragment(ctx),
     ];
@@ -92,7 +189,160 @@ export class SystemPromptAssembler {
   }
 
   /**
+   * P1-4 fix (verification report item #4): Skills L1 fragment.
+   *
+   * When `ctx.skillsL1` is provided (by the AgentLoop, which constructs
+   * a SkillLoader and calls `formatL1ForPrompt()`), the L1 metadata is
+   * injected as a "Skills" fragment so the agent knows which skills are
+   * available in the catalog. The agent can then request L2
+   * instructions via the `ask_user` tool or by emitting a skill-name
+   * tool call (future: a dedicated `load_skill` tool).
+   *
+   * When `ctx.skillsL1` is undefined or empty, this fragment is empty
+   * (filtered out by the assembler). This preserves backward
+   * compatibility for callers that don't configure a SkillLoader.
+   */
+  private skillsFragment(ctx: SystemPromptContext): SystemPromptFragment {
+    const text = ctx.skillsL1?.trim() ?? '';
+    if (text.length === 0) {
+      return { name: 'skills', text: '' };
+    }
+    return {
+      name: 'skills',
+      text: `## Skills\n\n${text}\n\nTo request the full instructions for a skill, mention the skill name in your response.`,
+    };
+  }
+
+  /**
+   * P0-6 fix (remediation plan Phase 6): L2 skill instructions fragment.
+   *
+   * When `ctx.skillsL2` is provided (by the AgentLoop, which calls
+   * `SkillLoader.loadL2Instructions()` for the top trigger-matching
+   * skills), the assembler injects the full playbooks here. The agent
+   * sees the complete instructions — not just the L1 metadata — so it
+   * can follow the skill's playbook directly without an additional
+   * `ask_user` round-trip.
+   *
+   * When `ctx.skillsL2` is undefined or empty, this fragment is empty
+   * (filtered out by the assembler). This preserves backward
+   * compatibility for callers that don't wire L2 loading.
+   */
+  private skillsL2Fragment(ctx: SystemPromptContext): SystemPromptFragment {
+    const text = ctx.skillsL2?.trim() ?? '';
+    if (text.length === 0) {
+      return { name: 'skills-l2', text: '' };
+    }
+    return {
+      name: 'skills-l2',
+      text: `## Skill Instructions (L2 — loaded on-demand)\n\n${text}`,
+    };
+  }
+
+  /**
+   * P2-7: Retrieved-context fragment.
+   *
+   * When the AgentLoop is constructed with a context engine, it queries
+   * the hybrid retriever (tree-sitter symbol graph + ripgrep lexical +
+   * semantic) with the task prompt and passes the top-k results as
+   * `ctx.retrievedContext`. We inject them here so the agent sees
+   * relevant symbols, callers, and file paths before its first tool
+   * call — reducing the number of exploratory read_file/grep calls.
+   *
+   * When `ctx.retrievedContext` is undefined or empty, this fragment
+   * is empty (filtered out by the assembler).
+   */
+  private retrievedContextFragment(ctx: SystemPromptContext): SystemPromptFragment {
+    const text = ctx.retrievedContext?.trim() ?? '';
+    if (text.length === 0) {
+      return { name: 'retrieved-context', text: '' };
+    }
+    return {
+      name: 'retrieved-context',
+      text: `## Retrieved Context\n\nThe following code-intelligence results were retrieved from the workspace symbol graph and may be relevant to your task. Use them to jump-start your work, but verify with read_file before making changes.\n\n${text}`,
+    };
+  }
+
+  /**
+   * P2-9 fix (re-verification report item #11): Recent file reads fragment.
+   *
+   * The AgentLoop tracks every file the agent has read via `read_file`
+   * in `state.readFiles` (a `Set<string>` of resolved absolute paths).
+   * This is primarily for Read-before-Edit enforcement (the
+   * `edit_file` tool checks the set before allowing an edit), but it
+   * ALSO tells the agent which files it has already explored — useful
+   * context that was previously NOT surfaced in the prompt. The agent
+   * would often re-read the same file or lose track of context after
+   * compaction.
+   *
+   * We now inject the most recent N paths as a "Recent File Reads"
+   * fragment. The list is capped (default 20) to keep the prompt
+   * bounded — older reads age out. Paths are displayed relative to
+   * `process.cwd()` when possible (shorter + more readable), falling
+   * back to the absolute path for files outside the workspace.
+   *
+   * When `ctx.recentReadFiles` is undefined or empty, this fragment
+   * is empty (filtered out by the assembler).
+   */
+  private recentReadFilesFragment(ctx: SystemPromptContext): SystemPromptFragment {
+    const files = ctx.recentReadFiles;
+    if (!files || files.length === 0) {
+      return { name: 'recent-read-files', text: '' };
+    }
+    // Cap at 20 paths to keep the prompt bounded. The Set in loop.ts
+    // preserves insertion order (most-recent-last in JS Sets), so we
+    // take the last 20 and reverse to show most-recent-first.
+    const MAX_FILES = 20;
+    const cwd = process.cwd();
+    const recent = files.slice(-MAX_FILES).reverse();
+    const lines: string[] = ['## Recent File Reads', '', 'You have already read these files this session (most recent first):'];
+    for (const absPath of recent) {
+      // Display relative to cwd when the file is inside the workspace
+      // (shorter + more readable), otherwise show the absolute path.
+      // Use path.relative() so the "inside the workspace" test works on
+      // both POSIX (`/`) and Windows (`\`) separators, and normalize any
+      // remaining `\` to `/` for a stable, readable display path.
+      const rel = relative(cwd, absPath);
+      const isInside = rel !== '..' && !rel.startsWith(`..${sep}`) && !rel.startsWith('..\\') && !rel.startsWith('../');
+      const displayPath = isInside
+        ? rel.split(sep).join('/')
+        : absPath.split(sep).join('/');
+      lines.push(`  - ${displayPath}`);
+    }
+    lines.push('');
+    lines.push('You can reference these files without re-reading them unless the content has changed.');
+    return { name: 'recent-read-files', text: lines.join('\n') };
+  }
+
+  /**
+   * P2-18 fix (remediation plan Phase 18): Reflexion notes fragment.
+   *
+   * The AgentLoop instantiates a `ReflexionEngine` and calls
+   * `reflect()` after each tool-call failure. The engine accumulates
+   * the resulting `Reflection` entries (each with a `strategy` field
+   * describing a concrete strategy change for the next attempt). The
+   * loop then calls `reflexionEngine.formatForPrompt()` and passes the
+   * resulting string here.
+   *
+   * When `ctx.reflections` is undefined or empty, this fragment is
+   * empty (filtered out by the assembler) — backward-compatible for
+   * callers that don't wire ReflexionEngine.
+   */
+  private reflectionsFragment(ctx: SystemPromptContext): SystemPromptFragment {
+    const text = ctx.reflections?.trim() ?? '';
+    if (text.length === 0) {
+      return { name: 'reflections', text: '' };
+    }
+    return { name: 'reflections', text: text };
+  }
+
+  /**
    * Fragment 1: Identity (stable tier — byte-stable for prefix caching).
+   *
+   * The identity fragment varies by agent role. Each role has a
+   * specialized mission statement so the model knows exactly what its
+   * job is within the swarm. The role label and mission are both
+   * injected here; the 11-agent pipeline overview is kept as a
+   * shared second line so the model understands the handoff context.
    *
    * Note: `taskPrompt` is intentionally NOT injected here. The task changes
    * every turn, so including it in the stable identity fragment would
@@ -102,12 +352,13 @@ export class SystemPromptAssembler {
    */
   private identityFragment(ctx: SystemPromptContext): SystemPromptFragment {
     const roleLabel = AGENT_ROLE_LABELS[ctx.role];
+    const mission = ROLE_MISSIONS[ctx.role] ?? ROLE_MISSIONS['orchestrator']!;
     return {
       name: 'identity',
       text: [
         `You are GOLI-CLI, an enterprise AI coding agent acting as the **${roleLabel}**.`,
         `You are part of an 11-agent swarm (Scout → Researcher → Architect → Planner → Implementer → Debugger → QA/Tester → Security Auditor → Reviewer → Orchestrator → Documenter).`,
-        `Your job is to help the user with software engineering tasks by reading code, writing code, running commands, and using tools autonomously.`,
+        mission,
       ].join('\n'),
     };
   }
@@ -264,7 +515,10 @@ export class SystemPromptAssembler {
     const mode = ctx.appMode ?? (ctx.godMode ? 'god' : 'build');
     return {
       name: 'mode',
-      text: MODE_PROMPTS[mode] ?? MODE_PROMPTS['build'],
+      // Validate the fallback — if 'build' doesn't exist in
+      // MODE_PROMPTS (e.g., config refactored), use a safe
+      // default string instead of `undefined`.
+      text: MODE_PROMPTS[mode] ?? MODE_PROMPTS['build'] ?? 'You are a helpful coding assistant.',
     };
   }
 

@@ -16,8 +16,8 @@ import { OllamaProvider } from '../providers/ollama.js';
 import { OpenAIProvider } from '../providers/openai.js';
 
 import type { Message, ToolCall } from './types.js';
-import type { ModelProvider, ModelResponse } from '../providers/ModelProvider.js';
 import type { ReasoningEffort } from '../config/schema.js';
+import type { ModelProvider, ModelResponse } from '../providers/ModelProvider.js';
 
 /** A single streaming chunk from the model. */
 export interface ModelStreamChunk {
@@ -109,15 +109,25 @@ export class ProviderBackedModelClient {
     );
 
     // Convert provider's response to ModelCallResponse.
+    // The previous implementation used `as unknown as ToolCall[]` to
+    // cast the mapped array. The cast hid a type bug: when
+    // `tc.input === undefined`, `JSON.stringify(undefined)` returns
+    // `undefined` (the value, NOT the string `"undefined"`), so the
+    // `arguments` field would be `undefined`, violating the
+    // `ToolCall.arguments: string` contract. We now default to `'{}'`
+    // and drop the unsafe cast.
     return {
       content: response.text,
       thinking: '',
       toolCalls: (response.toolCalls ?? []).map((tc) => ({
         id: tc.id,
         name: tc.name,
-        arguments: typeof tc.input === 'string' ? tc.input : JSON.stringify(tc.input),
+        arguments:
+          typeof tc.input === 'string'
+            ? tc.input
+            : (tc.input !== undefined ? JSON.stringify(tc.input) : '{}'),
         status: 'pending' as const,
-      })) as unknown as ToolCall[],
+      })) as ToolCall[],
       inputTokens: response.inputTokens ?? 0,
       outputTokens: response.outputTokens ?? 0,
       thinkingTokens: 0,

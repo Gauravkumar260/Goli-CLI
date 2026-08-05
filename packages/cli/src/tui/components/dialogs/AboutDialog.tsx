@@ -16,7 +16,10 @@ interface Props {
 }
 
 /** Version constant (mirrors package.json). */
-const VERSION = '0.2.0-phase2';
+// P3-30 fix: import APP_VERSION from constants.ts (was hardcoded
+// to '0.2.0-phase2', which drifted from cli.tsx's '1.0.0' and
+// SplashBox's APP_VERSION).
+import { APP_VERSION as VERSION } from '../../../constants.js';
 
 /**
  * About dialog. Shows version + license + homepage + brief description.
@@ -57,7 +60,7 @@ export function AboutDialog({ cols, onDismiss: _onDismiss }: Props): React.React
         </Text>
       </Box>
       <Box width={innerW} marginTop={1}>
-        <Text color={T.gray}>11-agent swarm (Scout → Documenter) for complex, autonomous dev tasks.</Text>
+        <Text color={T.gray}>8-agent swarm (Orchestrator → Data) for complex, autonomous dev tasks.</Text>
       </Box>
       <Box width={innerW} marginTop={1}>
         <Text color={T.gray}>Built with TypeScript + Ink (React for terminals).</Text>

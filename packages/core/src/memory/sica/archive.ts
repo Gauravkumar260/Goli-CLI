@@ -112,7 +112,32 @@ export class SicaArchive {
   }
 
   /**
+   * Get a specific version's full entry (including status), or null
+   * if not found. Callers that need to verify the version's status
+   * (e.g., to refuse rollback to a `reverted` version) should use
+   * this instead of `getVersion`.
+   * @param target
+   * @param targetName
+   * @param version
+   */
+  getVersionEntry(target: SicaTarget, targetName: string, version: number): ArchiveEntry | null {
+    const history = this.getHistory(target, targetName);
+    return history.find((e) => e.version === version) ?? null;
+  }
+
+  /**
    * Get the content of the last adopted version.
+   *
+   * NOTE: the previous implementation searched for
+   * `status === 'adopted' || status === 'initial'`. The 'initial'
+   * fallback was a workaround for the `runCycle` bug that
+   * archived every cycle's "before" snapshot as 'initial'
+   * (polluting the archive). The 'initial' status is supposed
+   * to mean "the original version before any SICA changes"
+   * (per types.ts), so the fallback was technically correct
+   * but made the function return "initial" entries that may
+   * not have been the actually-adopted live state. We keep
+   * the fallback for backward compat but note it.
    * @param target
    * @param targetName
    */

@@ -326,7 +326,8 @@ describe('T-038: getHistoryFilePath', () => {
   it('falls back to ~/.goli-cli/history when no GOLI_HOME and no profile', () => {
     delete process.env['GOLI_HOME'];
     // The tmpHome has no ~/.goli/current symlink, so it should fall back.
-    const expected = join(tmpHome, '.goli-cli', 'history');
+    // The impl normalizes separators to `/` (path.join() yields `\` on Windows).
+    const expected = join(tmpHome, '.goli-cli', 'history').replace(/\\/g, '/');
     expect(getHistoryFilePath()).toBe(expected);
   });
 });

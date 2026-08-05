@@ -7,12 +7,8 @@
 # All values documented in src/config/schema.ts.
 
 [model]
-# The GLM-5.2 model identifier. Phase 7 will swap to a self-hosted vLLM
-# endpoint serving glm-5.2-fp8 weights.
-modelId = "glm-5.2"
-# Z.ai OpenAI-compatible endpoint for prototype. Phase 7 = self-hosted vLLM.
-baseUrl = "https://open.bigmodel.cn/api/paas/v4"
-# API key — DO NOT commit a real key. Use GOLI_MODEL_API_KEY env var.
+modelId = "gpt-oss:120b-cloud"
+baseUrl = "https://ollama.com"
 apiKey = ""
 # Default reasoning effort for routine tasks (cheaper).
 defaultEffort = "high"
@@ -20,7 +16,6 @@ defaultEffort = "high"
 complexEffort = "max"
 # Triggers that bump to complexEffort.
 complexTriggers = ["refactor", "design", "architecture", "debug", "migrate", "rewrite"]
-# GLM-5.2's 1M-token context window.
 maxContextTokens = 1000000
 # Per-request timeout.
 requestTimeoutMs = 120000
@@ -36,9 +31,8 @@ maxCostUsd = 5.0
 maxIterations = 50
 # Max wall-clock seconds per session.
 maxWallclockSeconds = 1800
-# Cost rates (USD per 1M tokens). Self-hosted GLM-5.2 = $0; cloud = varies.
-costPerMillionInputTokens = 0.0
-costPerMillionOutputTokens = 0.0
+costPerMillionInputTokens = 2.5
+costPerMillionOutputTokens = 10.0
 costPerMillionThinkingTokens = 0.0
 
 [retry]
@@ -78,3 +72,37 @@ level = "info"
 format = "pretty"
 # Lifecycle log path — defaults to $GOLI_HOME/logs/goli.log
 # lifecycleLogPath = "/tmp/goli.log"
+
+[localLlms]
+# 5th AppMode — three-axis router (sensitivity / complexity / availability).
+# Active only when the user runs `goli --local-llms` or /mode local-llms.
+#
+# Worker pool: 4 local Ollama models + 1 cloud tier. Each model has a
+# specialized role; the router picks the best match per request.
+orchestratorModel = "qwen3.5:4b"        # always-resident, routing/intent, cloud-failover
+coderModel        = "qwen2.5-coder:7b"  # code generation / refactor
+generalModel      = "qwen3:4b"          # reasoning + private-data RAG (thinking on)
+fastModel         = "gemma3:4b"         # multimodal + 128K long-context
+cloudModel        = "gpt-oss:120b-cloud" # high-complexity / agentic tool chains
+localBaseUrl      = "http://localhost:11434"
+cloudBaseUrl      = "https://ollama.com"
+# cloudApiKey = ""  # set via GOLI_LOCAL_LLMS_CLOUD_API_KEY
+# localApiKey = ""  # set via GOLI_LOCAL_LLMS_LOCAL_API_KEY
+
+# Complexity axis thresholds.
+longContextTokenThreshold = 32000
+localMaxTokens            = 2000
+cloudMaxTokens            = 8000
+cloudTimeoutMs            = 30000
+
+# Availability axis — circuit breaker (CLOSED → OPEN → HALF-OPEN → CLOSED).
+circuitBreakerFailThreshold = 3
+circuitBreakerCooldownMs    = 60000
+circuitBreakerWindowMs      = 30000
+healthProbeIntervalMs       = 30000
+
+# Sensitivity axis — PII gating mode.
+#   "redact"     → replace PII with placeholders, send sanitized to cloud, restore in response
+#   "local-only" → restricted/PII payloads are hard-gated to local workers (cloud never sees them)
+#   "off"        → sensitivity axis disabled (testing only!)
+piiGatingMode = "local-only"

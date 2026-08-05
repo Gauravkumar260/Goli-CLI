@@ -39,6 +39,15 @@ import { AppConfigSchema, DEFAULT_CONFIG, type AppConfig } from './schema.js';
 export function loadConfig(
   opts: { configPath?: string; skipUserConfig?: boolean } = {},
 ): AppConfig {
+  // Cache: the previous implementation re-read disk + re-parsed TOML
+  // on EVERY call. In tests, `loadConfig()` is called dozens of
+  // times per test suite. We now cache by the opts signature so
+  // repeated calls with the same opts return the cached result.
+  // The cache is invalidated by `invalidateConfigCache()`.
+  const cacheKey = JSON.stringify(opts);
+  const cached = configCache.get(cacheKey);
+  if (cached) return cached;
+
   const layers: Array<Record<string, unknown>> = [];
 
   // Layer 1: defaults
@@ -82,7 +91,16 @@ export function loadConfig(
     sandboxMode: result.data.sandbox.mode,
   });
 
+  configCache.set(cacheKey, result.data);
   return result.data;
+}
+
+/** In-memory config cache (keyed by opts signature). */
+const configCache = new Map<string, AppConfig>();
+
+/** Invalidate the config cache. Call this after writing a new config file. */
+export function invalidateConfigCache(): void {
+  configCache.clear();
 }
 
 /**
@@ -209,10 +227,58 @@ function parseTomlValue(raw: string, sourcePath: string, line: number): unknown 
     });
   }
   // Integer (with optional underscore separator: 1_000, hex: 0x1F, octal: 0o17, binary: 0b1010)
-  if (/^-?\d[\d_]*$/.test(trimmed)) return Number.parseInt(trimmed.replace(/_/g, ''), 10);
-  if (/^0x[0-9a-fA-F]+$/.test(trimmed)) return Number.parseInt(trimmed, 16);
-  if (/^0o[0-7]+$/.test(trimmed)) return Number.parseInt(trimmed.slice(2), 8);
-  if (/^0b[01]+$/.test(trimmed)) return Number.parseInt(trimmed.slice(2), 2);
+  //
+  // Overflow defense (MEDIUM-75): the previous regex
+  // `/^-?\d[\d_]*$/` accepted arbitrary-length integers. A value
+  // like `999999999999999999999999999999` was parsed by
+  // `Number.parseInt` into `Infinity` (or a saturated value), which
+  // then failed silently downstream. We now reject decimal integers
+  // longer than 15 digits (the safe precision limit for float64) and
+  // hex/octal/binary integers longer than 53 bits (the safe integer
+  // range for float64).
+  if (/^-?\d[\d_]*$/.test(trimmed)) {
+    const cleaned = trimmed.replace(/_/g, '');
+    const absDigits = cleaned.replace(/^-/, '');
+    if (absDigits.length > 15) {
+      throw new ConfigValidationError(
+        `Integer overflow at ${sourcePath}:${line}: ${trimmed} has ${absDigits.length} digits (max 15 for safe float64).`,
+      );
+    }
+    const n = Number.parseInt(cleaned, 10);
+    if (!Number.isSafeInteger(n)) {
+      throw new ConfigValidationError(
+        `Integer overflow at ${sourcePath}:${line}: ${trimmed} exceeds Number.MAX_SAFE_INTEGER (${Number.MAX_SAFE_INTEGER}).`,
+      );
+    }
+    return n;
+  }
+  if (/^0x[0-9a-fA-F]+$/.test(trimmed)) {
+    const n = Number.parseInt(trimmed, 16);
+    if (!Number.isSafeInteger(n)) {
+      throw new ConfigValidationError(
+        `Hex integer overflow at ${sourcePath}:${line}: ${trimmed} exceeds Number.MAX_SAFE_INTEGER.`,
+      );
+    }
+    return n;
+  }
+  if (/^0o[0-7]+$/.test(trimmed)) {
+    const n = Number.parseInt(trimmed.slice(2), 8);
+    if (!Number.isSafeInteger(n)) {
+      throw new ConfigValidationError(
+        `Octal integer overflow at ${sourcePath}:${line}: ${trimmed} exceeds Number.MAX_SAFE_INTEGER.`,
+      );
+    }
+    return n;
+  }
+  if (/^0b[01]+$/.test(trimmed)) {
+    const n = Number.parseInt(trimmed.slice(2), 2);
+    if (!Number.isSafeInteger(n)) {
+      throw new ConfigValidationError(
+        `Binary integer overflow at ${sourcePath}:${line}: ${trimmed} exceeds Number.MAX_SAFE_INTEGER.`,
+      );
+    }
+    return n;
+  }
   // Float (with optional exponent: 1e10, 1.5e-3)
   if (/^-?\d+\.\d+([eE][+-]?\d+)?$/.test(trimmed)) return Number.parseFloat(trimmed);
   if (/^-?\d+[eE][+-]?\d+$/.test(trimmed)) return Number.parseFloat(trimmed);
@@ -229,11 +295,46 @@ function parseTomlValue(raw: string, sourcePath: string, line: number): unknown 
  * `{ section: { key: parsedValue } }`.
  *
  * Example: `GOLI_MODEL_API_KEY=xxx` → `{ model: { apiKey: 'xxx' } }`
+ *
+ * ## Special-case: `GOLI_API_KEY`
+ *
+ * The documented contract is that `GOLI_API_KEY=xxx` populates
+ * `model.apiKey` (it's the most common env var a user sets). But
+ * the generic `GOLI_<SECTION>_<KEY>` parser maps `GOLI_API_KEY` →
+ * `{ api: { key: 'xxx' } }` (section=`api`, key=`key`) — NOT
+ * `model.apiKey`. The previous implementation documented
+ * `GOLI_API_KEY` but never wired it, so users who followed the docs
+ * got a config with no API key.
+ *
+ * We now special-case `GOLI_API_KEY` (and a few other top-level
+ * shortcuts) to map to the documented config keys:
+ *  - `GOLI_API_KEY`        → `model.apiKey`
+ *  - `GOLI_MODEL_ID`       → `model.modelId`   (already works via GOLI_MODEL_MODEL_ID)
+ *  - `GOLI_BASE_URL`       → `model.baseUrl`
+ *  - `GOLI_WORKSPACE`      → `sandbox.workspaceRoot`
  */
 function loadEnvLayer(): Record<string, unknown> {
   const result: Record<string, unknown> = {};
+
+  // Top-level shortcuts (documented contract).
+  const shortcuts: Record<string, { section: string; key: string }> = {
+    GOLI_API_KEY: { section: 'model', key: 'apiKey' },
+    GOLI_BASE_URL: { section: 'model', key: 'baseUrl' },
+    GOLI_WORKSPACE: { section: 'sandbox', key: 'workspaceRoot' },
+  };
+  for (const [envName, mapping] of Object.entries(shortcuts)) {
+    const value = process.env[envName];
+    if (value === undefined) continue;
+    const sectionObj = (result[mapping.section] ?? {}) as Record<string, unknown>;
+    sectionObj[mapping.key] = value;
+    result[mapping.section] = sectionObj;
+  }
+
+  // Generic `GOLI_<SECTION>_<KEY>` mapping.
   for (const [envKey, envValue] of Object.entries(process.env)) {
     if (!envKey.startsWith('GOLI_') || envValue === undefined) continue;
+    // Skip shortcuts (already handled above) to avoid double-mapping.
+    if (shortcuts[envKey]) continue;
     const rest = envKey.slice(5); // strip GOLI_
     const parts = rest.toLowerCase().split('_');
     if (parts.length < 2) continue;

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "goli://tools/grep.schema.json",
+  "title": "Grep",
+  "description": "Search file contents using ripgrep 14. Supports the full ripgrep regex syntax. Returns matching lines with file paths and line numbers.",
+  "type": "object",
+  "properties": {
+    "pattern": {
+      "type": "string",
+      "description": "ripgrep regex pattern. See https://docs.rs/regex/latest/regex/#syntax for the syntax."
+    },
+    "path": {
+      "type": "string",
+      "description": "Directory to search in. Default: workspace root. Must be inside the workspace."
+    },
+    "glob": {
+      "type": "string",
+      "description": "Glob filter (e.g. '*.ts', 'src/**/*.tsx'). Passes through to ripgrep -g."
+    },
+    "ignore_case": {
+      "type": "boolean",
+      "default": false,
+      "description": "Case-insensitive search (ripgrep -i)."
+    },
+    "multiline": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable ripgrep -U for cross-line patterns. Use with caution — slower."
+    },
+    "max_results": {
+      "type": "integer",
+      "default": 100,
+      "minimum": 1,
+      "maximum": 1000,
+      "description": "Maximum number of matches to return. Default 100."
+    },
+    "output_mode": {
+      "type": "string",
+      "enum": ["content", "files_with_matches", "count"],
+      "default": "content",
+      "description": "Output mode. 'content' returns matching lines; 'files_with_matches' returns just file paths; 'count' returns match counts per file."
+    }
+  },
+  "required": ["pattern"],
+  "additionalProperties": false
+}

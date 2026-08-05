@@ -58,10 +58,20 @@ export const AUDIT_LOG_HOOK: Hook = {
     const entry: AuditLogEntry = {
       timestamp: new Date().toISOString(),
       tool: ctx.toolName,
-      // Truncate long args, but indicate truncation so it's visible in the log.
-      action: JSON.stringify(ctx.args).length > 500
-        ? JSON.stringify(ctx.args).slice(0, 497) + '...'
-        : JSON.stringify(ctx.args),
+      // Truncate long args safely. The previous implementation
+      // used `JSON.stringify(ctx.args).slice(0, 497) + '...'`
+      // which produced invalid JSON (truncated mid-object/mid-string).
+      // A log parser using `JSON.parse` would fail on truncated
+      // entries. We now truncate the STRING representation and
+      // mark it with a leading `[TRUNCATED]` prefix so parsers
+      // can skip it.
+      action: (() => {
+        const json = JSON.stringify(ctx.args);
+        if (json.length > 500) {
+          return '[TRUNCATED] ' + json.slice(0, 490) + '...';
+        }
+        return json;
+      })(),
       sandboxMode,
       approval: 'allow',
       tier: TOOL_TIER_MAP[ctx.toolName] ?? 'T1',

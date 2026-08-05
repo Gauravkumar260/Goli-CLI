@@ -42,6 +42,7 @@ backend, and merges results via **reciprocal rank fusion (RRF)**.
 ## Consequences
 
 **Positive:**
+
 - Structural queries are exact (no false positives from vector
   similarity).
 - Lexical queries leverage ripgrep's speed and .gitignore awareness.
@@ -50,6 +51,7 @@ backend, and merges results via **reciprocal rank fusion (RRF)**.
 - RRF merges results from multiple strategies fairly.
 
 **Negative:**
+
 - Three retrieval backends to maintain (symbol graph, ripgrep, vector
   store).
 - Query classification is heuristic — may misclassify edge cases.

@@ -71,6 +71,9 @@ async function readFileSyncHandler(
   if (!boundaryCheck.ok) {
     throw new ToolExecutionError(boundaryCheck.reason, 'read_file');
   }
+  // Track the realpath (symlink-resolved) so edit_file's Read-before-Edit
+  // check matches even when the agent reads via a symlink path.
+  const trackedPath = boundaryCheck.realPath ?? resolvedPath;
 
   // Check it exists and is a file. Distinguish common error codes so the
   // user gets an accurate error message (EACCES, EISDIR, etc.).
@@ -111,7 +114,7 @@ async function readFileSyncHandler(
     .join('\n');
 
   // Track read files (for Read-before-Edit enforcement in edit_file)
-  ctx.readFiles.add(resolvedPath);
+  ctx.readFiles.add(trackedPath);
 
   const relPath = relative(ctx.workspaceRoot, resolvedPath);
   const header = `Read ${endIdx - startIdx} lines from ${relPath} (lines ${startIdx + 1}–${endIdx} of ${allLines.length}):\n`;

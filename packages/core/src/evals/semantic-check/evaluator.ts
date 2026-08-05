@@ -1,7 +1,7 @@
 /**
  * Semantic error evaluator (Module 6).
  *
- * Samples 10% of "solved" SWE-bench cases and uses GLM-5.2
+ * Samples 10% of "solved" SWE-bench cases and uses an LLM
  * `reasoning_effort=max` to verify semantic correctness — not just
  * test-passing.
  *
@@ -26,8 +26,8 @@ import type { SWEBenchInstance, SWEBenchResult } from '../types.js';
 export interface SemanticErrorEvaluatorOptions {
   /** Logger instance. */
   logger?: Logger;
-  /** Optional GLM client for AI-assisted semantic review. */
-  glmClient?: {
+  /** Optional LLM client for AI-assisted semantic review. */
+  llmClient?: {
     call: (params: {
       messages: Array<{ role: string; content: string; timestamp: string }>;
       effort?: string;
@@ -47,31 +47,93 @@ Check for:
 
 Respond with JSON: {"semanticallyCorrect": true/false, "reasoning": string}`;
 
+/**
+ * Extract the first balanced JSON object from a string.
+ *
+ * The previous implementation used `/\{[\s\S]*?\}/` (non-greedy),
+ * which matched from the first `{` to the first `}` — failing on
+ * any nested object like `{"a": {"b": 1}}` (it would match
+ * `{"a": {"b": 1}` and miss the closing brace). The greedy
+ * counterpart `/\{[\s\S]*\}/` over-matched across multiple
+ * objects.
+ *
+ * This function tracks brace depth (respecting string literals and
+ * escapes) and returns the substring from the first `{` to its
+ * matching `}`. Returns `null` if no balanced object is found.
+ *
+ * @param text - The text to scan.
+ * @returns The first balanced JSON object as a string, or `null`.
+ */
+export function extractFirstJsonObject(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]!;
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (inString) {
+      if (ch === '\\') escape = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+      if (depth < 0) return null; // unbalanced
+    }
+  }
+  return null; // ran off the end without closing
+}
+
 /** The SemanticErrorEvaluator — checks if "solved" cases are actually correct. */
 export class SemanticErrorEvaluator {
-  private readonly glmClient?: SemanticErrorEvaluatorOptions['glmClient'];
+  private readonly llmClient?: SemanticErrorEvaluatorOptions['llmClient'];
 
   constructor(opts: SemanticErrorEvaluatorOptions = {}) {
-    this.glmClient = opts.glmClient;
+    this.llmClient = opts.llmClient;
   }
 
   /**
    * Check if a "solved" instance is semantically correct.
    *
+   * ## Return value semantics (MEDIUM-70)
+   *
+   * Returns `false` for unresolved instances. The previous
+   * implementation returned `true` (vacuously correct — "no patch to
+   * review"), but callers branching on the return value couldn't
+   * distinguish "no check performed" from "check performed, found
+   * semantic error". Worse, downstream aggregators (semantic-error
+   * rate calculations) counted unresolved instances as "semantically
+   * correct", inflating the success rate. Reverted to returning
+   * `false` — callers that need to skip unresolved instances should
+   * check `result.resolved` first.
+   *
    * @param instance - The SWE-bench instance.
-   * @param result - The evaluation result (must be resolved=true).
-   * @returns True if semantically correct, false if semantic error.
+   * @param result - The evaluation result.
+   * @returns True if semantically correct; false if a semantic error
+   *   was detected OR if the instance was not resolved (no check
+   *   performed).
    */
   async check(
     instance: SWEBenchInstance,
     result: SWEBenchResult,
   ): Promise<boolean> {
     if (!result.resolved) {
-      // Not resolved — no semantic check needed
+      // Not resolved — no semantic check performed. Return false
+      // (callers that need to distinguish "not resolved" from
+      // "semantic error detected" should check `result.resolved`
+      // first).
       return false;
     }
 
-    if (this.glmClient) {
+    if (this.llmClient) {
       return this.llmCheck(instance, result);
     }
 
@@ -98,7 +160,7 @@ export class SemanticErrorEvaluator {
     ].join('\n');
 
     try {
-      const response = await this.glmClient!.call({
+      const response = await this.llmClient!.call({
         messages: [
           { role: 'system', content: SEMANTIC_CHECK_PROMPT, timestamp: new Date().toISOString() },
           { role: 'user', content: reviewPrompt, timestamp: new Date().toISOString() },
@@ -106,12 +168,13 @@ export class SemanticErrorEvaluator {
         effort: 'max',
       });
 
-      // Use a non-greedy regex to extract the FIRST JSON object from the
-      // response. The previous greedy `\{[\s\S]*\}` matched from the
-      // first `{` to the LAST `}`, capturing prose and multiple JSON
-      // objects as one invalid blob.
-      const jsonMatch = response.content.match(/\{[\s\S]*?\}/);
-      if (!jsonMatch) {
+      // Extract the first BALANCED JSON object. The previous
+      // implementation used `/\{[\s\S]*?\}/` (non-greedy) which
+      // matched from the first `{` to the first `}` — failing on
+      // any nested object. We now use a brace-depth parser that
+      // respects string literals and escapes.
+      const jsonStr = extractFirstJsonObject(response.content);
+      if (!jsonStr) {
         // Can't parse — fail-safe in the conservative direction:
         // treat as a semantic error so the gate doesn't let a bad patch
         // through. The previous implementation returned `true` (correct),
@@ -122,7 +185,7 @@ export class SemanticErrorEvaluator {
 
       let parsed: { semanticallyCorrect?: boolean };
       try {
-        parsed = JSON.parse(jsonMatch[0]) as { semanticallyCorrect?: boolean };
+        parsed = JSON.parse(jsonStr) as { semanticallyCorrect?: boolean };
       } catch {
         return false; // malformed JSON — treat as semantic error
       }
@@ -140,7 +203,7 @@ export class SemanticErrorEvaluator {
   }
 
   /**
-   * Heuristic semantic check (when no GLM client is available).
+   * Heuristic semantic check (when no LLM client is available).
    * @param _instance
    * @param result
    */

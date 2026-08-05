@@ -12,6 +12,7 @@ GOLI-CLI needs a terminal UI framework for the interactive mode
 Claude Code, Gemini CLI, and most modern Node.js CLIs.
 
 The alternatives are:
+
 - **raw stdout** (like Aider's original UI) — too much manual cursor
   management, no component model, no diff-based rendering
 - **blessed/neo-blessed** — older, callback-based, no React model
@@ -25,6 +26,7 @@ Use **Ink + React** as the TUI framework, matching the upstream
 reference design 1:1.
 
 Rationale:
+
 1. **The reference design is already Ink + React.** Porting to another
    framework would require rewriting all 33 files and risk introducing
    visual/behavioral regressions.
@@ -48,6 +50,7 @@ Rationale:
 The `AppStateStore` is a plain singleton with `subscribe()` and
 `getSnapshot()`. React's `useSyncExternalStore` hook (via
 `useAppState()`) subscribes to it. This gives us:
+
 - State accessible from outside React (command handlers, agent loop)
 - Tear-free reads
 - No external state management library
@@ -60,6 +63,7 @@ every `patch()`.
 ### 2. `<Static>` for completed messages
 
 `HistoryScroll` splits messages into:
+
 - **Completed** → `<Static items={completed}>` (rendered once, natural
   terminal scrollback)
 - **Streaming** → live React tree (re-renders on every delta)
@@ -97,6 +101,7 @@ which backend is active.
 ## Consequences
 
 **Positive:**
+
 - 1:1 port of the reference design — no visual regressions.
 - Familiar React component model.
 - Excellent performance via `<Static>`, `React.memo`, `setImmediate`
@@ -104,6 +109,7 @@ which backend is active.
 - Easy to develop UI offline with MockAgentLoop.
 
 **Negative:**
+
 - Added `ink` (~100KB) and `react` (~130KB) dependencies.
 - React's reconciliation model has a learning curve for contributors
   who haven't used React before.

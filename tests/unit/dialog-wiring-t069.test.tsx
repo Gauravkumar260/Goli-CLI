@@ -111,12 +111,16 @@ describe('T-069: AboutDialog renders version info', () => {
     expect(frame).toContain('close');
   });
 
-  it('mentions the 11-agent swarm', () => {
+  it('mentions the 8-agent swarm', () => {
+    // P1-14 fix: the TUI surfaces 8 agent display roles (the AGENTS
+    // array in theme/agents.ts has 8 entries). The underlying
+    // AgentRole enum has 11 values (used by the orchestration
+    // pipeline), but the user-facing count is 8.
     const { lastFrame } = render(
       <AboutDialog cols={80} onDismiss={vi.fn()} />,
     );
     const frame = lastFrame() ?? '';
-    expect(frame).toContain('11-agent');
+    expect(frame).toContain('8-agent');
     expect(frame).toContain('swarm');
   });
 });

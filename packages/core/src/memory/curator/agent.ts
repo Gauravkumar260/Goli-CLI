@@ -39,8 +39,8 @@ export interface MemoryCuratorOptions {
   persistentMemory: PersistentMemory;
   /** Logger instance. */
   logger?: Logger;
-  /** Optional GLM client for AI-assisted curation. */
-  glmClient?: {
+  /** Optional LLM client for AI-assisted curation. */
+  llmClient?: {
     call: (params: {
       messages: Array<{ role: string; content: string; timestamp: string }>;
       effort?: string;
@@ -242,10 +242,19 @@ export class MemoryCurator {
   /**
    * Merge new learnings into an existing file's content.
    *
-   * Strategy:
-   * 1. Parse existing content into sections (by ## headers)
-   * 2. Append new entries under the appropriate section
-   * 3. If no sections, append to the end
+   * Strategy: PREPEND new entries as a "## Recent Learnings" section
+   * at the TOP of the file. The previous implementation appended
+   * new learnings to the END of the file as a new section — but
+   * `PersistentMemory.save` (in persistent/files.ts) truncates
+   * from the END when over budget. So the newest learnings — the
+   * ones just curated — were the first to be truncated. The
+   * curator's strategy directly contradicted the budget
+   * enforcement strategy. Over multiple sessions, the file
+   * accumulated many `## Recent Learnings` sections, and the
+   * oldest ones (at the top) survived while the newest (at the
+   * bottom) got truncated. We now PREPEND so the newest learnings
+   * survive budget truncation (oldest-at-the-bottom gets
+   * truncated first, which is the LRU direction).
    * @param existingContent
    * @param learnings
    */
@@ -261,11 +270,13 @@ export class MemoryCurator {
       .join('\n');
 
     if (existingContent.length === 0) {
-      return `## Session Learnings\n${newSection}`;
+      return `## Recent Learnings\n${newSection}`;
     }
 
-    // Append to existing content
-    const separator = existingContent.endsWith('\n') ? '' : '\n';
-    return `${existingContent}${separator}\n## Recent Learnings\n${newSection}`;
+    // PREPEND the new section to the existing content so the
+    // newest learnings are at the TOP. The bottom of the file
+    // (the oldest learnings) gets truncated first when over
+    // budget, which is the LRU direction.
+    return `## Recent Learnings\n${newSection}\n\n${existingContent}`;
   }
 }

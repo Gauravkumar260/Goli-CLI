@@ -4,40 +4,66 @@ First off — thank you for taking the time to contribute. GOLI-CLI is an
 enterprise AI coding agent, and the bar for trust is therefore unusually
 high. This document spells out what that means in practice.
 
-> **TL;DR**: Fork → branch → write code + tests + docs → run `pnpm verify` →
-> open a PR. Every PR must pass CI (lint, typecheck, unit tests, SBOM gate,
-> SWE-bench 50-instance regression subset). AI-assisted PRs are welcome
-> **iff** a human author signs off and the contribution honors the
-> [AI Authorship Policy](docs/decisions/0008-ai-authorship-policy.md).
+> **TL;DR**: Fork → branch → write code + tests + docs → run `npm run verify` →
+> open a PR. Every PR must pass CI (lint, typecheck, unit tests, SBOM gate).
+> AI-assisted PRs are welcome **iff** a human author signs off and the
+> contribution honors the [AI Authorship Policy](docs/decisions/0008-ai-authorship-policy.md).
 
 ---
 
 ## 1. Project Layout
 
+GOLI-CLI is an **npm workspaces monorepo** (see
+[ADR-0011](docs/decisions/0011-npm-workspaces-monorepo.md)) with three
+workspace packages plus a standalone VS Code extension:
+
 ```
 goli-cli/
-├── src/
-│   ├── agent/            # Module 1 — core loop (Phase 2)
-│   ├── context/          # Module 2 — context engine (Phase 7)
-│   ├── tools/            # Module 3 — tool layer + MCP (Phases 4, 6)
-│   ├── sandbox/          # Module 4 — sandboxing & execution (Phase 5)
-│   ├── memory/           # Module 5 — memory & self-improvement (Phases 8-11)
-│   ├── evals/            # Module 6 — evals & observability (Phase 12)
-│   ├── orchestration/    # Module 7 — multi-agent & routing (Phase 13)
-│   ├── tui/              # Ink + React terminal UI (Phase 3)
-│   ├── config/           # TOML config loader + zod schema
-│   ├── utils/            # logger, errors, shared types
-│   └── cli/              # CLI entry + arg parser
-├── config/               # default.toml, sandbox.toml, observability.toml …
-├── docs/                 # architecture, ADRs, phase plans, runbooks
-├── tests/{unit,integration,e2e}/
-├── scripts/              # dev helpers, SBOM check, eval runner
-├── bin/                  # the `goli` shell launcher
-└── .github/workflows/    # ci.yml, sbom.yml, evals.yml
+├── packages/
+│   ├── core/                  @goli/core — the "Brain"
+│   │   └── src/
+│   │       ├── agent/         Module 1 — ReAct loop, providers, budget, retry, reflexion
+│   │       ├── api/           OpenAI-compatible HTTP API server
+│   │       ├── approval/      Module 3 — diff-first approval flow + blast radius
+│   │       ├── config/        TOML loader + Zod schema + mode prompts + integrity
+│   │       ├── context/       Module 2 — hybrid retrieval (tree-sitter + SQLite + lexical)
+│   │       ├── evals/         Module 6 — SWE-bench + semantic evaluator + regression gate
+│   │       ├── gateway/       Long-running gateway host
+│   │       ├── i18n/          5 locales: en, es, zh-CN, ja, de
+│   │       ├── memory/        Module 5 — 3-tier memory + SICA + trajectory + training
+│   │       ├── observability/ OTel tracing + Langfuse + alert manager
+│   │       ├── orchestration/ Module 7 — 11-agent swarm + worktree + E2B + classifier
+│   │       ├── plugins/       Plugin registry + middleware + hooks
+│   │       ├── providers/     Ollama (default), OpenAI, Anthropic, Gemini, Mock
+│   │       ├── sandbox/       Module 4 — cgroups v2, Landlock, bubblewrap, seatbelt, network
+│   │       ├── tools/         Module 3 — registry + 20 core tools + MCP + hooks
+│   │       ├── types/         Ambient declarations for optional deps
+│   │       └── utils/         Constants, logger, errors, JSON helpers
+│   ├── cli/                   @goli/cli — the TUI + binary
+│   │   └── src/
+│   │       ├── commands/      wakeup, doctor, status, audit, usage, commit, init, mcp, cron, profile
+│   │       ├── services/      CliAgentLoop, MockAgentLoop, IAgentLoop
+│   │       ├── tui/           Ink + React TUI (components, hooks, lib, state, theme)
+│   │       ├── constants.ts   CLI-local constants (lazy-loaded for fast cold-start)
+│   │       └── index.ts       Commander entry point (lazy-loaded commands)
+│   ├── evals/                 @goli/evals — SWE-bench-style evaluation harness (stub)
+│   └── vscode-ext/            Standalone VS Code extension (NOT in workspaces — see ADR-0017)
+├── tests/                     Root-level vitest (unit, integration, e2e)
+├── scripts/                   bench, a11y-audit, gen-completions, gen-10k-repo, tti-bench, clean-room-verify
+├── completions/               bash / zsh / fish shell completions
+├── config/                    default.toml (project-level config)
+├── docs/                      architecture, ADRs (45 files), phases, decisions, api, tui, cli, extensions
+├── examples/                  mcp-hello-world/
+├── infra/                     docker-compose + k8s manifests + LiteLLM router config
+├── python_ml/                 GRPO + LoRA training pipeline (Module 5 ML side)
+├── bench/                     baseline.json + fixtures/repo-10k/
+├── legal/                     PRIVACY_POLICY.md, TERMS_OF_SERVICE.md, ai-bom.spdx.json
+└── bin/                       `goli` shell launcher
 ```
 
-Every source directory has a `README.md` describing the module's purpose,
-public API, and integration points. If you add a new directory, add a README.
+Every source package has a `package.json` and `tsconfig.json` that wire into
+the workspace. The CLI consumes `@goli/core` via the `"@goli/core": "*"`
+dependency (workspace symlink). If you add a new directory, add a README.
 
 ---
 
@@ -64,19 +90,23 @@ npm run verify         # typecheck + lint + test + sbom-check
 
 ### Common Scripts
 
-| Script                 | What it does                                         |
-| ---------------------- | ---------------------------------------------------- |
-| `npm run build`        | Compile TypeScript via `tsup` to `dist/`             |
-| `npm run dev`          | Run the CLI in dev mode (`tsx src/cli/main.ts`)      |
-| `npm run typecheck`    | `tsc --noEmit` — strict, no emit                     |
-| `npm run lint`         | ESLint flat-config over `src/`, `tests/`, `scripts/` |
-| `npm run lint:fix`     | ESLint with `--fix`                                  |
-| `npm run format`       | Prettier write                                       |
-| `npm run format:check` | Prettier check (CI mode)                             |
-| `npm test`             | Vitest unit + integration tests                      |
-| `npm run test:e2e`     | Vitest e2e (slow; not run by `npm test`)             |
-| `npm run verify`       | typecheck + lint + format:check + test — the PR gate |
-| `npm run sbom:check`   | Syft SBOM + Trivy policy check (zero GPL/AGPL)       |
+| Script                  | What it does                                                    |
+| ----------------------- | --------------------------------------------------------------- |
+| `npm run build`         | Compile TypeScript in all workspaces via `tsup` to `dist/`      |
+| `npm run dev`           | Run the CLI in dev mode (`tsx packages/cli/src/index.ts`)       |
+| `npm run goli`          | Run the built `goli` binary (`node packages/cli/dist/index.js`) |
+| `npm run typecheck`     | `tsc --noEmit` — strict, no emit (across all workspaces)        |
+| `npm run lint`          | ESLint flat-config over `packages/`, `tests/`, `scripts/`       |
+| `npm run lint:fix`      | ESLint with `--fix`                                             |
+| `npm run format`        | Prettier write                                                  |
+| `npm run format:check`  | Prettier check (CI mode)                                        |
+| `npm test`              | Vitest unit + integration tests at the root (`tests/`)          |
+| `npm run test:e2e`      | Vitest e2e (slow; configured via `vitest.e2e.config.ts`)        |
+| `npm run test:coverage` | Vitest with coverage report                                     |
+| `npm run verify`        | typecheck + lint + format:check + test — the PR gate            |
+| `npm run sbom:check`    | Syft SBOM + Trivy policy check (zero GPL/AGPL)                  |
+| `npm run bench`         | Capture cold-start / build / typecheck / lint / test metrics    |
+| `npm run a11y:audit`    | Run the accessibility audit script (`scripts/a11y-audit.ts`)    |
 
 ---
 
@@ -109,32 +139,35 @@ npm run verify         # typecheck + lint + test + sbom-check
 
 ### 3.3 Error Handling
 
-- Throw typed errors from the `src/utils/errors.ts` hierarchy
-  (`GLMClientError`, `SandboxError`, `ToolError`, `ConfigError`).
+- Throw typed errors from the `packages/core/src/utils/errors.ts` hierarchy
+  (`GoliError` base + `ModelError`, `ModelTimeoutError`, `ModelHTTPError`,
+  `SandboxError`, `SandboxDeniedError`, `ToolValidationError`,
+  `ToolExecutionError`, `ConfigError`, `ConfigNotFoundError`,
+  `ConfigValidationError`).
 - Never swallow errors silently. At minimum, log at `warn` level with
   context.
-- Use `Result<T, E>` pattern (from `src/utils/result.ts`, Phase 2) for
-  operations whose failure is expected and recoverable (e.g. tool dispatch).
+- Use the `isGoliError(x)` type guard + `wrapUnknown(x)` helper to convert
+  unknown caught values into the typed hierarchy.
 
 ### 3.4 Tests
 
-- **Vitest** is the test runner. Co-locate unit tests with source:
-  `src/agent/glm-client.ts` ↔ `src/agent/glm-client.test.ts`.
+- **Vitest** is the test runner. Unit tests live at the root in
+  `tests/unit/` (one `.test.ts` per source module — co-located by name,
+  not by directory). Integration tests live in `tests/integration/` and
+  may use real I/O. E2E tests live in `tests/e2e/` and spawn the actual
+  CLI binary.
 - **Every public function must have at least one test.** Private helpers
   are tested through the public surface.
-- Integration tests live in `tests/integration/` and may use real I/O
-  (filesystem, network mocked via `msw`).
-- E2E tests in `tests/e2e/` spawn the actual CLI binary and exercise
-  end-to-end flows.
-- **CI runs a 50-instance SWE-bench Verified subset on every PR**. A
-  regression of >2% from baseline blocks merge
-  (see `docs/decisions/0011-eval-gate.md`).
-- **Current test suite size: 3053 tests** (across unit, integration, and
-  e2e suites — see `docs/coverage-report.md` for coverage metrics).
+- **Current test suite size: 3,053 tests** across unit + integration +
+  e2e. See `docs/coverage-report.md` for current coverage metrics
+  (~65.8% statements / 80% target).
 - **Provider system**: The project supports multiple LLM providers
-  (Ollama, OpenAI, Anthropic, Gemini). The default is Ollama
-  (`ollama/gpt-oss:120b`). To test without an API key, use
-  `npm run goli -- --demo -p "hello"` (MockAgentLoop).
+  (Ollama default, OpenAI, Anthropic, Gemini, Mock). To test without an
+  API key, use `npm run goli -- --demo -p "hello"` (MockAgentLoop) or
+  set `GOLI_DEFAULT_MODEL=mock/echo`.
+- 17 provider integration tests cover type detection, sync client
+  creation, adapter call translation, `OllamaProvider` construction,
+  and `.env` loading.
 
 ### 3.5 Documentation
 
@@ -183,8 +216,12 @@ fraction of contributions to be AI-assisted. The policy is:
   guidance and _Thaler v. Perlmutter_ (D.C. Cir. 2025).
 - **AI-assisted code must be reviewed line-by-line** by the human author.
   "I asked the model and pasted the output" is not a contribution.
-- **Security-critical code** (`src/sandbox/`, `src/tools/hooks/`,
-  `src/sica/`, `src/evals/redteam/`) requires **two human reviewers**,
+- **Security-critical code** (`packages/core/src/sandbox/`,
+  `packages/core/src/tools/hooks/builtin/`,
+  `packages/core/src/memory/sica/`,
+  `packages/core/src/evals/redteam/`,
+  `packages/core/src/orchestration/routing/`,
+  `packages/core/src/approval/`) requires **two human reviewers**,
   regardless of whether AI was involved.
 - **Trajectories of AI-assisted tasks** may be logged to the trajectory
   store (Module 5) and used for fine-tuning, subject to the contributor's
@@ -195,11 +232,11 @@ fraction of contributions to be AI-assisted. The policy is:
 ## 6. Security & Compliance
 
 - **Sandbox is the trust boundary** (Module 4). Any change to
-  `src/sandbox/` requires a security review and a red-team test pass.
+  `packages/core/src/sandbox/` requires a security review and a red-team test pass.
 - **Hooks are deterministic guardrails** (Module 3). Any change to
-  `src/tools/hooks/builtin/` requires a security review.
+  `packages/core/src/tools/hooks/builtin/` requires a security review.
 - **SBOM is gated in CI**. Adding a GPL/AGPL dependency will block the PR.
-  See `docs/decisions/0006-sbom-gate.md`.
+  See `docs/decisions/0004-sbom-gate.md`.
 - **Vulnerabilities**: report security vulnerabilities privately to
   `security@goli-cli.dev`. Do NOT open a public issue. See `SECURITY.md`
   for the disclosure process.
@@ -220,7 +257,6 @@ Prettier + ESLint enforce all of the above. If you skip the formatters,
 CI will reject the PR.
 
 ---
-
 
 ## 7.5 Footprint Ladder — where does new capability go?
 
@@ -248,6 +284,6 @@ Source: `packages/core/src/tools/footprint-ladder.ts`
 - **Issues**: <https://github.com/goli-cli/goli-cli/issues>
 - **Discussions**: <https://github.com/goli-cli/goli-cli/discussions>
 - **Security**: `security@goli-cli.dev` (see `SECURITY.md`)
-- **Roadmap**: see `PLAN.md` for the 13-phase plan and current status
+- **Roadmap**: see `docs/phases/README.md` for the 13-phase plan and current status
 
 Thank you for helping build GOLI-CLI.

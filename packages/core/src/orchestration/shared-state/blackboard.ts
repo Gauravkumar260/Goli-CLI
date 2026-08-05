@@ -16,7 +16,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 
 import type { AgentRole } from '../../agent/types.js';
@@ -96,6 +96,14 @@ export class SharedBlackboard {
 
   /**
    * Update a subtask's status.
+   *
+   * The previous implementation set `content: status` (e.g.,
+   * `content: 'pending'`) — the entry's content field was the
+   * status enum, conflating content with status. The `content`
+   * field should carry a human-readable description; the `status`
+   * field already carries the enum. We now set
+   * `content: 'Status changed to: ${status}'`.
+   *
    * @param subtaskId
    * @param status
    * @param agentRole
@@ -106,11 +114,22 @@ export class SharedBlackboard {
       subtaskId,
       agentRole,
       type: 'status',
-      content: status,
+      content: `Status changed to: ${status}`,
       status,
       timestamp: new Date().toISOString(),
     };
     this.entries.push(entry);
+    // Bound the entries array so a long-running swarm session
+    // doesn't grow without limit. The previous implementation
+    // never trimmed — every propose/validate/commit/updateStatus
+    // pushed a new entry, and the persisted markdown file grew
+    // without bound. We now keep the most recent 10,000 entries
+    // (LRU — oldest dropped first).
+    const MAX_ENTRIES = 10_000;
+    if (this.entries.length > MAX_ENTRIES) {
+      const drop = this.entries.length - MAX_ENTRIES;
+      this.entries.splice(0, drop);
+    }
     this.persist();
   }
 
@@ -168,11 +187,41 @@ export class SharedBlackboard {
     return lines.join('\n');
   }
 
-  /** Persist the blackboard to disk. */
+  /**
+   * Persist the blackboard to disk.
+   *
+   * The previous implementation called `mkdirSync` + `writeFileSync`
+   * on every `propose()`, `validate()`, `commit()`, and
+   * `updateStatus()` call. In a swarm with 11 agents making frequent
+   * proposals, this serialized all agent progress on disk I/O,
+   * defeating the parallelism the blackboard is supposed to enable.
+   * We now debounce: schedule a write 200ms in the future, and
+   * collapse multiple mutations within that window into a single
+   * write. Callers that need immediate durability can call
+   * `persistNow()` directly.
+   */
+  private persistTimer: ReturnType<typeof setTimeout> | undefined;
   private persist(): void {
+    if (this.persistTimer) clearTimeout(this.persistTimer);
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = undefined;
+      this.persistNow();
+    }, 200);
+  }
+
+  /** Synchronous persist — for callers that need immediate durability. */
+  persistNow(): void {
     try {
       mkdirSync(dirname(this.filePath), { recursive: true });
-      writeFileSync(this.filePath, this.toMarkdown(), 'utf-8');
+      // Use a temp-file + atomic-rename pattern so a crash mid-write
+      // doesn't corrupt the blackboard. The previous implementation
+      // used `writeFileSync(this.filePath, ...)` directly — if the
+      // process crashed mid-write, the file would be truncated /
+      // partially written, and the next reader would see a corrupt
+      // blackboard.
+      const tmp = `${this.filePath}.tmp-${process.pid}`;
+      writeFileSync(tmp, this.toMarkdown(), 'utf-8');
+      renameSync(tmp, this.filePath);
     } catch {
       // Best-effort
     }

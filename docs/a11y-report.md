@@ -1,6 +1,18 @@
 # Goli-CLI Accessibility Audit Report
 
 Generated: 2026-07-06T18:39:49.303Z
+Last reviewed: 2026-07-13 (regenerate with `npm run a11y:audit` for current numbers)
+
+## Scope
+
+This audit covers the **default Tokyo Night Dark theme only**. The 19
+other built-in themes (`dark`, `high-contrast`, `dracula`, `solarized-dark`,
+`solarized-light`, `github-dark`, `github-light`, `atom-one-dark`, `nord`,
+`monokai`, `ayu-dark`, `ayu-light`, `googlecode-light`, `xcode-light`,
+`shades-of-purple-dark`, `holiday-dark`, `ansi-dark`, `ansi-light`,
+`github-dark-colorblind`, `github-light-colorblind`) are NOT covered —
+they should be re-audited before any "all themes pass WCAG AA" claim is
+made in marketing copy.
 
 ## Summary
 
@@ -12,28 +24,28 @@ Generated: 2026-07-06T18:39:49.303Z
 
 ## Color Contrast Results
 
-| Foreground | Background | Ratio | AA (4.5:1) | AA Large (3:1) |
-|---|---|---|---|---|
-| fg (#c0caf5) [normal] | terminal-bg (#000000) | 13.01:1 | ✅ PASS | ✅ PASS |
-| fg (#c0caf5) [normal] | terminal-bg-white (#ffffff) | 1.61:1 | ❌ FAIL | ❌ FAIL |
-| blue (#7aa2f7) [normal] | terminal-bg (#000000) | 8.34:1 | ✅ PASS | ✅ PASS |
-| blue (#7aa2f7) [normal] | terminal-bg-white (#ffffff) | 2.52:1 | ❌ FAIL | ❌ FAIL |
-| green (#9ece6a) [normal] | terminal-bg (#000000) | 11.49:1 | ✅ PASS | ✅ PASS |
-| green (#9ece6a) [normal] | terminal-bg-white (#ffffff) | 1.83:1 | ❌ FAIL | ❌ FAIL |
-| red (#f7768e) [normal] | terminal-bg (#000000) | 7.94:1 | ✅ PASS | ✅ PASS |
-| red (#f7768e) [normal] | terminal-bg-white (#ffffff) | 2.65:1 | ❌ FAIL | ❌ FAIL |
-| yellow (#e0af68) [normal] | terminal-bg (#000000) | 10.50:1 | ✅ PASS | ✅ PASS |
-| yellow (#e0af68) [normal] | terminal-bg-white (#ffffff) | 2.00:1 | ❌ FAIL | ❌ FAIL |
-| purple (#bb9af7) [normal] | terminal-bg (#000000) | 9.08:1 | ✅ PASS | ✅ PASS |
-| purple (#bb9af7) [normal] | terminal-bg-white (#ffffff) | 2.31:1 | ❌ FAIL | ❌ FAIL |
-| teal (#73daca) [normal] | terminal-bg (#000000) | 12.61:1 | ✅ PASS | ✅ PASS |
-| teal (#73daca) [normal] | terminal-bg-white (#ffffff) | 1.67:1 | ❌ FAIL | ❌ FAIL |
-| gray (#565f89) [large] | terminal-bg (#000000) | 3.39:1 | ✅ PASS | ✅ PASS |
-| gray (#565f89) [large] | terminal-bg-white (#ffffff) | 6.19:1 | ✅ PASS | ✅ PASS |
-| border (#414868) [decorative] | terminal-bg (#000000) | 2.35:1 | ✅ PASS | ✅ PASS |
-| border (#414868) [decorative] | terminal-bg-white (#ffffff) | 8.93:1 | ✅ PASS | ✅ PASS |
-| orange (#ff9e64) [normal] | terminal-bg (#000000) | 10.33:1 | ✅ PASS | ✅ PASS |
-| orange (#ff9e64) [normal] | terminal-bg-white (#ffffff) | 2.03:1 | ❌ FAIL | ❌ FAIL |
+| Foreground                    | Background                  | Ratio   | AA (4.5:1) | AA Large (3:1) |
+| ----------------------------- | --------------------------- | ------- | ---------- | -------------- |
+| fg (#c0caf5) [normal]         | terminal-bg (#000000)       | 13.01:1 | ✅ PASS    | ✅ PASS        |
+| fg (#c0caf5) [normal]         | terminal-bg-white (#ffffff) | 1.61:1  | ❌ FAIL    | ❌ FAIL        |
+| blue (#7aa2f7) [normal]       | terminal-bg (#000000)       | 8.34:1  | ✅ PASS    | ✅ PASS        |
+| blue (#7aa2f7) [normal]       | terminal-bg-white (#ffffff) | 2.52:1  | ❌ FAIL    | ❌ FAIL        |
+| green (#9ece6a) [normal]      | terminal-bg (#000000)       | 11.49:1 | ✅ PASS    | ✅ PASS        |
+| green (#9ece6a) [normal]      | terminal-bg-white (#ffffff) | 1.83:1  | ❌ FAIL    | ❌ FAIL        |
+| red (#f7768e) [normal]        | terminal-bg (#000000)       | 7.94:1  | ✅ PASS    | ✅ PASS        |
+| red (#f7768e) [normal]        | terminal-bg-white (#ffffff) | 2.65:1  | ❌ FAIL    | ❌ FAIL        |
+| yellow (#e0af68) [normal]     | terminal-bg (#000000)       | 10.50:1 | ✅ PASS    | ✅ PASS        |
+| yellow (#e0af68) [normal]     | terminal-bg-white (#ffffff) | 2.00:1  | ❌ FAIL    | ❌ FAIL        |
+| purple (#bb9af7) [normal]     | terminal-bg (#000000)       | 9.08:1  | ✅ PASS    | ✅ PASS        |
+| purple (#bb9af7) [normal]     | terminal-bg-white (#ffffff) | 2.31:1  | ❌ FAIL    | ❌ FAIL        |
+| teal (#73daca) [normal]       | terminal-bg (#000000)       | 12.61:1 | ✅ PASS    | ✅ PASS        |
+| teal (#73daca) [normal]       | terminal-bg-white (#ffffff) | 1.67:1  | ❌ FAIL    | ❌ FAIL        |
+| gray (#565f89) [large]        | terminal-bg (#000000)       | 3.39:1  | ✅ PASS    | ✅ PASS        |
+| gray (#565f89) [large]        | terminal-bg-white (#ffffff) | 6.19:1  | ✅ PASS    | ✅ PASS        |
+| border (#414868) [decorative] | terminal-bg (#000000)       | 2.35:1  | ✅ PASS    | ✅ PASS        |
+| border (#414868) [decorative] | terminal-bg-white (#ffffff) | 8.93:1  | ✅ PASS    | ✅ PASS        |
+| orange (#ff9e64) [normal]     | terminal-bg (#000000)       | 10.33:1 | ✅ PASS    | ✅ PASS        |
+| orange (#ff9e64) [normal]     | terminal-bg-white (#ffffff) | 2.03:1  | ❌ FAIL    | ❌ FAIL        |
 
 ## Component Audit
 

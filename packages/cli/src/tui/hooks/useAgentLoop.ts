@@ -37,7 +37,7 @@ import { LIVE_RENDER_MAX_CHARS, MAX_HISTORY } from '../config/limits.js';
 import { MockAgentLoop } from '../../services/MockAgentLoop.js';
 import { CliAgentLoop } from '../../services/CliAgentLoop.js';
 import { AGENTS, DEMOS } from '../theme/agents.js';
-import type { IAgentLoop } from '../../services/IAgentLoop.js';
+import { isCliAgentLoop, type IAgentLoop } from '../../services/IAgentLoop.js';
 import type { AgentPhase, Message, PendingPermission, ToolCall } from '../state/types.js';
 
 // Streaming text flush cap — imported from config/limits so a single grep
@@ -86,6 +86,19 @@ let sharedCliLoop: CliAgentLoop | null = null;
 let warnedUnknownAgentMode = false;
 
 /**
+ * P1-3 fix (verification report item #5): expose the shared CliAgentLoop
+ * instance so the `/compact` slash command (and other out-of-band
+ * callers in the TUI) can invoke `requestCompaction()` without going
+ * through the React hook lifecycle.
+ *
+ * Returns `null` if the loop has not been instantiated yet (i.e.,
+ * `useAgentLoop` has not been called). Callers should null-check.
+ */
+export function getCliLoop(): CliAgentLoop | null {
+  return sharedCliLoop;
+}
+
+/**
  *
  */
 export function useAgentLoop(
@@ -99,29 +112,62 @@ export function useAgentLoop(
   const runRef = useRef<{
     agentMsgId: string;
     aborted: boolean;
+    // P1-13 fix: cancelFlushes is set inside submit() so abort()
+    // and the unmount cleanup can cancel pending flush timers.
+    cancelFlushes?: () => void;
   } | null>(null);
   const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
     loopRef.current = pickLoop();
     // T-MODE: Sync the current app mode to the CliAgentLoop.
-    const cliLoop = loopRef.current as any;
-    if (typeof cliLoop?.setAppMode === 'function') {
+    // P2-4 fix: replace `as any` cast with a typed `isCliAgentLoop`
+    // narrowing guard. MockAgentLoop is unaffected (the guard returns
+    // false) and `--demo` mode silently skips the mode sync.
+    const cliLoop = loopRef.current;
+    if (cliLoop && isCliAgentLoop(cliLoop)) {
       cliLoop.setAppMode(AppStateStore.getAppMode());
     }
     return () => {
+      // P1-13 fix: cancel pending flushes BEFORE abort so the abort
+      // path's [aborted] marker isn't clobbered by a late flush.
+      if (runRef.current) {
+        runRef.current.aborted = true;
+        runRef.current.cancelFlushes?.();
+        runRef.current = null;
+      }
       loopRef.current?.abort();
     };
   }, []);
 
   // T-MODE: When the app mode changes, update the CliAgentLoop so it
   // knows whether to ask for permission on critical tools in build mode.
+  // T-090: Subscribe to AppStateStore changes instead of running on every
+  // render (the previous version had no deps array, running setAppMode()
+  // on every single render even when the mode hadn't changed).
+  const lastModeRef = useRef<string>('');
   useEffect(() => {
-    const cliLoop = loopRef.current as any;
-    if (typeof cliLoop?.setAppMode === 'function') {
-      cliLoop.setAppMode(AppStateStore.getAppMode());
+    const unsub = AppStateStore.subscribe(() => {
+      const mode = AppStateStore.getAppMode();
+      if (mode !== lastModeRef.current) {
+        lastModeRef.current = mode;
+        // P2-4 fix: typed narrowing via `isCliAgentLoop`. MockAgentLoop
+        // is unaffected — the guard returns false and the call is skipped.
+        const cliLoop = loopRef.current;
+        if (cliLoop && isCliAgentLoop(cliLoop)) {
+          cliLoop.setAppMode(mode);
+        }
+      }
+    });
+    // Sync immediately on mount.
+    const mode = AppStateStore.getAppMode();
+    lastModeRef.current = mode;
+    const cliLoop = loopRef.current;
+    if (cliLoop && isCliAgentLoop(cliLoop)) {
+      cliLoop.setAppMode(mode);
     }
-  });
+    return unsub;
+  }, []);
 
   const submit = useCallback(
     async (prompt: string) => {
@@ -210,20 +256,54 @@ export function useAgentLoop(
       let pendingText = '';
       let flushScheduled = false;
       let lastFlushTime = 0;
+      // P1-13 fix: Track flush handles (setTimeout / setImmediate return
+      // values) in a Set so abort() and the unmount cleanup can cancel
+      // them. Previously, pending flushNow closures would fire AFTER
+      // abort() had already marked the message `[aborted]` and set
+      // runRef.current = null, producing content like
+      //   '<partial>\n[aborted]<late-flush-text>'
+      // and (worse) calling setMessages on a stale agentMsgId after a
+      // new run had started. We also clear `pendingText` on abort so
+      // even if a late flush slips through, it's a no-op.
+      const flushHandles = new Set<ReturnType<typeof setTimeout> | ReturnType<typeof setImmediate>>();
+      const cancelFlushes = (): void => {
+        for (const h of flushHandles) {
+          clearTimeout(h as ReturnType<typeof setTimeout>);
+          clearImmediate(h as ReturnType<typeof setImmediate>);
+        }
+        flushHandles.clear();
+        flushScheduled = false;
+        pendingText = '';
+      };
+      myRun.cancelFlushes = cancelFlushes;
 
       const flushNow = (): void => {
         flushScheduled = false;
+        // P1-13 fix: if the run was aborted, drop the flush. The abort
+        // path already cleared pendingText and appended `[aborted]`.
+        if (myRun.aborted) { pendingText = ''; return; }
         if (pendingText.length === 0) return;
         const text = pendingText;
         pendingText = '';
         lastFlushTime = Date.now();
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === agentMsgId && m.type === 'agent'
-              ? { ...m, content: m.content + text }
-              : m,
-          ),
-        );
+        // T-090: Optimize streaming update - instead of .map() over ALL
+        // messages (O(N) per flush), find the streaming message by ID and
+        // update only it. With <Static> in HistoryScroll, completed messages
+        // are frozen and don't re-render, but .map() still created new object
+        // references for every message on every token, adding GC pressure.
+        setMessages((prev) => {
+          // Fast path: the streaming message is typically the last one.
+          // Search from the end to find it in O(1) in the common case.
+          for (let i = prev.length - 1; i >= 0; i--) {
+            const m = prev[i]!;
+            if (m.id === agentMsgId && m.type === 'agent') {
+              const next = prev.slice();
+              next[i] = { ...m, content: m.content + text };
+              return next;
+            }
+          }
+          return prev;
+        });
       };
 
       const scheduleFlush = (): void => {
@@ -237,12 +317,15 @@ export function useAgentLoop(
         }
         flushScheduled = true;
         // Throttle to STREAM_FLUSH_INTERVAL_MS between flushes.
+        // P1-13 fix: track the handle so cancelFlushes() can abort it.
         const elapsed = Date.now() - lastFlushTime;
         const delay = Math.max(0, STREAM_FLUSH_INTERVAL_MS - elapsed);
         if (delay > 0) {
-          setTimeout(flushNow, delay);
+          const h = setTimeout(flushNow, delay);
+          flushHandles.add(h);
         } else {
-          setImmediate(flushNow);
+          const h = setImmediate(flushNow);
+          flushHandles.add(h);
         }
       };
 
@@ -292,31 +375,32 @@ export function useAgentLoop(
                 cost: ev.tool.cost,
                 durationMs: ev.tool.durationMs,
                 meta: ev.tool.meta,
+                // P1-9 fix: bridge provenance fields from the IAgentLoop
+                // tool event into the TUI's ToolCall. Rendered by
+                // HistoryScroll / ToolMessage as a small footer showing
+                // `source` + `turn` + `timestamp`.
+                source: ev.tool.source,
+                timestamp: ev.tool.timestamp,
+                sessionId: ev.tool.sessionId,
+                turn: ev.tool.turn,
               };
-              // T-MODE: In build mode, emit a permission event for critical
-              // tools (write_file, edit_file, bash, etc.) before showing
-              // the tool result. The user sees the PermissionDialog and can
-              // approve/deny. In god mode, all tools are auto-approved.
-              const cliLoop = loopRef.current as any;
-              if (typeof cliLoop?.shouldAskPermission === 'function' &&
-                  cliLoop.shouldAskPermission(ev.tool.name)) {
-                const permPending: PendingPermission = {
-                  permissionId: `perm-${randomUUID()}`,
-                  tool: ev.tool.name,
-                  tier: ev.tool.tier as unknown as ToolCall["tier"],
-                  arg: ev.tool.arg,
-                };
-                const decision = await AppStateStore.waitForApproval(permPending);
-                if (myRun.aborted) break;
-                if (decision.approve) {
-                  if (decision.always) {
-                    cliLoop.markAlwaysApproved?.(ev.tool.name);
-                  }
-                } else {
-                  // User denied — mark the tool as denied
-                  incoming.state = 'denied';
-                }
-              }
+              // P1-4b fix (audit Finding CC-2): the previous implementation
+              // called `cliLoop.shouldAskPermission(ev.tool.name)` HERE —
+              // AFTER the tool had already executed. By the time
+              // `AppStateStore.waitForApproval` rendered the PermissionDialog,
+              // the bash command had already run. The "approval" was
+              // decorative: denying only set `incoming.state = 'denied'` for
+              // display, but the action had already happened.
+              //
+              // Pre-execution approval is now handled inside the tools
+              // themselves (bash.ts, write_file.ts, etc.) via
+              // `ctx.requestApproval`, which is wired through
+              // `CliAgentLoop.boundRequestApproval` →
+              // `AppStateStore.waitForApproval`. The tool's `await` blocks
+              // until the user decides, so by the time we receive this
+              // `tool` event, the user has ALREADY approved (or the tool
+              // returned an error result with `status: 'denied'` if the
+              // user denied). We just render the result here.
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === agentMsgId && m.type === 'agent'
@@ -388,6 +472,30 @@ export function useAgentLoop(
               }
               setAgentPhase('ERROR');
               break;
+            case 'compaction': {
+              // P1-11 fix (remediation plan Phase 11): a compaction
+              // occurred during the run. Push a `system` message into
+              // the transcript so the user sees the token delta, and
+              // also set the `lastCompaction` field on AppStateStore
+              // so the transient CompactionBanner can render.
+              const info = ev.info;
+              const reclaimedPct = info.tokensBefore > 0
+                ? Math.round((info.tokensReclaimed / info.tokensBefore) * 100)
+                : 0;
+              const summary = `Context compacted: ${info.tokensBefore} → ${info.tokensAfter} tokens (${info.tokensReclaimed} reclaimed, ${reclaimedPct}%). Trigger: ${info.triggeredBy}. Layers: ${info.layersApplied.join(' → ')}.`;
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: randomUUID(),
+                  type: 'system',
+                  content: summary,
+                  variant: 'info',
+                  timestamp: Date.now(),
+                },
+              ]);
+              AppStateStore.setLastCompaction(info);
+              break;
+            }
             case 'done':
               break;
           }
@@ -410,8 +518,12 @@ export function useAgentLoop(
         // and we should NOT touch isBusy / agent state.)
         if (runRef.current === myRun) {
           // Use real token/usage data from CliAgentLoop if available.
-          const cliLoop = loopRef.current as any;
-          const result = typeof cliLoop?.getLastResult === 'function' ? cliLoop.getLastResult() : null;
+          // P2-4 fix: `getLastResult?` is already on `IAgentLoop` (it's
+          // optional), so no `as any` cast is needed — the optional
+          // method check is the typed pattern. We still narrow to
+          // `ICliAgentLoop` for clarity and to surface the typed return.
+          const cliLoop = loopRef.current;
+          const result = cliLoop?.getLastResult?.() ?? null;
           const realIn = result?.inputTokens ?? 0;
           const realOut = result?.outputTokens ?? 0;
           const realCost = result?.costUsd ?? 0;
@@ -419,22 +531,46 @@ export function useAgentLoop(
           setMessages((prev) => {
             const last = prev.find((m) => m.id === agentMsgId);
             if (last && last.type === 'agent' && last.content.length === 0) {
-              const resp = DEMOS[Math.floor(Math.random() * DEMOS.length)] ?? null;
-              tok = resp!.length;
+              // P1-13 fix: was `DEMOS[...] ?? null; tok = resp!.length;` —
+              // if DEMOS is empty, resp is null and `resp!.length` throws.
+              // Now we guard with `.length > 0` and fall back to realOut.
+              const resp = DEMOS.length > 0
+                ? DEMOS[Math.floor(Math.random() * DEMOS.length)]!
+                : null;
+              tok = resp ? resp.length : realOut;
               return prev.map((m) =>
                 m.id === agentMsgId && m.type === 'agent'
                   ? { ...m, content: resp!, streaming: false, tok: tok || realOut }
                   : { ...m, streaming: false },
               );
             }
-            return prev.map((m) =>
-              m.id === agentMsgId && m.type === 'agent'
-                ? { ...m, streaming: false, tok: tok || realOut }
-                : { ...m, streaming: false },
-            );
+            // P1-13 fix: was `{ ...m, streaming: false }` for EVERY
+            // message — creating 600 new object refs per turn and
+            // defeating <Static>'s referential-equality optimisation.
+            // Now we only patch the target agent message; completed
+            // messages keep their identity and don't re-render.
+            const out = prev.slice();
+            for (let i = out.length - 1; i >= 0; i--) {
+              const m = out[i]!;
+              if (m.id === agentMsgId && m.type === 'agent') {
+                out[i] = { ...m, streaming: false, tok: tok || realOut };
+                break;
+              }
+              // Streaming flag is only ever true on agent messages,
+              // so non-matching messages need no patch.
+            }
+            return out;
           });
           if (realCost > 0) AppStateStore.addUsage(0, 0, realCost);
           AppStateStore.addUsage(realIn, realOut, 0);
+          // P1-12 fix (remediation plan Phase 12): also accumulate
+          // per-model cost + token totals so `CostBreakdownPanel` can
+          // render a per-model breakdown when 2+ models have been
+          // used (e.g. effort routing or local-llms three-axis
+          // router). The model ID comes from the configured default
+          // (CliAgentLoop doesn't currently expose per-run model
+          // overrides on the result; future enhancement).
+          AppStateStore.addUsageForModel(undefined, realIn, realOut, realCost);
           AppStateStore.setActiveAgents(['orchestrator']);
           AppStateStore.setPipelineStep(0);
           setAgentPhase('DONE');
@@ -451,6 +587,11 @@ export function useAgentLoop(
     if (!loop) return;
     if (runRef.current) {
       runRef.current.aborted = true;
+      // P1-13 fix: cancel any pending flush timers so they don't
+      // fire after we've already appended `[aborted]` and nulled
+      // runRef. Also clears pendingText so even a racing flushNow
+      // closure that escaped cancelFlushes is a no-op.
+      runRef.current.cancelFlushes?.();
       const id = runRef.current.agentMsgId;
       // Preserve the partial response with an [aborted] marker so the
       // user sees what was generated before they interrupted. Same

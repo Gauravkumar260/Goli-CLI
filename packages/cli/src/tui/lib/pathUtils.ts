@@ -14,6 +14,15 @@
 import { homedir } from 'node:os';
 
 /**
+ * Normalize path separators to forward slashes. `path.join()` produces
+ * backslashes on Windows; the TUI renders paths with `/` regardless, so
+ * utilities operate on a normalized form.
+ */
+function normalizeSeparators(p: string): string {
+  return p.replace(/\\/g, '/');
+}
+
+/**
  * Replace the home directory prefix with `~`.
  *
  *   /home/alice/project  →  ~/project
@@ -24,13 +33,18 @@ import { homedir } from 'node:os';
 export function tildeify(inputPath: string): string {
   if (!inputPath || inputPath.length === 0) return inputPath;
   if (inputPath === '~') return '~';
-  const home = homedir();
+  // Honor $HOME first (tests and many shells set it); os.homedir() does NOT
+  // read $HOME on Windows — it uses the profile dir instead. When $HOME is
+  // set, it is the authoritative home for tildeification.
+  const home = normalizeSeparators(process.env.HOME || homedir());
   if (!home || home.length === 0) return inputPath;
+  const p = normalizeSeparators(inputPath);
   // Match home prefix exactly (path-separator boundary).
-  if (inputPath === home) return '~';
-  if (inputPath.startsWith(home + '/')) {
-    return '~' + inputPath.slice(home.length);
+  if (p === home) return '~';
+  if (p.startsWith(home + '/')) {
+    return '~' + p.slice(home.length);
   }
+  // Not under home — return the original input unchanged.
   return inputPath;
 }
 

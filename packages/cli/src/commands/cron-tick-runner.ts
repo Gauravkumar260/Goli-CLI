@@ -60,7 +60,7 @@ export interface TickResult {
   /** Whether the tick fired (true) or was skipped (false). */
   fired: boolean;
   /** Why the tick was skipped (if fired === false). */
-  skipReason?: 'locked' | 'outside-catchup-window' | 'disabled' | 'already-run-today';
+  skipReason?: 'locked' | 'outside-catchup-window' | 'disabled' | 'already-run-today' | 'one-shot-not-eligible' | 'recently-fired';
   /** Whether the tick was forcibly aborted by the hard interrupt. */
   aborted: boolean;
   /** Wall-clock duration in ms. */
@@ -329,6 +329,9 @@ async function executeEntry(
   },
 ): Promise<TickResult> {
   const start = opts.now();
+  // P1-18 fix: track whether this fire is a catch-up (missed tick) so
+  // the result includes that information for telemetry / debugging.
+  let isCatchupFire = false;
 
   // Skip disabled entries.
   if (!entry.enabled) {
@@ -341,32 +344,93 @@ async function executeEntry(
     };
   }
 
-  // Check shouldFire at current time.
-  const nowDate = new Date(opts.now());
-  if (!shouldFire(entry.schedule, nowDate)) {
-    // Check catchup window — maybe we missed the tick.
-    const windowMs = computeCatchupWindow(entry.schedule, {
-      minCatchupMs: opts.minCatchupMs,
-      maxCatchupMs: opts.maxCatchupMs,
-    });
-    if (!isWithinCatchupWindow(entry, opts.now(), windowMs)) {
+  // P1-19 fix: Check one-shot schedules (`@once`, `@reboot`) first.
+  // Previously `shouldFireOneShot` was defined but never called by
+  // `executeEntry` — a one-shot entry with schedule `@once` would fall
+  // into `shouldFire` (line below), which splits on whitespace → 1
+  // field → returns `false` → entry was skipped forever. The "one-shot
+  // cron jobs" feature simply didn't work.
+  if (entry.schedule.startsWith('@')) {
+    if (!shouldFireOneShot(entry, opts.now(), opts.oneShotGraceMs ?? ONE_SHOT_GRACE_MS)) {
       return {
         entryId: entry.id,
         fired: false,
-        skipReason: 'outside-catchup-window',
+        skipReason: 'one-shot-not-eligible',
         aborted: false,
         durationMs: opts.now() - start,
       };
     }
-    // Within catchup window but shouldFire is false — the schedule didn't
-    // fire at this exact minute. This is normal (most minutes don't fire).
-    return {
-      entryId: entry.id,
-      fired: false,
-      skipReason: 'outside-catchup-window',
-      aborted: false,
-      durationMs: opts.now() - start,
-    };
+    // Fall through to the fire path below.
+  } else {
+    // Check shouldFire at current time.
+    const nowDate = new Date(opts.now());
+    if (!shouldFire(entry.schedule, nowDate)) {
+      // P1-18 fix: Catchup window logic was dead code — both branches of
+      // the original `if (!isWithinCatchupWindow)` returned the SAME
+      // `'outside-catchup-window'` skipReason, so missed ticks were
+      // never caught up (a laptop asleep through the scheduled time
+      // would never have the entry fire on wake, despite the entire
+      // `computeCatchupWindow` infrastructure).
+      //
+      // Correct semantics:
+      //   - If `isWithinCatchupWindow` returns TRUE, the entry was run
+      //     recently (within the dedup window) → skip to avoid double-fire.
+      //   - If it returns FALSE, the entry has NOT run recently → check
+      //     whether we MISSED a tick since the last run. If yes, fire
+      //     now (catch up). If no, skip (no missed tick).
+      const windowMs = computeCatchupWindow(entry.schedule, {
+        minCatchupMs: opts.minCatchupMs,
+        maxCatchupMs: opts.maxCatchupMs,
+      });
+      if (isWithinCatchupWindow(entry, opts.now(), windowMs)) {
+        // Ran recently — skip to avoid double-fire.
+        return {
+          entryId: entry.id,
+          fired: false,
+          skipReason: 'recently-fired',
+          aborted: false,
+          durationMs: opts.now() - start,
+        };
+      }
+      // Didn't run recently. Check if we missed a tick since the last run.
+      // We walk backward minute-by-minute from `now` to `lastRunAt` and if
+      // ANY minute in that range would have fired, we catch up by firing
+      // now.
+      if (entry.lastRunAt) {
+        const lastRun = Date.parse(entry.lastRunAt);
+        if (!Number.isNaN(lastRun)) {
+          // Walk backward in 60s steps. (Cron's smallest unit is 1 minute.)
+          for (let t = opts.now(); t > lastRun; t -= 60_000) {
+            if (shouldFire(entry.schedule, new Date(t))) {
+              // Missed tick — catch up by falling through to the fire path.
+              // Use a flag so the fire path knows this is a catch-up.
+              isCatchupFire = true;
+              break;
+            }
+          }
+          if (!isCatchupFire) {
+            // No missed tick in the window — this minute just doesn't fire.
+            return {
+              entryId: entry.id,
+              fired: false,
+              skipReason: 'outside-catchup-window',
+              aborted: false,
+              durationMs: opts.now() - start,
+            };
+          }
+        }
+      } else {
+        // Never run, and shouldFire is false this minute — no missed
+        // tick to catch up. Skip.
+        return {
+          entryId: entry.id,
+          fired: false,
+          skipReason: 'outside-catchup-window',
+          aborted: false,
+          durationMs: opts.now() - start,
+        };
+      }
+    }
   }
 
   // Fire the handler with a hard interrupt.
@@ -397,6 +461,10 @@ async function executeEntry(
     aborted,
     durationMs: opts.now() - start,
     error,
+    // P1-18 fix: surface catch-up info for telemetry. The `as` cast is
+    // needed because TickResult doesn't declare this field yet — we
+    // don't want to widen the type for callers that don't know about it.
+    ...(isCatchupFire ? ({ catchup: true } as Record<string, unknown>) : {}),
   };
 }
 

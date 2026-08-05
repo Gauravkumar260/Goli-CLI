@@ -5,7 +5,7 @@
  * - Node.js version
  * - ripgrep (required by the `grep` tool, Phase 4)
  * - git (required for worktree isolation, Phase 5/13)
- * - GLM-5.2 endpoint reachability
+ * - Model endpoint reachability
  * - GOLI.md project memory file exists
  * - ~/.goli-cli/ directory is writable
  *
@@ -131,10 +131,11 @@ export async function runDoctor(): Promise<number> {
   });
 
   // ─── API key ─────────────────────────────────────────────────
+  const apiKeyOk = !!config.model.apiKey || !!process.env.OLLAMA_API_KEY || !!process.env.OPENAI_API_KEY || !!process.env.ANTHROPIC_API_KEY;
   results.push({
     name: 'API key',
-    ok: !!config.model.apiKey,
-    detail: config.model.apiKey ? 'configured (hidden)' : 'NOT SET (set GOLI_MODEL_API_KEY env var)',
+    ok: apiKeyOk,
+    detail: apiKeyOk ? 'configured (hidden)' : 'NOT SET (set OLLAMA_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY)',
     required: true,
   });
 

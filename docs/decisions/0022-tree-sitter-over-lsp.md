@@ -19,6 +19,7 @@ retrieval layer. The two options are:
 Use **tree-sitter** for symbol extraction, not LSP.
 
 Rationale:
+
 1. **Deterministic.** tree-sitter produces the same AST every time.
    LSP varies across implementations and versions (tsserver vs
    typescript-language-server vs TS's own LSP).
@@ -51,12 +52,14 @@ with `tree-sitter` + `tree-sitter-language-pack` for production use.
 ## Consequences
 
 **Positive:**
+
 - Deterministic, cacheable, multi-language.
 - No server process needed.
 - Works even with syntax errors.
 - Industry standard.
 
 **Negative:**
+
 - The Phase 7 regex fallback is less accurate than real tree-sitter
   (may miss symbols with unusual formatting).
 - Native tree-sitter bindings require compilation (future iteration).

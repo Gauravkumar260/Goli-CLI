@@ -34,7 +34,7 @@ function makeTrajectory(overrides: Partial<Trajectory> = {}): Trajectory {
   return {
     trajectoryId: `traj-${Math.random().toString(36).slice(2)}`,
     taskDescription: 'Refactor the auth module',
-    model: 'glm-5.2',
+    model: 'gpt-4o',
     effort: 'high',
     role: 'orchestrator',
     steps: [
@@ -248,7 +248,7 @@ describe('GRPOScaffold', () => {
     const scriptPath = scaffold.generate(
       '/data/train.jsonl',
       '/data/holdout.jsonl',
-      '/models/glm-5.2-coding-v1',
+      '/models/gpt-4o',
     );
 
     expect(scriptPath).toContain('grpo_train.py');
@@ -264,7 +264,7 @@ describe('GRPOScaffold', () => {
   it('getConfig returns training configuration', () => {
     const scaffold = new GRPOScaffold({ outputDir: testDir });
     const config = scaffold.getConfig();
-    expect(config.modelId).toBe('zai-org/GLM-5.2-FP8');
+    expect(config.modelId).toBe('Qwen/Qwen2.5-Coder-7B-Instruct');
     expect(config.loraRank).toBe(64);
     expect(config.maxIterations).toBe(2);
     expect(config.vllmColocate).toBe(true);

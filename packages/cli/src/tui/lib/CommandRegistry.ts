@@ -20,6 +20,8 @@
  */
 
 import type { TierId } from '../theme/agents.js';
+// P3-30 fix: consolidate version string
+import { APP_VERSION } from '../../constants.js';
 import { BUILTIN_SKIN_NAMES, loadSkin } from '../theme/skin-engine.js';
 import { applySkinToTokens } from '../theme/tokens.js';
 import { getShells as getBackgroundShells } from './backgroundShellRegistry.js';
@@ -118,6 +120,18 @@ export class CommandRegistry {
   private commands = new Map<string, Command>();
   /** T-054: alias → canonical name map for fast lookup. */
   private aliases = new Map<string, string>();
+  /**
+   * T-090: Version counter — incremented on every register() call.
+   * Components can read this to detect when the registry has changed
+   * and re-compute derived values (e.g. the suggestion list in
+   * PromptInput). Without this, useMemo(() => registry.entries(), [])
+   * captures a stale empty array because registerDefaultCommands()
+   * runs AFTER child components mount.
+   */
+  private _version = 0;
+
+  /** Current version (bumps on every register). */
+  get version(): number { return this._version; }
 
   register(command: Command): void {
     if (this.commands.has(command.name)) {
@@ -133,6 +147,7 @@ export class CommandRegistry {
         this.aliases.set(alias, command.name);
       }
     }
+    this._version++;
   }
 
   /**
@@ -312,21 +327,31 @@ export function registerDefaultCommands(force?: boolean): void {
 
   globalCommands.register({
     name: 'safemode',
-    description: 'Set mode to Safe (restricted autonomy)',
+    description: 'Set mode to Safe (read-only, no writes, no exec)',
     usage: '/safemode',
-    handler: () => { AppStateStore.setAppMode('build'); },
+    handler: () => { AppStateStore.setAppMode('read-only'); },
   });
 
   // T-MODE: /mode — set or inspect the permission mode.
+  // Accepts 'safe' as an alias for 'read-only' (the SAFE MODE label
+  // displayed by ApprovalModeIndicator is the read-only AppMode).
   globalCommands.register({
     name: 'mode',
-    description: 'Set or inspect permission mode (read-only, plan, build, god)',
-    usage: '/mode [read-only|plan|build|god|info]',
+    description: 'Set or inspect permission mode (read-only, plan, build, god, local-llms)',
+    usage: '/mode [read-only|safe|plan|build|god|local-llms|info]',
     altNames: ['permission'],
     isSafeConcurrent: true,
     handler: (args: string[]) => {
-      const arg = args[0] ?? '';
-      const validModes = ['read-only', 'plan', 'build', 'god'];
+      const rawArg = args[0] ?? '';
+      // 'safe' / 'safe-mode' / 'readonly' are aliases for 'read-only'
+      const arg = (() => {
+        const lower = rawArg.toLowerCase();
+        if (lower === 'safe' || lower === 'safe-mode' || lower === 'safemode' || lower === 'readonly') {
+          return 'read-only';
+        }
+        return rawArg;
+      })();
+      const validModes = ['read-only', 'plan', 'build', 'god', 'local-llms'];
 
       // /mode info — show current mode details (agents, skills, prompt)
       if (arg === 'info' || arg === '') {
@@ -337,7 +362,7 @@ export function registerDefaultCommands(force?: boolean): void {
         const prompt = getPromptForMode(currentMode);
 
         const lines = [
-          `Mode: ${currentMode}`,
+          `Mode: ${currentMode}${currentMode === 'read-only' ? ' (SAFE)' : ''}`,
           `Description: ${desc.long}`,
           '',
           `Active Agents (${agents.length}):`,
@@ -349,7 +374,7 @@ export function registerDefaultCommands(force?: boolean): void {
           `System Prompt:`,
           `  ${prompt.slice(0, 120)}${prompt.length > 120 ? '...' : ''}`,
           '',
-          `Use /mode <read-only|plan|build|god> to switch modes.`,
+          `Use /mode <read-only|safe|plan|build|god|local-llms> to switch modes.`,
         ];
         AppStateStore.pushSystemMessage(lines.join('\n'), 'info');
         return;
@@ -360,9 +385,10 @@ export function registerDefaultCommands(force?: boolean): void {
         const desc = getModeDescription(arg as AppMode);
         const agents = getAgentsForMode(arg as AppMode);
         const skills = getSkillsForMode(arg as AppMode);
+        const label = arg === 'read-only' ? 'read-only (SAFE)' : arg;
         AppStateStore.pushSystemMessage(
           [
-            `Mode: ${arg} — ${desc.short}`,
+            `Mode: ${label} — ${desc.short}`,
             `  Agents: ${agents.join(', ')}`,
             `  Skills: ${skills.join(', ')}`,
           ].join('\n'),
@@ -370,7 +396,7 @@ export function registerDefaultCommands(force?: boolean): void {
         );
       } else {
         AppStateStore.pushSystemMessage(
-          `Unknown mode: ${arg}. Valid modes: read-only, plan, build, god. Use /mode info for current mode details.`,
+          `Unknown mode: ${rawArg}. Valid modes: read-only (or safe), plan, build, god, local-llms. Use /mode info for current mode details.`,
           'warning',
         );
       }
@@ -378,14 +404,19 @@ export function registerDefaultCommands(force?: boolean): void {
   });
 
   // Legacy /tier command — kept for backward compat, redirects to /mode.
+  // Accepts the same aliases as /mode (safe → read-only).
   globalCommands.register({
     name: 'tier',
     description: 'Set permission mode (legacy, use /mode instead)',
-    usage: '/tier <read-only|plan|build|god>',
+    usage: '/tier <read-only|safe|plan|build|god|local-llms>',
     hidden: true,
     handler: (args: string[]) => {
-      const arg = args[0] ?? '';
-      const validModes = ['read-only', 'plan', 'build', 'god'];
+      const rawArg = args[0] ?? '';
+      const lower = rawArg.toLowerCase();
+      const arg = (lower === 'safe' || lower === 'safe-mode' || lower === 'safemode' || lower === 'readonly')
+        ? 'read-only'
+        : rawArg;
+      const validModes = ['read-only', 'plan', 'build', 'god', 'local-llms'];
       if (validModes.includes(arg)) {
         AppStateStore.setAppMode(arg as any);
       }
@@ -437,39 +468,86 @@ export function registerDefaultCommands(force?: boolean): void {
     },
   });
 
-  // §5.2 Plan mode
+  // §5.2 Plan mode — canonical setter updates appMode + tier +
+  // permissionMode + godMode together, so Shift+Tab cycle and the
+  // agent loop see the correct mode.
   globalCommands.register({
     name: 'plan',
     description: 'Switch to Plan mode (read-only, no edits)',
     usage: '/plan',
     handler: () => {
-      AppStateStore.setMode('SAFE');
-      AppStateStore.setPermissionMode('plan');
+      AppStateStore.setAppMode('plan');
       AppStateStore.pushSystemMessage('Plan mode: read-only, no edits will be made', 'info');
     },
   });
 
-  // §5.2 Build mode (back to default)
+  // §5.2 Build mode (back to default) — use the canonical setter so
+  // tier/godMode/mode are reset in lockstep.
   globalCommands.register({
     name: 'build',
     description: 'Switch to Build mode (default, full permissions per tier)',
     usage: '/build',
     handler: () => {
-      AppStateStore.setPermissionMode('default');
+      AppStateStore.setAppMode('build');
       AppStateStore.pushSystemMessage('Build mode: full permissions per tier', 'info');
     },
   });
 
   // §6.4 Manual compact trigger
+  //
+  // P1-3 fix (verification report item #5): the previous implementation
+  // only reset the TUI's token counter (`AppStateStore.resetTokens()`)
+  // and printed "Context compacted — token counter reset" — but no
+  // actual compaction happened in the agent loop. This was misleading:
+  // users thought /compact freed context, but the next iteration still
+  // saw the full conversation history.
+  //
+  // We now also call `cliLoop.requestCompaction()` (delegating to
+  // `AgentLoop.requestCompaction()`) which sets the `forceCompaction`
+  // flag checked at the top of the next ReAct iteration. The next
+  // iteration will run `AdvancedCompression.compact()` before
+  // processing the next tool call or LLM turn. If no run is in
+  // progress, the flag persists and fires on the next `run()`.
   globalCommands.register({
     name: 'compact',
     description: 'Manually compact context to save tokens',
     usage: '/compact',
     altNames: ['compress'],
     handler: () => {
+      // Reset the TUI's token counter (visual feedback in TokenBar).
       AppStateStore.resetTokens();
       AppStateStore.setCompactHint(false);
-      AppStateStore.pushSystemMessage('Context compacted — token counter reset', 'info');
+      // Trigger real compaction in the agent loop on the next iteration.
+      // The shared cliLoop is created lazily by useAgentLoop; we import
+      // it dynamically to avoid a circular import (CommandRegistry ←
+      // useAgentLoop ← CommandRegistry).
+      try {
+         
+        const { getCliLoop } = require('../hooks/useAgentLoop.js') as {
+          getCliLoop?: () => { requestCompaction?: () => void } | null;
+        };
+        const loop = getCliLoop?.();
+        if (loop && typeof loop.requestCompaction === 'function') {
+          loop.requestCompaction();
+          AppStateStore.pushSystemMessage(
+            'Compaction requested — the next iteration will run AdvancedCompression to summarize and shrink the context. Token counter also reset.',
+            'info',
+          );
+        } else {
+          AppStateStore.pushSystemMessage(
+            'Token counter reset. (Agent loop not yet initialized — compaction will trigger automatically when context exceeds 50% of the limit.)',
+            'info',
+          );
+        }
+      } catch {
+        // If the dynamic import fails (e.g., useAgentLoop module not
+        // loaded yet), fall back to the legacy behavior with an
+        // honest message.
+        AppStateStore.pushSystemMessage(
+          'Token counter reset. (Agent loop compaction hook unavailable — compaction will trigger automatically when context exceeds 50% of the limit.)',
+          'info',
+        );
+      }
     },
   });
 
@@ -518,7 +596,8 @@ export function registerDefaultCommands(force?: boolean): void {
     usage: '/about',
     altNames: ['version', 'v'],
     handler: () => {
-      const pkgVersion = '0.2.0-phase2';
+      // P3-30 fix: use APP_VERSION from constants.ts (was hardcoded)
+      const pkgVersion = APP_VERSION;
       AppStateStore.pushSystemMessage(
         [
           'GOLI-CLI — production-grade multi-agent software engineering tool.',
@@ -526,7 +605,7 @@ export function registerDefaultCommands(force?: boolean): void {
           'License: MIT',
           'Homepage: https://github.com/goli-cli/goli-cli',
           '',
-          '11-agent swarm (Scout → Documenter) for complex, autonomous dev tasks.',
+          '8-agent swarm (Orchestrator → Data) for complex, autonomous dev tasks.',
           'Built as an npm workspaces monorepo with TypeScript + Ink.',
         ].join('\n'),
         'info',
@@ -568,6 +647,404 @@ export function registerDefaultCommands(force?: boolean): void {
     },
   });
 
+  // /skills — list active skills (P3-6, audit Finding 4.32).
+  //
+  // The skills system was re-enabled in Phase 1's bonus fix. This
+  // command lists the seed skills and shows how many are active in
+  // the current mode (via mode-config's MODE_SKILLS mapping).
+  //
+  // P2-9 fix (re-verification report item #4): added `archive`
+  // subcommand. Previously `SkillArchiver.archiveStale()` was fully
+  // implemented but had ZERO production callers, and the `subCommands`
+  // field on the `Command` interface was declared but unused by every
+  // command in the registry (dead API surface). The `archive`
+  // subcommand is the first command to define `subCommands`, making
+  // the feature reachable AND giving `archiveStale()` an explicit
+  // on-demand caller (the session-start hook in `wakeup.ts` is the
+  // automatic caller; this is the manual one).
+  globalCommands.register({
+    name: 'skills',
+    description: 'List available skills (L1/L2/L3 disclosure system)',
+    usage: '/skills [archive]',
+    altNames: ['skill'],
+    isSafeConcurrent: true,
+    subCommands: [
+      {
+        name: 'archive',
+        description: 'Archive skills not improved in 90 days (SkillArchiver.archiveStale)',
+        usage: '/skills archive',
+        isSafeConcurrent: true,
+        handler: () => {
+          try {
+            const { SkillArchiver, AUTO_ARCHIVE_DAYS } = require('@goli/core') as typeof import('@goli/core');
+            const { existsSync } = require('node:fs') as typeof import('node:fs');
+            const { join } = require('node:path') as typeof import('node:path');
+            const skillsDir = join(process.cwd(), '.goli', 'skills');
+            if (!existsSync(skillsDir)) {
+              AppStateStore.pushSystemMessage(
+                `Skills directory not found: ${skillsDir}\nNo skills to archive.`,
+                'info',
+              );
+              return;
+            }
+            const archiver = new SkillArchiver({ skillsDir });
+            const archivedCount = archiver.archiveStale();
+            if (archivedCount === 0) {
+              AppStateStore.pushSystemMessage(
+                `SkillArchiver: no stale skills found (threshold: ${AUTO_ARCHIVE_DAYS} days).\nAll skills in ${skillsDir} are active or already archived.`,
+                'info',
+              );
+            } else {
+              AppStateStore.pushSystemMessage(
+                `SkillArchiver: archived ${archivedCount} stale skill(s) (threshold: ${AUTO_ARCHIVE_DAYS} days).\nArchived skills are flagged via \`archived: true\` in their SKILL.md frontmatter and excluded from the catalog list. Use \`/skills\` to verify.`,
+                'info',
+              );
+            }
+          } catch (err) {
+            AppStateStore.pushSystemMessage(
+              `/skills archive failed: ${err instanceof Error ? err.message : String(err)}`,
+              'error',
+            );
+          }
+        },
+      },
+    ],
+    handler: () => {
+      try {
+        const { SEED_SKILLS } = require('@goli/core') as typeof import('@goli/core');
+        const { getSkillsForMode, MODE_SKILLS } = require('./mode-config.js') as typeof import('./mode-config.js');
+        const appMode = AppStateStore.getAppMode();
+        const activeForMode = getSkillsForMode(appMode);
+        const lines: string[] = [
+          'Skills (L1/L2/L3 progressive disclosure system):',
+          `  Active in current mode (${appMode}): ${activeForMode.join(', ')}`,
+          `  Total seed skills: ${SEED_SKILLS.length}`,
+          '',
+          'Seed skills:',
+        ];
+        for (let i = 0; i < SEED_SKILLS.length; i++) {
+          const skill = SEED_SKILLS[i]!;
+          const skillId = `seed-${i}`;
+          const disclosure = activeForMode.includes(skillId) ? 'L2 (active)' : 'L1 (metadata only)';
+          lines.push(`  ${skillId.padEnd(20)} ${disclosure}  ${skill.name}`);
+          // Show first 80 chars of content as a preview.
+          const preview = skill.content.replace(/\n/g, ' ').slice(0, 80);
+          if (preview.length > 0) {
+            lines.push(`  ${' '.repeat(22)}${preview}`);
+          }
+        }
+        lines.push('');
+        lines.push('Skills are auto-archived to L3 after 90 days of inactivity (SkillArchiver).');
+        lines.push('Use the SkillWriter tool to create new skills from successful trajectories.');
+        lines.push('Run `/skills archive` to manually trigger archival of stale skills.');
+        AppStateStore.pushSystemMessage(lines.join('\n'), 'info');
+      } catch (err) {
+        AppStateStore.pushSystemMessage(
+          `/skills failed: ${err instanceof Error ? err.message : String(err)}`,
+          'error',
+        );
+      }
+    },
+  });
+
+
+  // /audit — verify audit log integrity (P3-6, audit Finding 1.15).
+  //
+  // Runs `verifyAuditLog()` (now with hash-chain verification from
+  // Phase 1.5) and shows the result in the TUI. Equivalent to
+  // `goli audit` but without leaving the session.
+  globalCommands.register({
+    name: 'audit',
+    description: 'Verify audit log integrity (hash-chain check)',
+    usage: '/audit',
+    isSafeConcurrent: true,
+    handler: async () => {
+      AppStateStore.pushSystemMessage('Verifying audit log integrity...', 'info');
+      try {
+        const { verifyAuditLog, getAuditLogPath, getAuditLogSummary } = require('@goli/core') as typeof import('@goli/core');
+        const logPath = getAuditLogPath();
+        const result = await verifyAuditLog(logPath);
+        const summary = await getAuditLogSummary(logPath, 1000);
+        if (result.ok) {
+          const lines: string[] = [
+            'Audit log verification: PASS',
+            `  Log path:       ${logPath}`,
+            `  Entries:        ${summary.totalEntries}`,
+            `  By tool:        ${Object.entries(summary.byTool).map(([t, c]) => `${t}=${c}`).join(', ') || '(none)'}`,
+            `  By tier:        ${Object.entries(summary.byTier).map(([t, c]) => `${t}=${c}`).join(', ') || '(none)'}`,
+            `  God-mode calls: ${summary.godModeEntries}`,
+            `  Denied calls:   ${summary.deniedEntries}`,
+          ];
+          if (result.errors.length > 0) {
+            lines.push(`  Warnings:       ${result.errors.length}`);
+            for (const err of result.errors.slice(0, 5)) {
+              lines.push(`    - ${err}`);
+            }
+          }
+          AppStateStore.pushSystemMessage(lines.join('\n'), 'info');
+        } else {
+          const lines: string[] = [
+            'Audit log verification: FAIL',
+            `  Log path: ${logPath}`,
+            `  Errors:   ${result.errors.length}`,
+          ];
+          for (const err of result.errors.slice(0, 10)) {
+            lines.push(`    - ${err}`);
+          }
+          AppStateStore.pushSystemMessage(lines.join('\n'), 'error');
+        }
+      } catch (err) {
+        AppStateStore.pushSystemMessage(
+          `/audit failed: ${err instanceof Error ? err.message : String(err)}`,
+          'error',
+        );
+      }
+    },
+  });
+
+  // /sica — SICA (recursive self-improvement) status + cycle trigger.
+  //
+  // P2-8 fix (audit Finding 4.25 / CC-4): SicaLoop was exported but
+  // never instantiated. This command wires it in:
+  //   `/sica`               — show SICA status (enabled, cycles today, archive size)
+  //   `/sica enable`        — enable SICA for this session (sets enabled: true)
+  //   `/sica status`        — same as `/sica`
+  //   `/sica run <file>`    — run a SICA cycle with a proposal loaded from <file>
+  //
+  // P1-5 fix (verification report item #4): the previous implementation
+  // constructed a SicaLoop on every /sica invocation and immediately
+  // discarded it (`void sicaLoop;`). This made the subsystem
+  // "constructable but unreachable" — the loop's rate limiter and
+  // archive state were never persisted across invocations. We now keep
+  // a process-wide singleton so /sica enable + /sica status reflect
+  // the same loop instance.
+  //
+  // P2-9 fix (re-verification report item #6): `SicaLoop.runCycle()` was
+  // previously invoked ONLY from tests (`tests/unit/sica.test.ts`). The
+  // singleton was wired but no production code path actually called
+  // `runCycle()`. We now add a `/sica run <file>` subcommand that:
+  //   1. Requires `/sica enable` first (runCycle rejects if disabled).
+  //   2. Reads a JSON proposal file (relative to cwd) containing:
+  //        { target, targetName, oldContent, newContent, rationale }
+  //      where `target` is one of: system_prompt | tool_description |
+  //      context_prompt | hook_config | todo_logic | skill_definition.
+  //   3. Constructs a full SicaProposal via `sicaLoop.createProposal()`
+  //      (auto-generates proposalId, diff, linesChanged, timestamp).
+  //   4. Calls `await sicaLoop.runCycle(proposal)` — exercising the
+  //      full 6-phase pipeline (rate limit → human-review check →
+  //      archive → evaluate → guard → adopt/revert).
+  //   5. Displays the cycle result (adopted/rejected + reason).
+  //
+  // NOTE: without a real benchmark harness (an `evaluate` callback),
+  // the loop's safe-default evaluator returns zero improvement, so
+  // proposals are rejected with "no resolution improvement". This is
+  // the correct safe behavior — SICA must NEVER adopt a change it
+  // can't verify is an improvement. The subcommand exists so the API
+  // is reachable from production and the safety pipeline executes
+  // end-to-end; real adoption requires wiring a benchmark evaluator
+  // (future work, tracked in the H-onwards roadmap).
+  let sicaLoopSingleton: import('@goli/core').SicaLoop | null = null;
+  let sicaEnabled = false;
+  globalCommands.register({
+    name: 'sica',
+    description: 'SICA (recursive self-improvement) status, enable, and run',
+    usage: '/sica [enable|status|run <proposalFile>]',
+    altNames: ['self-improve'],
+    isSafeConcurrent: true,
+    handler: async (args: string[]) => {
+      const subcommand = args[0] ?? 'status';
+      try {
+        // Lazy-load so `goli --help` doesn't pull in the SICA module graph.
+        const { SicaLoop, SicaRateLimiter, SicaArchive } = require('@goli/core') as typeof import('@goli/core');
+        if (subcommand === 'enable') {
+          sicaEnabled = true;
+        }
+        // Round-2 verification item #2 (SICA singleton reconstruction):
+        // previously, when `sicaEnabled === true` and the singleton
+        // already existed, the code RE-CONSTRUCTED the singleton via
+        // `new SicaLoop({...})` on every invocation. This defeated
+        // state persistence across invocations — the rate-limiter
+        // counter reset, the archive lost its history, and the
+        // immutable-safety registry was re-loaded from disk.
+        //
+        // We now use the new `setEnabled(bool)` method on SicaLoop
+        // to toggle the flag on the existing instance. The singleton
+        // is constructed exactly once (lazily on first `/sica`
+        // invocation); subsequent invocations reuse it.
+        if (!sicaLoopSingleton) {
+          sicaLoopSingleton = new SicaLoop({
+            enabled: sicaEnabled,
+            workspaceRoot: process.cwd(),
+          });
+        } else {
+          sicaLoopSingleton.setEnabled(sicaEnabled);
+        }
+
+        // P2-9 fix: `/sica run <proposalFile>` — invoke runCycle().
+        if (subcommand === 'run') {
+          const proposalFile = args[1];
+          if (!proposalFile) {
+            AppStateStore.pushSystemMessage(
+              [
+                '/sica run requires a proposal file path.',
+                'Usage: /sica run <path-to-proposal.json>',
+                '',
+                'The JSON file must contain:',
+                '  {',
+                '    "target":       "system_prompt" | "tool_description" | "context_prompt" | "hook_config" | "todo_logic" | "skill_definition",',
+                '    "targetName":   "<name of the fragment/tool/hook/skill being changed>",',
+                '    "oldContent":   "<current content>",',
+                '    "newContent":   "<proposed new content>",',
+                '    "rationale":    "<why this change improves the agent>"',
+                '  }',
+                '',
+                'The cycle will be REJECTED unless a benchmark evaluator is wired',
+                '(the safe-default evaluator returns zero improvement). This is',
+                'intentional — SICA never adopts a change it cannot verify.',
+              ].join('\n'),
+              'info',
+            );
+            return;
+          }
+          if (!sicaEnabled) {
+            AppStateStore.pushSystemMessage(
+              '/sica run rejected: SICA is disabled. Run `/sica enable` first.',
+              'error',
+            );
+            return;
+          }
+          const { existsSync, readFileSync } = require('node:fs') as typeof import('node:fs');
+          const { resolve } = require('node:path') as typeof import('node:path');
+          const proposalPath = resolve(process.cwd(), proposalFile);
+          if (!existsSync(proposalPath)) {
+            AppStateStore.pushSystemMessage(
+              `/sica run failed: proposal file not found: ${proposalPath}`,
+              'error',
+            );
+            return;
+          }
+          // Parse + validate the proposal JSON. We narrow each field
+          // defensively — a malformed proposal must produce a clear
+          // error, not a crash.
+          let raw: unknown;
+          try {
+            raw = JSON.parse(readFileSync(proposalPath, 'utf-8'));
+          } catch (parseErr) {
+            AppStateStore.pushSystemMessage(
+              `/sica run failed: could not parse JSON: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
+              'error',
+            );
+            return;
+          }
+          const VALID_TARGETS = new Set([
+            'system_prompt', 'tool_description', 'context_prompt',
+            'hook_config', 'todo_logic', 'skill_definition',
+          ]);
+          const r = (raw ?? {}) as Record<string, unknown>;
+          const target = typeof r['target'] === 'string' ? r['target'] : '';
+          const targetName = typeof r['targetName'] === 'string' ? r['targetName'] : '';
+          const oldContent = typeof r['oldContent'] === 'string' ? r['oldContent'] : '';
+          const newContent = typeof r['newContent'] === 'string' ? r['newContent'] : '';
+          const rationale = typeof r['rationale'] === 'string' ? r['rationale'] : '';
+          if (!VALID_TARGETS.has(target) || !targetName || !rationale) {
+            AppStateStore.pushSystemMessage(
+              [
+                '/sica run failed: proposal JSON is missing required fields or has invalid target.',
+                `  target (must be one of ${[...VALID_TARGETS].join(' | ')}): ${target || '(missing)'}`,
+                `  targetName: ${targetName || '(missing)'}`,
+                `  rationale:  ${rationale || '(missing)'}`,
+                '  oldContent: ' + (oldContent ? `(present, ${oldContent.length} chars)` : '(missing)'),
+                '  newContent: ' + (newContent ? `(present, ${newContent.length} chars)` : '(missing)'),
+              ].join('\n'),
+              'error',
+            );
+            return;
+          }
+
+          AppStateStore.pushSystemMessage(
+            `SICA: running cycle for proposal (${target}/${targetName}, ${oldContent.length}→${newContent.length} chars)...`,
+            'info',
+          );
+          // Construct the full proposal (auto-generates proposalId,
+          // diff, linesChanged, timestamp) and invoke runCycle.
+          const proposal = sicaLoopSingleton.createProposal({
+            target: target as import('@goli/core').SicaTarget,
+            targetName,
+            oldContent,
+            newContent,
+            rationale,
+          });
+          const result = await sicaLoopSingleton.runCycle(proposal);
+          const outcome = result.adopted ? 'adopted' : 'rejected';
+          const lines: string[] = [
+            `SICA cycle complete: ${outcome.toUpperCase()}`,
+            `  Proposal ID:    ${proposal.proposalId}`,
+            `  Target:         ${proposal.target}/${proposal.targetName}`,
+            `  Lines changed:  ${proposal.linesChanged}`,
+            `  Reason:         ${result.reason}`,
+          ];
+          if (result.beforeEvaluation && result.afterEvaluation) {
+            lines.push(
+              `  Before:         ${(result.beforeEvaluation.resolutionRate * 100).toFixed(1)}% resolution (${result.beforeEvaluation.resolvedCount}/${result.beforeEvaluation.instanceCount})`,
+              `  After:          ${(result.afterEvaluation.resolutionRate * 100).toFixed(1)}% resolution (${result.afterEvaluation.resolvedCount}/${result.afterEvaluation.instanceCount})`,
+              `  Delta:          ${(result.resolutionDelta * 100).toFixed(1)}%`,
+            );
+          }
+          if (result.overseerVerdict && !result.overseerVerdict.approved) {
+            lines.push(
+              `  Overseer:       VETOED`,
+              `  Concerns:       ${result.overseerVerdict.concerns.map((c) => c.description).join('; ') || '(none)'}`,
+            );
+          }
+          if (result.holdoutDegraded) {
+            lines.push('  Holdout:        DEGRADED (overfitting detected)');
+          }
+          lines.push(
+            '',
+            result.adopted
+              ? 'The proposal was adopted — the new content is now live. The previous version is archived for rollback.'
+              : 'The proposal was rejected. No changes were applied. See the reason above.',
+          );
+          AppStateStore.pushSystemMessage(lines.join('\n'), result.adopted ? 'info' : 'error');
+          return;
+        }
+
+        // Default: status.
+        const rateLimiter = new SicaRateLimiter({});
+        const archive = new SicaArchive({});
+        // Query real APIs: canRunCycle() checks the daily quota; getAll()
+        // returns the archive entries.
+        const canRun = rateLimiter.canRunCycle();
+        const archiveEntries = archive.getAll();
+        const lines: string[] = [
+          'SICA (Self-Improving Code Agent) status:',
+          `  Enabled:          ${sicaEnabled ? 'yes (this session)' : 'no (use /sica enable)'}`,
+          `  Can run cycle:    ${canRun ? 'yes (within daily quota)' : 'no (quota exhausted — wait until tomorrow)'}`,
+          `  Archive entries:  ${archiveEntries.length}`,
+          '',
+          'SICA runs a 6-phase loop: Evaluate → Archive → Self-Edit → Guard → Re-evaluate → Adopt/Revert.',
+          'Each cycle proposes a code change, evaluates it against holdout tests, and adopts only',
+          'if resolution improves without holdout degradation. The SafetyOverseer vetoes unsafe',
+          'changes; the ImmutableSafetyRegistry protects sandbox/approval/hooks/SICA source files.',
+          '',
+          'Commands:',
+          '  /sica enable          — enable SICA for this session',
+          '  /sica status          — show this status (default)',
+          '  /sica run <file.json> — run a cycle with a proposal from a JSON file',
+          '',
+          'NOTE: without a benchmark evaluator wired, /sica run will reject proposals with',
+          '"no resolution improvement". This is intentional — SICA never adopts unverifiable changes.',
+        ];
+        AppStateStore.pushSystemMessage(lines.join('\n'), 'info');
+      } catch (err) {
+        AppStateStore.pushSystemMessage(
+          `/sica failed: ${err instanceof Error ? err.message : String(err)}`,
+          'error',
+        );
+      }
+    },
+  });
+
   // /vim — toggle vim mode (info-only; actual toggle happens in keymap.ts).
   globalCommands.register({
     name: 'vim',
@@ -590,7 +1067,9 @@ export function registerDefaultCommands(force?: boolean): void {
     handler: () => {
       AppStateStore.pushSystemMessage('Goodbye! (exit)', 'info');
       // Defer exit so the message has time to render.
-      setTimeout(() => process.exit(0), 50);
+      if (!process.env['VITEST']) {
+        setTimeout(() => process.exit(0), 50);
+      }
     },
   });
 
@@ -660,7 +1139,7 @@ export function registerDefaultCommands(force?: boolean): void {
       lines.push('    Up/Down          — history navigation');
       lines.push('    Double-Esc       — clear prompt input');
       lines.push('    Ctrl+C twice     — exit (once interrupts agent)');
-      lines.push('    Shift+Tab        — cycle SAFE → GOD → PLAN modes');
+      lines.push('    Shift+Tab        — cycle build → read-only → plan → god modes');
 
       AppStateStore.pushSystemMessage(lines.join('\n'), 'info');
     },
@@ -1157,3 +1636,11 @@ let expandToggleCallback: (() => string | null) | null = null;
 export function setExpandToggleCallback(cb: (() => string | null) | null): void {
   expandToggleCallback = cb;
 }
+
+// T-090: Register built-in commands at MODULE SCOPE so they're available
+// before any React component mounts. Previously this was called inside
+// App.tsx's useEffect, which runs AFTER child components (like PromptInput)
+// have already memoized globalCommands.entries() with an empty deps array —
+// capturing a permanently empty array. Moving to module scope ensures the
+// registry is populated before the first render.
+registerDefaultCommands();

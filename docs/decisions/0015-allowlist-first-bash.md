@@ -49,11 +49,13 @@ catches the most dangerous patterns.
 ## Consequences
 
 **Positive:**
+
 - Phase 4 is safe by default: only read-only commands execute.
 - God mode lets users bypass the allowlist when they need to.
 - The denylist is a last-resort safety net.
 
 **Negative:**
+
 - Phase 4 can't run `npm install`, `git commit`, `tsc`, etc. — only
   read-only commands. This limits the agent's usefulness until Phase 5.
 - The denylist is regex-based and could miss novel dangerous patterns.
@@ -62,6 +64,7 @@ catches the most dangerous patterns.
 ## Phase 5 Replacement
 
 Phase 5 (Sandboxing) will replace the allowlist with:
+
 - OS-native sandbox (Seatbelt on macOS, Landlock + seccomp on Linux)
 - Network egress filter (SOCKS5 proxy + allowlist)
 - cgroups v2 resource limits

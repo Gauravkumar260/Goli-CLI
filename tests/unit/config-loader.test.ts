@@ -15,7 +15,7 @@ import { ConfigValidationError } from '../../packages/core/src/utils/errors.js';
 describe('AppConfigSchema', () => {
   it('parses an empty config (all defaults)', () => {
     const config = AppConfigSchema.parse({});
-    expect(config.model.modelId).toBe('glm-5.2');
+    expect(config.model.modelId).toBe('default');
     expect(config.model.defaultEffort).toBe('high');
     expect(config.budget.maxTokens).toBe(800_000);
     expect(config.sandbox.mode).toBe('workspace-write');
@@ -62,7 +62,10 @@ describe('loadConfig', () => {
       configPath: join(tmpDir, 'nonexistent.toml'),
       skipUserConfig: true,
     });
-    expect(config.model.modelId).toBe('glm-5.2');
+    // Schema default for modelId is 'default' (the repo's config/default.toml
+    // sets it to 'gpt-oss:120b-cloud', but that file is bypassed here because
+    // configPath points to a nonexistent file).
+    expect(config.model.modelId).toBe('default');
     expect(config.budget.maxTokens).toBe(800_000);
   });
 
@@ -72,7 +75,7 @@ describe('loadConfig', () => {
       configPath,
       [
         '[model]',
-        'modelId = "glm-5.2-custom"',
+        'modelId = "gpt-4o-custom"',
         'defaultEffort = "max"',
         '',
         '[budget]',
@@ -80,7 +83,7 @@ describe('loadConfig', () => {
       ].join('\n'),
     );
     const config = loadConfig({ configPath, skipUserConfig: true });
-    expect(config.model.modelId).toBe('glm-5.2-custom');
+    expect(config.model.modelId).toBe('gpt-4o-custom');
     expect(config.model.defaultEffort).toBe('max');
     expect(config.budget.maxCostUsd).toBe(10.0);
     // Untouched values stay at defaults

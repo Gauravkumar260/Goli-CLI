@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "goli://tools/glob.schema.json",
+  "title": "Glob",
+  "description": "Find files by glob pattern. Uses the workspace root as the base. Returns matching file paths sorted by modification time (most recent first).",
+  "type": "object",
+  "properties": {
+    "pattern": {
+      "type": "string",
+      "description": "Glob pattern (e.g. 'src/**/*.ts', '*.{json,yaml}', 'docs/**/*.md'). Supports ** for recursive matching."
+    },
+    "path": {
+      "type": "string",
+      "description": "Base directory for the glob. Default: workspace root. Must be inside the workspace."
+    }
+  },
+  "required": ["pattern"],
+  "additionalProperties": false
+}

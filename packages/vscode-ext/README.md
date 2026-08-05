@@ -32,13 +32,13 @@ Or for development:
 
 ## Configuration
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `goli.cliPath` | `""` | Path to the `goli` binary. If empty, uses `goli` from PATH. |
-| `goli.defaultEffort` | `"high"` | Default reasoning effort (`low` / `high` / `max`). |
-| `goli.sandboxMode` | `"workspace-write"` | Sandbox mode for tool execution. |
-| `goli.autoApproveTier2` | `false` | Auto-approve Tier-2 (bash) commands without asking. |
-| `goli.showBatchDiffOnGenerate` | `true` | Auto-show the batch diff panel when the agent generates changes. |
+| Setting                        | Default             | Description                                                      |
+| ------------------------------ | ------------------- | ---------------------------------------------------------------- |
+| `goli.cliPath`                 | `""`                | Path to the `goli` binary. If empty, uses `goli` from PATH.      |
+| `goli.defaultEffort`           | `"high"`            | Default reasoning effort (`low` / `high` / `max`).               |
+| `goli.sandboxMode`             | `"workspace-write"` | Sandbox mode for tool execution.                                 |
+| `goli.autoApproveTier2`        | `false`             | Auto-approve Tier-2 (bash) commands without asking.              |
+| `goli.showBatchDiffOnGenerate` | `true`              | Auto-show the batch diff panel when the agent generates changes. |
 
 ## Architecture
 
@@ -80,5 +80,32 @@ prompts.
 
 ## Legal
 
-MIT-licensed. Only open-weight models (GLM-5.2, DeepSeek, Qwen, Kimi)
-are supported — see `docs/decisions/0034-open-weight-only-routing.md`.
+MIT-licensed. The default model backend is `ollama/gpt-oss:120b`
+(open-weight) — see `docs/decisions/0034-open-weight-only-routing.md`
+for the open-weight routing policy. Users may opt in to closed-weight
+providers (OpenAI, Anthropic, Gemini) via the `GOLI_DEFAULT_MODEL` env
+var, but the extension does not encourage this and ToS liability passes
+to the user (see `legal/TERMS_OF_SERVICE.md` §4).
+
+## Standalone Build
+
+This package is **deliberately excluded from the npm workspaces**
+monorepo (see `docs/decisions/0017-vscode-ext-isolation.md`) because
+the `vscode` module isn't published to the npm registry. Build and
+package it standalone:
+
+```bash
+cd packages/vscode-ext
+npm install            # installs only the package's own devDeps
+npm run build          # tsc -p tsconfig.json -> dist/
+npx vsce package       # produces goli-vscode-0.2.0.vsix
+code --install-extension goli-vscode-0.2.0.vsix
+```
+
+For development, open the `packages/vscode-ext/` folder in VS Code and
+press `F5` to launch an Extension Development Host.
+
+## Test Coverage
+
+The VS Code extension currently has 0% test coverage (see
+`docs/coverage-report.md`). This is tracked as a known gap.

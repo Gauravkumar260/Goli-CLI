@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "goli://tools/edit-file.schema.json",
+  "title": "EditFile",
+  "description": "Edit a file by replacing old_str with new_str. The old_str must be unique in the file (use enough context to disambiguate). Produces a unified diff for user review before applying. A git checkpoint is created after the edit is applied.",
+  "type": "object",
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Path to the file, relative to the workspace root or absolute."
+    },
+    "old_str": {
+      "type": "string",
+      "description": "The exact text to replace. Must be unique in the file. Include enough surrounding context (3-5 lines) to disambiguate. Use empty new_str to delete."
+    },
+    "new_str": {
+      "type": "string",
+      "description": "The text to replace old_str with. Use empty string to delete old_str."
+    },
+    "replace_all": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, replace all occurrences of old_str in the file. Use with caution — usually you want the default (unique match)."
+    }
+  },
+  "required": ["path", "old_str", "new_str"],
+  "additionalProperties": false
+}

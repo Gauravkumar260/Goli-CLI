@@ -17,7 +17,7 @@
  *
  * ~19.78% of "solved" SWE-bench cases are semantically wrong — the
  * patch passes tests but is functionally incorrect. The harness samples
- * 10% of "solved" cases and uses GLM-5.2 `reasoning_effort=max` to
+ * 10% of "solved" cases and uses `reasoning_effort=max` to
  * verify semantic correctness.
  *
  * @module evals/swebench/harness
@@ -56,6 +56,16 @@ export interface SWEBenchHarnessOptions {
   checkSemantic?: (instance: SWEBenchInstance, result: SWEBenchResult) => Promise<boolean>;
   /** The benchmark name (default: 'swe-bench-verified'). */
   benchmarkName?: string;
+  /**
+   * Max concurrent instance evaluations (default: 4). The previous
+   * implementation ran instances sequentially — a 500-instance
+   * subset at ~30s/instance took 4+ hours. We now default to 4
+   * concurrent evaluations, configurable via this option.
+   *
+   * Set to 1 to restore sequential behavior (useful for debugging
+   * or when the runAgent backend is not concurrency-safe).
+   */
+  concurrency?: number;
 }
 
 /**
@@ -71,6 +81,7 @@ export class SWEBenchHarness {
   private readonly runAgent?: SWEBenchHarnessOptions['runAgent'];
   private readonly checkSemantic?: SWEBenchHarnessOptions['checkSemantic'];
   private readonly benchmarkName: string;
+  private readonly concurrency: number;
 
   constructor(opts: SWEBenchHarnessOptions = {}) {
     this.log = opts.logger;
@@ -80,6 +91,9 @@ export class SWEBenchHarness {
     this.runAgent = opts.runAgent;
     this.checkSemantic = opts.checkSemantic;
     this.benchmarkName = opts.benchmarkName ?? 'swe-bench-verified';
+    // Default concurrency = 4. Clamp to [1, 32] — beyond 32 the
+    // backend usually rate-limits anyway.
+    this.concurrency = Math.min(32, Math.max(1, opts.concurrency ?? 4));
   }
 
   /**
@@ -100,22 +114,62 @@ export class SWEBenchHarness {
       benchmark: this.benchmarkName,
       totalInstances: instances.length,
       subsetSize: size,
+      concurrency: this.concurrency,
     });
 
     const startTime = Date.now();
-    const results: SWEBenchResult[] = [];
-
-    for (let i = 0; i < subset.length; i++) {
-      const instance = subset[i]!;
-      this.log?.debug('Evaluating instance', {
-        index: i + 1,
-        total: subset.length,
-        instanceId: instance.instanceId,
-      });
-
-      const result = await this.evaluateInstance(instance);
-      results.push(result);
+    // Concurrent evaluation with bounded parallelism. The previous
+    // implementation ran instances sequentially — a 500-instance
+    // subset at ~30s/instance took 4+ hours. With concurrency=4,
+    // that drops to ~1 hour.
+    const results: SWEBenchResult[] = new Array(subset.length);
+    let completed = 0;
+    let cursor = 0;
+    const workers: Promise<void>[] = [];
+    const workerCount = Math.min(this.concurrency, subset.length);
+    for (let w = 0; w < workerCount; w++) {
+      workers.push((async () => {
+        while (true) {
+          const i = cursor++;
+          if (i >= subset.length) break;
+          const instance = subset[i]!;
+          this.log?.debug('Evaluating instance', {
+            index: i + 1,
+            total: subset.length,
+            instanceId: instance.instanceId,
+          });
+          try {
+            results[i] = await this.evaluateInstance(instance);
+          } catch (err) {
+            // checkSemantic errors used to abort the entire eval.
+            // We now record a failure result for this instance and
+            // continue — the aggregate stats reflect partial failure.
+            this.log?.warn('Instance evaluation failed', {
+              instanceId: instance.instanceId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+            results[i] = {
+              instanceId: instance.instanceId,
+              resolved: false,
+              failToPassPassed: false,
+              passToPassPassed: false,
+              testsPass: [],
+              testsFail: [],
+              regressions: [],
+              totalTokens: 0,
+              totalCostUsd: 0,
+              durationMs: 0,
+              semanticError: false,
+            };
+          }
+          completed++;
+          if (completed % 10 === 0 || completed === subset.length) {
+            this.log?.debug('SWE-bench progress', { completed, total: subset.length });
+          }
+        }
+      })());
     }
+    await Promise.all(workers);
 
     // Compute aggregate statistics (resolution rate computed after semantic correction)
 
@@ -243,7 +297,7 @@ export class SWEBenchHarness {
   ): boolean {
     // Simple heuristic: if the patch modified test files, it's likely
     // gaming the tests (semantic error)
-    // In production, this uses GLM-5.2 reasoning_effort=max
+    // In production, this uses a model with reasoning_effort=max
     return !result.regressions.some((r) => r.includes('test'));
   }
 
@@ -340,6 +394,13 @@ export function generateStubInstances(count: number): SWEBenchInstance[] {
     failToPass: [`test_edge_case_${i}`],
     passToPass: [`test_basic_${i}`, `test_standard_${i}`],
     testCommand: `python -m pytest tests/test_module_${i}.py`,
-    environmentSetup: `pip install -e . && pip install pytest`,
+    // MEDIUM-67: the previous `environmentSetup` ran `pip install -e .`
+    // — arbitrary code execution from the repo under test. A
+    // malicious SWE-bench instance (or a compromised mirror) could
+    // ship a setup.py that exfiltrated secrets or installed
+    // backdoors. We now leave `environmentSetup` empty (the harness
+    // is responsible for setting up the environment via a trusted
+    // container image, NOT by running the repo's own setup.py).
+    environmentSetup: '',
   }));
 }

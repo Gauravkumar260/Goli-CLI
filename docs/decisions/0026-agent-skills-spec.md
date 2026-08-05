@@ -35,17 +35,18 @@ category: "refactoring"
 # Extract Function Refactoring
 
 ## Steps
+
 1. read_file the file...
 2. edit_file to replace...
 ```
 
 ### 3-Level Progressive Disclosure
 
-| Level | What | Tokens | When |
-|-------|------|--------|------|
-| L1 | Metadata (frontmatter only) | ~100/skill | Session start (system prompt) |
-| L2 | Full instructions (body) | <5K | On trigger (agent decides to use) |
-| L3 | Deep reference (scripts, refs) | On demand | When agent needs full detail |
+| Level | What                           | Tokens     | When                              |
+| ----- | ------------------------------ | ---------- | --------------------------------- |
+| L1    | Metadata (frontmatter only)    | ~100/skill | Session start (system prompt)     |
+| L2    | Full instructions (body)       | <5K        | On trigger (agent decides to use) |
+| L3    | Deep reference (scripts, refs) | On demand  | When agent needs full detail      |
 
 ### Why progressive disclosure?
 
@@ -57,12 +58,14 @@ when a skill is actually triggered.
 ## Consequences
 
 **Positive:**
+
 - Skills compound value from real usage.
 - L1 is cheap (~100 tokens/skill) — the agent knows what exists.
 - L2 is loaded on-demand — no wasted context.
 - Skills are versioned and auto-archived after 90 days.
 
 **Negative:**
+
 - Skills can become stale if not used. Mitigation: 90-day auto-archive.
 - Self-written skills may contain errors. Mitigation: `author: "agent"`
   flag; human-authored seed skills are trusted.

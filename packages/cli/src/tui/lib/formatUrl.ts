@@ -45,6 +45,44 @@ export interface FormatUrlOptions {
 }
 
 /**
+ * Strip C0 control characters and the OSC string terminator (ST) from a
+ * string so it cannot prematurely terminate an OSC-8 hyperlink sequence.
+ *
+ * P0-9 fix: The previous `formatUrl()` interpolated `url` and `text`
+ * verbatim into the OSC-8 template
+ *
+ *   `\x1b]8;;${url}\x07${text}\x1b]8;;\x07`
+ *
+ * If `url` (or `text`) contained a BEL (`\x07`) or ESC (`\x1b`), it
+ * would terminate the OSC sequence early and the remainder would be
+ * interpreted as raw terminal escape codes. A malicious URL like
+ * `http://evil.com\x07\x1b[2J\x07` would clear the user's screen
+ * (or worse — write arbitrary escape sequences). URLs reach this code
+ * from untrusted agent output (tool results, web_fetch), so this is a
+ * real injection vector, not just a theoretical concern.
+ *
+ * The OSC-8 spec restricts the URI to printable ASCII + a few safe
+ * punctuation chars; control characters are not legal. We strip them
+ * rather than reject the whole URL because (a) the user almost never
+ * benefits from control chars in a URL, and (b) silently dropping the
+ * link would be a worse UX than emitting a sanitized link.
+ *
+ * We strip:
+ *   - All C0 controls (U+0000–U+001F) including BEL (0x07) and ESC (0x1b)
+ *   - DEL (U+007F)
+ *   - The OSC string-terminator forms `\x1b\\` (ST) and lone `\x07` (BEL)
+ *     — the BEL strip is already covered by C0, but we list it explicitly
+ *     for clarity.
+ *   - The C1 control range (U+0080–U+009F) for defence-in-depth, since
+ *     some terminals interpret these as control sequences in certain
+ *     8-bit modes.
+ */
+function sanitizeForOsc8(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
+}
+
+/**
  * Wrap `text` as an OSC-8 hyperlink pointing at `url`. Returns the
  * un-wrapped `text` when the feature is disabled or the terminal
  * doesn't support OSC-8 — so it's safe to call unconditionally.
@@ -57,8 +95,12 @@ export function formatUrl(
   if (!ENABLED) return text;
   const supported = options.terminalSupportsHyperlinks ?? supportsHyperlinks();
   if (!supported) return text;
+  // P0-9 fix: Sanitize both `url` and `text` before interpolating into
+  // the OSC-8 template. See `sanitizeForOsc8` for the threat model.
+  const safeUrl = sanitizeForOsc8(url);
+  const safeText = sanitizeForOsc8(text);
   // OSC 8 ; ; <URI> BEL  text  OSC 8 ; ; BEL
-  return `\x1b]8;;${url}\x07${text}\x1b]8;;\x07`;
+  return `\x1b]8;;${safeUrl}\x07${safeText}\x1b]8;;\x07`;
 }
 
 /**

@@ -1,6 +1,6 @@
 # Phase 11 — SICA Recursive Self-Improvement (Module 5, part 4)
 
-**Status:** Pending
+**Status:** Substantially Complete
 **Modules touched:** M5 (SICA, immutable safety registry, LLM overseer)
 **Compliance gates:** G5 (liability shield — partial; insurance + audit log)
 
@@ -10,6 +10,14 @@ Build the SICA loop (evaluate → archive → self-edit → guard → re-evaluat
 → adopt/revert), the immutable safety registry, the LLM-based safety
 overseer, the benchmark-overfitting detector, rate limiting, and
 rollback.
+
+## Current Implementation Status
+
+SICA loop (evaluate -> archive -> self-edit -> guard -> re-evaluate -> adopt/revert) + immutable safety registry (protects sandbox/hooks/approval/SICA itself) + LLM safety overseer with veto power (7 concern categories, "when in doubt VETO") + overfit detector (holdout degradation check) + rate limiter (10 cycles/day, >50 LOC human review) + append-only archive all shipped at packages/core/src/memory/sica/. Filesystem read-only mounts (software enforcement today, filesystem enforcement on the P13+ roadmap).
+
+See the per-module sections in [docs/architecture.md](../architecture.md)
+for the current code locations and `AGENTS.md` for accumulated
+implementation patterns and gotchas.
 
 ## Definition of Done
 

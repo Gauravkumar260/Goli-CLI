@@ -1,6 +1,6 @@
 # Phase 4 — Tool Layer & Core Tools (Module 3, part 1)
 
-**Status:** Pending
+**Status:** Complete
 **Modules touched:** M3 (tool registry, core tools, truncation)
 **Compliance gates:** none new
 
@@ -11,6 +11,14 @@ and the five core tools: `read_file`, `write_file`, `edit_file`
 (old_string/new_string exact-match), `list_directory`, `grep` (ripgrep
 wrapper). End of Phase 4: the agent can read, write, edit, search files
 via tool calls (no sandbox yet — Phase 5 adds that).
+
+## Current Implementation Status
+
+Tool registry + JSON Schema validation (schema-validator.ts) + truncation + parallel execution + footprint-ladder + checkpoint-manager + 6 core tools (read_file, write_file, edit_file, list_directory, grep, bash) all shipped at packages/core/src/tools/. Additional gap tools (web_search, web_fetch, todo_write, ask_user, notebook_edit, background_shell, spawn_subagent) and spec-driven tools (spec_write, spec_review, spec_update) and 4 LSP tools (lsp_hover, lsp_goto_definition, lsp_references, lsp_diagnostics) also landed — total 21 registered tools.
+
+See the per-module sections in [docs/architecture.md](../architecture.md)
+for the current code locations and `AGENTS.md` for accumulated
+implementation patterns and gotchas.
 
 ## Definition of Done
 
@@ -27,7 +35,7 @@ via tool calls (no sandbox yet — Phase 5 adds that).
 - [ ] Integration with the agent loop (Phase 2): tools registered, dispatch wired
 - [ ] Unit tests for each tool (≥90% coverage)
 - [ ] Integration test: agent reads file, edits file, greps, all via tool calls
-- [ ] ADR-0013 (old_string/new_string over unified diffs)
+- [ ] ADR-0014 (old_string/new_string over unified diffs)
 - [ ] ADR-0014 (Read-before-Edit mandatory; compaction wipes tracking — re-read)
 
 ## Steps (P4.x)

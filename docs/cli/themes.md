@@ -77,7 +77,7 @@ The 20 built-in themes are defined as constants in
 | `shades-of-purple-dark` | `#e3dfff`  | `#1e1e3f`  | Shades of Purple | Vibrant purple-heavy dark theme                  |
 | `holiday-dark`          | `#f0f8ff`  | `#00210e`  | Holiday Dark     | Festive green-and-red holiday theme              |
 
-### Light themes (6)
+### Light themes (5)
 
 | Name               | Foreground | Background | Style            | Description                              |
 | ------------------ | ---------- | ---------- | ---------------- | ---------------------------------------- |
@@ -86,14 +86,30 @@ The 20 built-in themes are defined as constants in
 | `ayu-light`        | `#5c6166`  | `#f8f9fa`  | Ayu Light        | Warm light palette with muted accents    |
 | `googlecode-light` | `#444444`  | `#ffffff`  | Googlecode Light | Minimal light theme with high contrast   |
 | `xcode-light`      | `#444444`  | `#ffffff`  | Xcode Light      | Classic Mac IDE light theme              |
-| `ansi-light`       | `#000000`  | `#ffffff`  | ANSI Light       | Native ANSI palette on light background  |
+
+> `ansi-light` is intentionally excluded from this table — it belongs
+> to the ANSI themes family below (uses the terminal's native 16-color
+> palette rather than truecolor RGB values).
 
 ### ANSI themes (2)
+
+The two ANSI themes use only the terminal's native 16-color palette, so
+they work on any terminal (including those without truecolor support).
+They are also the recommended choice for `NO_COLOR` environments and
+for users who want to inherit the terminal emulator's color scheme
+rather than override it.
 
 | Name         | Foreground | Background | Description                                      |
 | ------------ | ---------- | ---------- | ------------------------------------------------ |
 | `ansi-dark`  | `#ffffff`  | `#000000`  | Uses the terminal's native 16-color ANSI palette |
 | `ansi-light` | `#000000`  | `#ffffff`  | Native ANSI palette on light background          |
+
+> **Note on theme count:** Some docs reference "21 built-in themes"
+> (which counts `ansi-light` twice — once under Light themes and once
+> under ANSI themes). The canonical count is **20 built-in themes + 1
+> special `no-color` accessibility theme**. The two ANSI themes are
+> listed in their own section above and are not double-counted in the
+> Light themes total.
 
 ### Colorblind-accessible themes (2)
 

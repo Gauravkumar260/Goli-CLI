@@ -19,7 +19,7 @@
  */
 import React from 'react';
 import { Box, Text } from 'ink';
-import { T } from '../theme/tokens.js';
+import { T, getBorderStyle } from '../theme/tokens.js';
 import type { QueuedMessage } from '../state/types.js';
 
 interface Props {
@@ -67,7 +67,7 @@ export function QueuedMessagesTray({
   return (
     <Box
       flexDirection="column"
-      borderStyle="round"
+      borderStyle={getBorderStyle() as 'round'}
       borderColor={T.teal}
       paddingX={1}
       marginY={0}

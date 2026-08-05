@@ -8,11 +8,11 @@
  *   - The hook doesn't crash when rendered
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { useMouseScroll, toggleMouseMode } from '../../packages/cli/src/tui/hooks/useMouseScroll.js';
+import { useMouseScroll, toggleMouseMode, __resetMouseModeStateForTests } from '../../packages/cli/src/tui/hooks/useMouseScroll.js';
 
 // ─── Module exports ─────────────────────────────────────────────────
 
@@ -61,6 +61,11 @@ describe('T-099: useMouseScroll hook rendering', () => {
 // ─── toggleMouseMode ────────────────────────────────────────────────
 
 describe('T-099: toggleMouseMode function', () => {
+  beforeEach(() => {
+    // Reset module-level toggle state so each test starts from disabled.
+    __resetMouseModeStateForTests();
+  });
+
   it('returns true when called', () => {
     // toggleMouseMode writes to stdout — we need a mock stdout.
     const mockStdout = {

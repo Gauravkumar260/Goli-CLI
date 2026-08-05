@@ -102,12 +102,14 @@ describe('StallDetector — flaw characterization (pending human approval)', () 
     // After fix: would be `x:null` (sorted-JSON path).
   });
 
-  // Flaw 3: circular argumentsParsed crashes the detector.
-  // The crash happens in sortObjectKeys (called before JSON.stringify) via
+  // Flaw 3: circular argumentsParsed USED TO crash the detector.
+  // The crash happened in sortObjectKeys (called before JSON.stringify) via
   // infinite recursion → RangeError: Maximum call stack size exceeded.
-  // A pending fix would guard against cycles (WeakSet visited set) or wrap
-  // the whole signature computation in try/catch with RAW fallback.
-  it('flaw 3: circular argumentsParsed throws RangeError (CURRENT behavior)', () => {
+  // FIX APPLIED: sortObjectKeys now uses a WeakSet to detect cycles and
+  // returns '[Circular]' instead of recursing infinitely. The signature
+  // computation no longer throws, and the first call returns false (below
+  // the stall threshold).
+  it('flaw 3: circular argumentsParsed no longer throws (FIX APPLIED)', () => {
     const detector = new StallDetector(DEFAULT_CONFIG.stall);
     const circular: Record<string, unknown> = { a: 1 };
     circular.self = circular;
@@ -118,11 +120,8 @@ describe('StallDetector — flaw characterization (pending human approval)', () 
       argumentsParsed: circular,
       status: 'pending',
     };
-    // CURRENT: sortObjectKeys recurses infinitely → RangeError.
-    // (Not TypeError from JSON.stringify, because sortObjectKeys runs first
-    // and has no cycle detection.)
-    expect(() => detector.recordAndCheck(tcCircular)).toThrow(RangeError);
-    // After fix: would not throw, would return false (1st call, below threshold).
+    // Fixed behavior: no throw, returns false (1st call, below threshold).
+    expect(detector.recordAndCheck(tcCircular)).toBe(false);
   });
 
   // Flaw 7: windowSize < threshold silently never fires.

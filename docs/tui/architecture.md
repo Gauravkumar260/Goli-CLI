@@ -467,5 +467,5 @@ screen-reader compatibility.
 - [Themes](../cli/themes.md) — 20 built-in themes + custom YAML skins +
   live hot-reload + color downsampling.
 - [API Reference](../api/README.md)
-- [Architecture Decisions](../decisions/) — 46 ADRs.
+- [Architecture Decisions](../decisions/) — 45 ADRs.
 - [A11y Report](../a11y-report.md)

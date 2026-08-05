@@ -144,9 +144,9 @@ describe('T-018: multi-platform gateway abstraction', () => {
       expect(() => registry.register(new TelegramGateway({}))).toThrow('already registered');
     });
 
-    it('unregisters a gateway', () => {
+    it('unregisters a gateway', async () => {
       registry.register(new TelegramGateway({}));
-      registry.unregister('telegram');
+      await registry.unregister('telegram');
       expect(registry.size).toBe(0);
       expect(registry.has('telegram')).toBe(false);
     });

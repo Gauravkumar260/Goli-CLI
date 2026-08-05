@@ -35,9 +35,12 @@ describe('Build mode permission gate', () => {
     expect(loop.shouldAskPermission('edit_file')).toBe(true);
   });
 
-  it('run_shell_command is a critical tool', () => {
+  it('run_shell_command is NOT a critical tool (dead ref, Round-2 item T1)', () => {
+    // Round-2 verification item T1: `run_shell_command` was a dead
+    // reference (no such tool is registered). The actual unified
+    // shell tool is `bash`, which is tested separately above.
     loop.setAppMode('build');
-    expect(loop.shouldAskPermission('run_shell_command')).toBe(true);
+    expect(loop.shouldAskPermission('run_shell_command')).toBe(false);
   });
 
   it('bash is a critical tool', () => {
@@ -45,9 +48,32 @@ describe('Build mode permission gate', () => {
     expect(loop.shouldAskPermission('bash')).toBe(true);
   });
 
-  it('background_shell is a critical tool', () => {
+  it('background_shell is NOT a critical tool (dead ref, Round-2 item T1)', () => {
+    // Round-2 verification item T1: `background_shell` was a dead
+    // reference (no such tool is registered). The actual background
+    // shell tools are `bash_output` + `kill_shell`, both tested below.
     loop.setAppMode('build');
-    expect(loop.shouldAskPermission('background_shell')).toBe(true);
+    expect(loop.shouldAskPermission('background_shell')).toBe(false);
+  });
+
+  it('bash_output is a critical tool (background shell output)', () => {
+    loop.setAppMode('build');
+    expect(loop.shouldAskPermission('bash_output')).toBe(true);
+  });
+
+  it('kill_shell is a critical tool (background shell control)', () => {
+    loop.setAppMode('build');
+    expect(loop.shouldAskPermission('kill_shell')).toBe(true);
+  });
+
+  it('notebook_edit is a critical tool', () => {
+    loop.setAppMode('build');
+    expect(loop.shouldAskPermission('notebook_edit')).toBe(true);
+  });
+
+  it('spawn_subagent is a critical tool', () => {
+    loop.setAppMode('build');
+    expect(loop.shouldAskPermission('spawn_subagent')).toBe(true);
   });
 
   it('web_fetch is a critical tool', () => {
@@ -72,12 +98,17 @@ describe('Build mode permission gate', () => {
     expect(loop.shouldAskPermission('grep')).toBe(false);
   });
 
-  it('glob is NOT a critical tool', () => {
+  it('glob is NOT a critical tool (dead ref, Round-2 item T1)', () => {
+    // Round-2 verification item T1: `glob` was a dead reference
+    // (no such tool is registered). The actual grep-equivalent tool
+    // is `grep`, tested above.
     loop.setAppMode('build');
     expect(loop.shouldAskPermission('glob')).toBe(false);
   });
 
-  it('ls is NOT a critical tool', () => {
+  it('ls is NOT a critical tool (dead ref, Round-2 item T1)', () => {
+    // Round-2 verification item T1: `ls` was a dead reference.
+    // The actual list-directory tool is `list_directory`.
     loop.setAppMode('build');
     expect(loop.shouldAskPermission('ls')).toBe(false);
   });

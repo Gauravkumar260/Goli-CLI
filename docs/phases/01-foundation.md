@@ -10,6 +10,14 @@ Lay down the repo, the TypeScript toolchain, the compliance baseline
 (MIT license, SBOM gate, ADRs), and the skeleton source structure. No
 agent code yet — Phase 2 begins that.
 
+## Current Implementation Status
+
+Foundation + compliance baseline shipped in Phase 1. MIT license, SBOM gate, npm workspaces monorepo, vitest, eslint, prettier, husky, tsup, default.toml config — all in place.
+
+See the per-module sections in [docs/architecture.md](../architecture.md)
+for the current code locations and `AGENTS.md` for accumulated
+implementation patterns and gotchas.
+
 ## Definition of Done
 
 - [x] Repository scaffolded with `src/`, `tests/`, `docs/`, `config/`, `scripts/`, `bin/`, `.github/workflows/`

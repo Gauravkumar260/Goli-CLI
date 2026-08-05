@@ -46,49 +46,69 @@ export class E2BSandbox {
   /**
    * Create a new sandbox (preload repo if specified).
    *
+   * Race-safe: the previous implementation checked
+   * `this.sessions.size >= this.maxConcurrent` and then later
+   * `this.sessions.set(...)` — but two concurrent `create()` calls
+   * (e.g., parallel subagent spawns) could both pass the check
+   * before either adds to the map, exceeding `maxConcurrent`. We
+   * now use a counter-based admission token: increment
+   * `pendingCreations` BEFORE the check, so concurrent callers
+   * see each other.
+   *
    * @param repoUrl - Optional git repo to preload.
    * @returns The sandbox session.
    */
+  private pendingCreations = 0;
   async create(repoUrl?: string): Promise<CloudSandboxSession> {
-    if (this.sessions.size >= this.maxConcurrent) {
-      throw new Error(`Max concurrent sandboxes reached: ${this.maxConcurrent}`);
-    }
-
-    const session: CloudSandboxSession = {
-      sandboxId: randomUUID(),
-      provider: 'e2b',
-      repoUrl,
-      status: 'creating',
-      createdAt: new Date().toISOString(),
-    };
-
-    this.sessions.set(session.sandboxId, session);
-
-    this.log?.info('Creating E2B sandbox', {
-      sandboxId: session.sandboxId,
-      repoUrl,
-    });
-
+    // Reserve a slot BEFORE checking the size — this is the
+    // admission token. If we exceed maxConcurrent after the
+    // reservation, release the token and throw.
+    this.pendingCreations++;
     try {
-      // In production, this would call the E2B SDK:
-      //   import { Sandbox } from '@e2b/code-interpreter';
-      //   const sandbox = await Sandbox.create({ apiKey: this.apiKey });
-      //   if (repoUrl) await sandbox.runCommand(`git clone ${repoUrl} .`);
+      const effectiveCount = this.sessions.size + this.pendingCreations;
+      if (effectiveCount > this.maxConcurrent) {
+        throw new Error(`Max concurrent sandboxes reached: ${this.maxConcurrent} (active=${this.sessions.size}, pending=${this.pendingCreations})`);
+      }
 
-      // Phase 13 stub: simulate creation
-      await new Promise((resolve) => setTimeout(resolve, 200)); // Simulate 200ms boot
-      session.status = 'ready';
+      const session: CloudSandboxSession = {
+        sandboxId: randomUUID(),
+        provider: 'e2b',
+        repoUrl,
+        status: 'creating',
+        createdAt: new Date().toISOString(),
+      };
 
-      this.log?.info('E2B sandbox ready', { sandboxId: session.sandboxId });
-    } catch (err) {
-      session.status = 'destroyed';
-      this.log?.error('E2B sandbox creation failed', {
+      this.sessions.set(session.sandboxId, session);
+
+      this.log?.info('Creating E2B sandbox', {
         sandboxId: session.sandboxId,
-        error: err instanceof Error ? err.message : String(err),
+        repoUrl,
       });
-    }
 
-    return session;
+      try {
+        // In production, this would call the E2B SDK:
+        //   import { Sandbox } from '@e2b/code-interpreter';
+        //   const sandbox = await Sandbox.create({ apiKey: this.apiKey });
+        //   if (repoUrl) await sandbox.runCommand(`git clone ${repoUrl} .`);
+
+        // Phase 13 stub: simulate creation
+        await new Promise((resolve) => setTimeout(resolve, 200)); // Simulate 200ms boot
+        session.status = 'ready';
+
+        this.log?.info('E2B sandbox ready', { sandboxId: session.sandboxId });
+      } catch (err) {
+        session.status = 'destroyed';
+        this.log?.error('E2B sandbox creation failed', {
+          sandboxId: session.sandboxId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+
+      return session;
+    } finally {
+      // Release the admission token regardless of outcome.
+      this.pendingCreations--;
+    }
   }
 
   /**

@@ -15,7 +15,7 @@
  * @module observability/langfuse/client
  */
 
-import { mkdirSync, appendFileSync } from 'node:fs';
+import { mkdir, appendFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 
@@ -65,21 +65,25 @@ export class LangfuseClient {
     if (spans.length === 0) return;
 
     if (this.fileExport) {
-      this.exportToFile(spans);
+      await this.exportToFile(spans);
     } else if (this.serverUrl) {
       await this.exportToServer(spans);
     }
   }
 
   /**
-   * Export spans to a JSONL file (offline mode).
+   * Export spans to a JSONL file (offline mode). Uses async I/O
+   * (`fs/promises`) and batches all spans into a single
+   * `appendFile` call so a 500-span trace produces 2 syscalls
+   * (mkdir + appendFile) instead of 501 (mkdir + 500× appendFileSync).
+   * The previous synchronous implementation blocked the event loop
+   * for the entire batch.
    * @param spans
    */
-  private exportToFile(spans: OtelSpan[]): void {
-    mkdirSync(dirname(this.filePath), { recursive: true });
-    for (const span of spans) {
-      appendFileSync(this.filePath, JSON.stringify(this.spanToLangfuseFormat(span)) + '\n', 'utf-8');
-    }
+  private async exportToFile(spans: OtelSpan[]): Promise<void> {
+    await mkdir(dirname(this.filePath), { recursive: true });
+    const lines = spans.map((s) => JSON.stringify(this.spanToLangfuseFormat(s))).join('\n') + '\n';
+    await appendFile(this.filePath, lines, 'utf-8');
     this.log?.debug('Traces exported to file', { count: spans.length, path: this.filePath });
   }
 
@@ -90,7 +94,7 @@ export class LangfuseClient {
   private async exportToServer(spans: OtelSpan[]): Promise<void> {
     if (!this.serverUrl || !this.publicKey || !this.secretKey) {
       this.log?.warn('Langfuse server not configured, falling back to file export');
-      this.exportToFile(spans);
+      await this.exportToFile(spans);
       return;
     }
 
@@ -118,12 +122,18 @@ export class LangfuseClient {
       this.log?.error('Langfuse export failed, falling back to file', {
         error: err instanceof Error ? err.message : String(err),
       });
-      this.exportToFile(spans);
+      await this.exportToFile(spans);
     }
   }
 
   /**
    * Convert an OtelSpan to Langfuse's trace format.
+   *
+   * Defense-in-depth: even if the OTel tracer already redacted secrets
+   * at recording time, we redact AGAIN at the export boundary. The
+   * `~/.goli-cli/traces.jsonl` file is a prime target for secret
+   * leakage — if a future change to the tracer accidentally drops
+   * redaction, the export boundary still catches it.
    * @param span
    */
   private spanToLangfuseFormat(span: OtelSpan): Record<string, unknown> {
@@ -135,13 +145,17 @@ export class LangfuseClient {
       kind: span.kind,
       startTime: new Date(span.startTime).toISOString(),
       endTime: span.endTime ? new Date(span.endTime).toISOString() : undefined,
-      attributes: span.attributes,
+      attributes: redactSpanAttributes(span.attributes),
       status: span.status,
     };
   }
 
   /**
-   * Convert an OtelSpan to OTLP format.
+   * Convert an OtelSpan to OTLP format. Numbers are now correctly
+   * typed as `intValue` for integers and `doubleValue` for floats —
+   * the previous implementation mapped EVERY number to `intValue`,
+   * truncating floats like `0.15` (error rate) when interpreted by
+   * strict backends.
    * @param span
    */
   private spanToOTLP(span: OtelSpan): Record<string, unknown> {
@@ -153,10 +167,17 @@ export class LangfuseClient {
       kind: span.kind === 'CLIENT' ? 3 : span.kind === 'SERVER' ? 2 : 1,
       startTimeUnixNano: String(span.startTime * 1_000_000),
       endTimeUnixNano: span.endTime ? String(span.endTime * 1_000_000) : undefined,
-      attributes: Object.entries(span.attributes).map(([key, value]) => ({
-        key,
-        value: { [typeof value === 'number' ? 'intValue' : typeof value === 'boolean' ? 'boolValue' : 'stringValue']: value },
-      })),
+      attributes: Object.entries(span.attributes).map(([key, value]) => {
+        let valueKey: string;
+        if (typeof value === 'number') {
+          valueKey = Number.isInteger(value) ? 'intValue' : 'doubleValue';
+        } else if (typeof value === 'boolean') {
+          valueKey = 'boolValue';
+        } else {
+          valueKey = 'stringValue';
+        }
+        return { key, value: { [valueKey]: value } };
+      }),
       status: { code: span.status === 'ok' ? 1 : span.status === 'error' ? 2 : 0 },
     };
   }
@@ -193,4 +214,54 @@ export class LangfuseClient {
       '- Full control over retention and access',
     ].join('\n');
   }
+}
+
+
+/**
+ * Patterns that match common secret formats. Used to redact secrets
+ * before exporting span attributes to the file or OTLP server.
+ */
+const SECRET_PATTERNS = [
+  /(?:api[_-]?key|secret|password|passwd|token|auth|credential)["'\s:=]+([A-Za-z0-9_-]{20,})/gi,
+  /-----BEGIN [A-Z ]+PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+PRIVATE KEY-----/g,
+  /\bsk-[A-Za-z0-9]{20,}\b/g,
+  /\bpk-lf-[A-Za-z0-9]{20,}\b/g,
+  /\bgh[pousr]_[A-Za-z0-9]{36,}\b/g,
+  /\bxox[bpoa]-[A-Za-z0-9-]+\b/g,
+  /\beyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
+  /(?:Authorization:\s*(?:Bearer|Basic)\s+)([A-Za-z0-9._-]+)/gi,
+  /([?&](?:token|access_token|api_key|secret)=)([^&\s'"]+)/gi,
+];
+
+function redactString(input: string): string {
+  let redacted = input;
+  for (const pattern of SECRET_PATTERNS) {
+    redacted = redacted.replace(pattern, (match, ...groups) => {
+      if (groups.length > 0 && typeof groups[0] === 'string') {
+        return match.replace(groups[0], '[REDACTED]');
+      }
+      return '[REDACTED]';
+    });
+  }
+  return redacted;
+}
+
+/**
+ * Defense-in-depth redaction at the export boundary. Redacts any
+ * string attribute whose key contains `input` or `output` (which
+ * matches the GenAI semantic conventions `gen_ai.tool.input` and
+ * `gen_ai.tool.output`). Non-string attributes are passed through.
+ */
+function redactSpanAttributes(
+  attrs: Record<string, string | number | boolean>,
+): Record<string, string | number | boolean> {
+  const redacted: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(attrs)) {
+    if (typeof value === 'string' && (key.includes('input') || key.includes('output'))) {
+      redacted[key] = redactString(value);
+    } else {
+      redacted[key] = value;
+    }
+  }
+  return redacted;
 }

@@ -86,7 +86,7 @@ message before the choice, re-prompt, compare outcomes.
 **Negative:**
 
 - Disk usage grows with session count. Mitigation: `deleteSession`
-  + a future `pruneOldSessions(days)` cleanup.
+  - a future `pruneOldSessions(days)` cleanup.
 - No compression (JSONL is verbose). Mitigation: a future
   `compressSession(id)` could gzip the JSONL.
 - No encryption (sessions are plaintext). Mitigation: a future

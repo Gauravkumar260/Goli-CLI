@@ -30,11 +30,13 @@ name: refactor
 description: Refactor selected code
 argument_hint: <file-path>
 ---
+
 Refactor the following code to improve readability:
 
 $ARGUMENTS
 
 Apply these principles:
+
 - Single Responsibility
 - DRY
 ```
@@ -42,6 +44,7 @@ Apply these principles:
 ### Variable substitution
 
 The body supports:
+
 - `$ARGUMENTS` — replaced with the args passed to the command
 - `$WORKSPACE` — replaced with the current workspace root
 - `$DATE` — replaced with the current ISO date
@@ -59,6 +62,7 @@ project-level one wins.
 ### Handler behavior
 
 When the user types `/refactor src/parser.ts`, the handler:
+
 1. Substitutes `$ARGUMENTS` → `src/parser.ts` in the body.
 2. Pushes a system message `[custom command: /refactor]`.
 3. Queues the substituted body as a message for the agent loop.

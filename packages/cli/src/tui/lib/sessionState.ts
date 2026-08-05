@@ -16,7 +16,7 @@
  * calls `installCrashHandler()` once at startup.
  */
 import process from 'node:process';
-import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, readFileSync, renameSync, unlinkSync } from 'node:fs';
 import { recordLifecycle } from './parentLog.js';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -76,8 +76,12 @@ export function persistSnapshot(reason: string, stack?: string): void {
     };
     const tmp = CRASH_FILE + '.tmp';
     writeFileSync(tmp, JSON.stringify(snap, null, 2), 'utf8');
-    // Atomic rename — readers never see a half-written file.
-    import('node:fs').then(({ renameSync }) => renameSync(tmp, CRASH_FILE));
+// P0-8 fix: was `import('node:fs').then(({renameSync}) => renameSync(...))`
+    // — an async dynamic import that never resolved before the caller's
+    // `process.exit(1)` killed the process. The static `renameSync` (now
+    // imported at the top of the file) completes synchronously so the
+    // snapshot is actually persisted before exit.
+    renameSync(tmp, CRASH_FILE);
   } catch {
     // If we can't save, we can't save. Crash handler must never throw.
   }
@@ -156,7 +160,8 @@ export function readCrashSnapshot(): CrashSnapshot | null {
 export function clearCrashSnapshot(): void {
   try {
     if (existsSync(CRASH_FILE)) {
-      import('node:fs').then(({ unlinkSync }) => unlinkSync(CRASH_FILE));
+// P0-8 fix: synchronous `unlinkSync` (static import) — see persistSnapshot.
+      unlinkSync(CRASH_FILE);
     }
   } catch {
     /* ignore */

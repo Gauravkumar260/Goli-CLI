@@ -7,6 +7,7 @@
 ## Context
 
 Goli-CLI is an npm workspaces monorepo with three workspace packages:
+
 - `packages/core` — the agent brain (@goli/core)
 - `packages/cli` — the TUI + binary (@goli/cli)
 - `packages/evals` — evaluation harness (@goli/evals)

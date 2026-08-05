@@ -24,6 +24,7 @@ Use **`old_string` / `new_string` exact-match search-and-replace** for
 the `edit_file` tool.
 
 Rationale:
+
 1. **Models are trained on it.** Claude Code uses this pattern
    extensively; models (including GLM-5.2) are fine-tuned to emit
    `old_string`/`new_string` reliably. Diffs require a different output
@@ -42,12 +43,14 @@ Rationale:
 ## Consequences
 
 **Positive:**
+
 - Reliable: models produce `old_string`/`new_string` reliably.
 - Safe: uniqueness enforcement prevents ambiguous edits.
 - Simple: no diff library dependency.
 - Forgiving: exact-match doesn't break on whitespace.
 
 **Negative:**
+
 - The `old_string` must be unique (or `replace_all` must be set). If
   the model provides a non-unique string, the tool returns an error.
   Mitigation: the error message tells the model how many occurrences

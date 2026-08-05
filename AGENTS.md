@@ -4,15 +4,20 @@
 
 ## Project layout (quick reference)
 
-- `packages/core` — the "Brain": agent loop, tools, safety, context, model providers, 11-agent orchestration
-- `packages/cli` — user-facing TUI (Ink/React), command parsing, binary distribution
-- `packages/evals` — evaluation harness (SWE-bench-style)
-- `packages/vscode-ext` — VS Code extension (NOT in npm workspaces, separate package)
-- `tests/` — root-level tests (vitest), 67 files, 1004 test cases
-- `infra/` — infrastructure (Terraform, k8s)
-- `python_ml/` — Python ML-side tooling
-- `docs/` — design decisions + phase docs (sparse)
-- `legal/` — legal/compliance artifacts
+- `packages/core` — the "Brain": agent loop, providers, tools, safety, context, memory, evals, observability, orchestration (8-agent swarm), plugins, sandbox, i18n, API server, gateway — 208+ source files
+- `packages/cli` — user-facing TUI (Ink/React), 25+ components, 11 hooks, 25+ lib modules, theme engine (20 built-in skins), state store, command parsing, binary distribution
+- `packages/evals` — evaluation harness stub (Phase 12 evals live in `packages/core/src/evals/`)
+- `packages/vscode-ext` — standalone VS Code extension (NOT in npm workspaces — see ADR-0010)
+- `tests/` — root-level tests (vitest) — 70+ files, **3,053 test cases** (unit + integration + e2e)
+- `infra/` — infrastructure (Docker Compose + k8s manifests + LiteLLM router config)
+- `python_ml/` — Python ML-side tooling (GRPO + LoRA training pipeline)
+- `docs/` — design decisions (45 ADRs) + phase docs (13) + architecture + agents + getting-started + extensions + tui + cli + api + coverage + a11y
+- `legal/` — legal/compliance artifacts (TERMS_OF_SERVICE, PRIVACY_POLICY, ai-bom.spdx.json)
+- `config/` — `default.toml` (project-level config)
+- `completions/` — bash / zsh / fish shell completions
+- `scripts/` — bench, a11y-audit, gen-completions, gen-10k-repo, tti-bench, clean-room-verify
+- `bench/` — `baseline.json` + `fixtures/repo-10k/`
+- `examples/` — `mcp-hello-world/`
 
 ## Build chain gotchas
 
@@ -25,13 +30,13 @@
 3. **`z-ai-web-dev-sdk` is referenced by `tools/core/web-fetch.ts` and `tools/core/web-search.ts` but not declared in any `package.json`.** Same pattern as tree-sitter: dynamic `import()` with graceful catch.
    - **Fix applied (iter 0):** Same ambient module declaration file.
 
-4. **The root `package.json` `"test"` script used to delegate to `npm run test --workspaces`**, but each workspace's `vitest run` looks for `tests/` *inside the workspace package* (e.g. `packages/cli/tests/`) — none exist. The 67 test files live at the *root* `tests/` directory. So `npm test` would exit 1 with "No test files found" before iter 0.
+4. **The root `package.json` `"test"` script used to delegate to `npm run test --workspaces`**, but each workspace's `vitest run` looks for `tests/` _inside the workspace package_ (e.g. `packages/cli/tests/`) — none exist. The 67 test files live at the _root_ `tests/` directory. So `npm test` would exit 1 with "No test files found" before iter 0.
    - **Fix applied (iter 0):** Root `package.json` `"test"` now invokes `vitest run --config vitest.config.ts` directly. The root vitest.config.ts has the correct `include: ['tests/unit/**/*.test.ts', ...]` and the `@goli/*` aliases.
 
 5. **ESLint flat-config `ignores: ['dist/**']` only matches a top-level `dist/` directory, not `packages/*/dist/`.** This caused compiled `.js` output to be linted and produce hundreds of phantom errors.
    - **Fix applied (iter 0):** Changed to `**/dist/**` (and added `**/coverage/**`, `**/node_modules/**`, `**/*.tsbuildinfo`, `**/bundle/**`).
 
-6. **`@typescript-eslint/no-require-imports` rule was not found at runtime.** The plugin version pinned in devDependencies doesn't expose this rule name. The lint output reports `Definition for rule '@typescript-eslint/no-require-imports' was not found` as an *error* (5 occurrences).
+6. **`@typescript-eslint/no-require-imports` rule was not found at runtime.** The plugin version pinned in devDependencies doesn't expose this rule name. The lint output reports `Definition for rule '@typescript-eslint/no-require-imports' was not found` as an _error_ (5 occurrences).
    - **Workaround applied (iter 0):** For legitimate dynamic `require('node:fs')` / `require('node:child_process')` calls in sandbox probing code, use `// eslint-disable-next-line @typescript-eslint/no-require-imports -- <reason>` rather than rewriting to ESM `import()` (which would change the synchronous-probe semantics).
 
 ## Stylistic-rule posture (parity with reference CLIs)
@@ -39,6 +44,7 @@
 Hermes-Agent's eslint config is significantly more permissive than Goli-CLI's original config. Aider, Codex, and Claude Code similarly don't fail builds on stylistic rules. The original Goli-CLI config had 171 errors blocking the I3 invariant, the vast majority from stylistic rules (`no-non-null-assertion`, `consistent-type-imports`, `promise/param-names`) that the codebase systematically violates.
 
 **Rules downgraded from `error` to `warn` (iter 0):**
+
 - `@typescript-eslint/no-non-null-assertion` — 72 violations; legitimate `!` uses where context proves non-null
 - `@typescript-eslint/consistent-type-imports` — 17 violations; auto-fix is incomplete
 - `promise/param-names` — 9 violations; purely stylistic
@@ -121,18 +127,18 @@ After extracting `hermes-agent-main.zip` and reading the actual source (vs infer
 
 ### Goli-CLI's standing position vs hermes (post-iter-20)
 
-| Dimension | Goli score | Hermes approx | Gap |
-|---|---|---|---|
-| Architecture | 78 | 90+ | Footprint Ladder, service-gated tools, plugin ABC + orchestrator pattern (T-020, T-027) |
-| UI/UX | 70 | 88 | 6 chat surfaces, skin engine (T-024) |
-| Developer Experience | 75 | 87 | Profile system, self-update (T-025) |
-| Performance | 80 | 92 | Prompt caching invariant, client pooling (T-021) |
-| Stability | 81 | 90 | Cron hardening, compression locks (T-023) |
-| Accessibility | 68 | 88 | i18n catalog (T-022) |
-| Features | 74 | 95 | Kanban board, 20+ platform adapters, vision/audio/video, Modal/Daytona sandboxes |
-| Code Quality | 76 | 88 | Subprocess-per-test, osv_check, exact-pinned deps (T-026) |
-| Extensibility | 78 | 90 | Footprint Ladder docs, SKILL.md frontmatter (T-020, T-027) |
-| Documentation | 80 | 87 | Multi-language READMEs, ADRs |
+| Dimension            | Goli score | Hermes approx | Gap                                                                                     |
+| -------------------- | ---------- | ------------- | --------------------------------------------------------------------------------------- |
+| Architecture         | 78         | 90+           | Footprint Ladder, service-gated tools, plugin ABC + orchestrator pattern (T-020, T-027) |
+| UI/UX                | 70         | 88            | 6 chat surfaces, skin engine (T-024)                                                    |
+| Developer Experience | 75         | 87            | Profile system, self-update (T-025)                                                     |
+| Performance          | 80         | 92            | Prompt caching invariant, client pooling (T-021)                                        |
+| Stability            | 81         | 90            | Cron hardening, compression locks (T-023)                                               |
+| Accessibility        | 68         | 88            | i18n catalog (T-022)                                                                    |
+| Features             | 74         | 95            | Kanban board, 20+ platform adapters, vision/audio/video, Modal/Daytona sandboxes        |
+| Code Quality         | 76         | 88            | Subprocess-per-test, osv_check, exact-pinned deps (T-026)                               |
+| Extensibility        | 78         | 90            | Footprint Ladder docs, SKILL.md frontmatter (T-020, T-027)                              |
+| Documentation        | 80         | 87            | Multi-language READMEs, ADRs                                                            |
 
 ### Iteration 20 learnings (FTS5 + trigram)
 
@@ -158,18 +164,19 @@ When adding a new capability, choose the **LOWEST rung** that meets the need.
 Every tool in the LLM's schema has a token cost, cognitive cost, and
 maintenance cost — the ladder keeps the core schema narrow.
 
-| Rung | Where | Footprint | When to use |
-|------|-------|-----------|-------------|
-| 1. **extend** | Add flag to existing tool | 0 new files | New capability is a natural extension of an existing tool |
-| 2. **cli_skill** | `goli <cmd>` + SKILL.md | 1 CLI file + 1 SKILL.md | Multi-step workflow using existing tools |
-| 3. **service_gated_tool** | Tool with `check_fn` | 1 file, 0 schema cost when gated | Needs an external service/dep not all users have |
-| 4. **plugin** | `~/.goli/plugins/<name>/` | 1 file, not in core | User/org-specific |
-| 5. **mcp_server** | External MCP process | 0 in core; `goli mcp add` | Needs separate runtime/isolation |
-| 6. **core_tool** | `packages/core/src/tools/core/` | 1 file, always in schema | **Highest footprint** — virtually every user needs it |
+| Rung                      | Where                           | Footprint                        | When to use                                               |
+| ------------------------- | ------------------------------- | -------------------------------- | --------------------------------------------------------- |
+| 1. **extend**             | Add flag to existing tool       | 0 new files                      | New capability is a natural extension of an existing tool |
+| 2. **cli_skill**          | `goli <cmd>` + SKILL.md         | 1 CLI file + 1 SKILL.md          | Multi-step workflow using existing tools                  |
+| 3. **service_gated_tool** | Tool with `check_fn`            | 1 file, 0 schema cost when gated | Needs an external service/dep not all users have          |
+| 4. **plugin**             | `~/.goli/plugins/<name>/`       | 1 file, not in core              | User/org-specific                                         |
+| 5. **mcp_server**         | External MCP process            | 0 in core; `goli mcp add`        | Needs separate runtime/isolation                          |
+| 6. **core_tool**          | `packages/core/src/tools/core/` | 1 file, always in schema         | **Highest footprint** — virtually every user needs it     |
 
 ### Decision flow
 
 Ask in order:
+
 1. Can an existing tool do this with a new flag? → **rung 1 (extend)**
 2. Is this a workflow that orchestrates existing tools? → **rung 2 (cli_skill)**
 3. Does this need an external service not all users have? → **rung 3 (service_gated_tool)**
@@ -184,16 +191,16 @@ If you reach rung 6, justify why the lower rungs are insufficient in your PR.
 All 22 existing tools are at **rung 6 (core_tool)** by definition (placed
 before the ladder was adopted). Future audits may downgrade:
 
-| Tool | Recommended rung | Reason |
-|------|------------------|--------|
-| `web_fetch` | 3 (service_gated) | Could gate on `GOLI_WEB_FETCH=1` |
-| `web_search` | 3 (service_gated) | Could gate on `GOLI_WEB_SEARCH=1` |
-| `notebook_edit` | 3 (service_gated) | Only useful if Jupyter installed |
-| `lsp_tools` | 3 (service_gated) | Only useful if LSP server running |
-| `spec_review` | 2 (cli_skill) | Could be `goli spec-review` subcommand |
-| `spec_write` | 2 (cli_skill) | Could be `goli spec-write` subcommand |
-| `spec_update` | 2 (cli_skill) | Could be `goli spec-update` subcommand |
-| `spec_registry` | 2 (cli_skill) | Could be `goli spec-registry` subcommand |
+| Tool            | Recommended rung  | Reason                                   |
+| --------------- | ----------------- | ---------------------------------------- |
+| `web_fetch`     | 3 (service_gated) | Could gate on `GOLI_WEB_FETCH=1`         |
+| `web_search`    | 3 (service_gated) | Could gate on `GOLI_WEB_SEARCH=1`        |
+| `notebook_edit` | 3 (service_gated) | Only useful if Jupyter installed         |
+| `lsp_tools`     | 3 (service_gated) | Only useful if LSP server running        |
+| `spec_review`   | 2 (cli_skill)     | Could be `goli spec-review` subcommand   |
+| `spec_write`    | 2 (cli_skill)     | Could be `goli spec-write` subcommand    |
+| `spec_update`   | 2 (cli_skill)     | Could be `goli spec-update` subcommand   |
+| `spec_registry` | 2 (cli_skill)     | Could be `goli spec-registry` subcommand |
 
 Tools staying at rung 6 (universal need): `read_file`, `write_file`,
 `edit_file`, `bash`, `grep`, `list_directory`, `ask_user`, `todo_write`,
@@ -266,16 +273,16 @@ change every turn).
 ```ts
 const p1 = builder.assemble(ctx);
 const p2 = builder.assemble(ctxWithDifferentVolatile);
-assert(p1.stableHash === p2.stableHash);  // MUST hold
+assert(p1.stableHash === p2.stableHash); // MUST hold
 ```
 
 ### Three-tier prompt structure
 
-| Tier | Contents | Cached? | Hash-covered? |
-|------|----------|---------|---------------|
-| **stable** | identity, tool names, sandbox mode, skills, platform hints, safety rules, output format | ✓ for agent lifetime | ✓ |
-| **context** | language, git branch, project context (GOLI.md, AGENTS.md) | ✓ for agent lifetime (rebuilt on compaction) | ✓ |
-| **volatile** | TODO list, memory snapshot, date-only timestamp, model/provider/session line | ✗ rebuilt every turn | ✗ |
+| Tier         | Contents                                                                                | Cached?                                      | Hash-covered? |
+| ------------ | --------------------------------------------------------------------------------------- | -------------------------------------------- | ------------- |
+| **stable**   | identity, tool names, sandbox mode, skills, platform hints, safety rules, output format | ✓ for agent lifetime                         | ✓             |
+| **context**  | language, git branch, project context (GOLI.md, AGENTS.md)                              | ✓ for agent lifetime (rebuilt on compaction) | ✓             |
+| **volatile** | TODO list, memory snapshot, date-only timestamp, model/provider/session line            | ✗ rebuilt every turn                         | ✗             |
 
 ### Toolset snapshot (deferred invalidation)
 
@@ -327,29 +334,30 @@ one-shot jobs.
 
 ### The four invariants
 
-| # | Invariant | Constant | Rationale |
-|---|-----------|----------|-----------|
-| 1 | **3-minute hard interrupt** | `HARD_INTERRUPT_MS = 180_000` | If a cron session runs longer than 3 minutes, it is forcibly aborted via `AbortController` + `setTimeout`. Prevents a runaway agent loop from blocking the scheduler. |
-| 2 | **File lock (flock-style)** | `<goliHome>/cron.lock` | A lockfile prevents two `goli cron tick` processes from running simultaneously. Uses `O_EXCL` atomic create-or-fail. Stale locks (older than `HARD_INTERRUPT_MS + 60s`) are auto-removed. |
-| 3 | **Catchup window = half period, clamped 120s–2h** | `MIN_CATCHUP_MS = 120_000`, `MAX_CATCHUP_MS = 7_200_000` | If a cron tick missed its scheduled time (e.g. laptop was asleep), the tick fires if the current time is within the catchup window. Window = `max(120s, min(period/2, 2h))`. |
-| 4 | **Grace window 120s for one-shot cron jobs** | `ONE_SHOT_GRACE_MS = 120_000` | A one-shot cron (`@once`, `@reboot`) fires once within 120s of its scheduled time, then is auto-disabled. |
+| #   | Invariant                                         | Constant                                                 | Rationale                                                                                                                                                                                 |
+| --- | ------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **3-minute hard interrupt**                       | `HARD_INTERRUPT_MS = 180_000`                            | If a cron session runs longer than 3 minutes, it is forcibly aborted via `AbortController` + `setTimeout`. Prevents a runaway agent loop from blocking the scheduler.                     |
+| 2   | **File lock (flock-style)**                       | `<goliHome>/cron.lock`                                   | A lockfile prevents two `goli cron tick` processes from running simultaneously. Uses `O_EXCL` atomic create-or-fail. Stale locks (older than `HARD_INTERRUPT_MS + 60s`) are auto-removed. |
+| 3   | **Catchup window = half period, clamped 120s–2h** | `MIN_CATCHUP_MS = 120_000`, `MAX_CATCHUP_MS = 7_200_000` | If a cron tick missed its scheduled time (e.g. laptop was asleep), the tick fires if the current time is within the catchup window. Window = `max(120s, min(period/2, 2h))`.              |
+| 4   | **Grace window 120s for one-shot cron jobs**      | `ONE_SHOT_GRACE_MS = 120_000`                            | A one-shot cron (`@once`, `@reboot`) fires once within 120s of its scheduled time, then is auto-disabled.                                                                                 |
 
 ### Period heuristic
 
 The catchup window requires knowing the schedule's period. The heuristic
 inspects the minute + hour fields:
 
-| Minute field | Hour field | Period |
-|--------------|------------|--------|
-| `*` | (any) | 1 minute |
-| `*/N` | (any) | N minutes |
-| specific | `*` | 1 hour |
-| specific | `*/N` | N hours |
-| specific | specific | 1 day (conservative) |
+| Minute field | Hour field | Period               |
+| ------------ | ---------- | -------------------- |
+| `*`          | (any)      | 1 minute             |
+| `*/N`        | (any)      | N minutes            |
+| specific     | `*`        | 1 hour               |
+| specific     | `*/N`      | N hours              |
+| specific     | specific   | 1 day (conservative) |
 
 ### Lockfile format
 
 The lockfile at `<goliHome>/cron.lock` contains two lines:
+
 ```
 <pid>
 <iso-timestamp>
@@ -385,6 +393,7 @@ decoration-free layout that screen readers can navigate.
 ### Activation
 
 Screen-reader mode is activated by any of:
+
 - `--accessibility` CLI flag
 - `--screen-reader` CLI flag (alias, matches gemini-cli convention)
 - `GOLI_CLI_ACCESSIBILITY=1` env var
@@ -392,14 +401,14 @@ Screen-reader mode is activated by any of:
 
 ### What's different
 
-| Feature | Default layout | Screen-reader layout |
-|---------|---------------|---------------------|
-| Animations | Spinners, blinking cursor, FPS overlay | All disabled |
-| Scrolling regions | Yes (for history) | No (full-page redraw) |
-| Live regions | Yes (agent state updates) | No (confuses screen readers) |
-| Box-drawing chars | `┌┐└┘│─` borders | Plain `—` separators |
-| Color contrast | Dim/grey for secondary | Bold for everything |
-| Layout | Multi-column where possible | Linear top-to-bottom |
+| Feature           | Default layout                         | Screen-reader layout         |
+| ----------------- | -------------------------------------- | ---------------------------- |
+| Animations        | Spinners, blinking cursor, FPS overlay | All disabled                 |
+| Scrolling regions | Yes (for history)                      | No (full-page redraw)        |
+| Live regions      | Yes (agent state updates)              | No (confuses screen readers) |
+| Box-drawing chars | `┌┐└┘│─` borders                       | Plain `—` separators         |
+| Color contrast    | Dim/grey for secondary                 | Bold for everything          |
+| Layout            | Multi-column where possible            | Linear top-to-bottom         |
 
 ### API surface
 
@@ -426,6 +435,7 @@ Screen-reader mode is activated by any of:
 **What changed:** 8 new built-in skins added to skin-engine.ts: Dracula, Solarized Dark, Solarized Light, GitHub Dark, GitHub Light, Atom One Dark, Nord, Monokai. Each uses the canonical palette from the original theme author. `loadSkin()` now does case-insensitive name lookup.
 
 **Gotchas:**
+
 1. **Dracula and Monokai share `#f8f8f2` as foreground.** This is the canonical color from both original authors — not a bug. Tests must document this collision (assert both equal `#f8f8f2` AND that the skins are still distinguishable by accent colors).
 2. **Solarized Light uses base00 (#586e75) as foreground, not base0 (#93a1a1).** This is intentional: Solarized Light's `base00` is the recommended body-text color on a light background, while `base0` is the recommended body-text color on a dark background. Solarized Dark correctly uses `base0` (#93a1a1) as foreground.
 3. **Monokai has no native teal color.** The original Monokai palette is pink/green/blue/yellow/orange/purple only. We use `#2937b8` (a deep blue) as a placeholder; users who want true Monokai teal should override via a YAML skin file in `~/.goli/skins/monokai-teal.yaml`.
@@ -433,6 +443,7 @@ Screen-reader mode is activated by any of:
 5. **Test contract evolution (R5 clarification):** When a task explicitly expands a contract (e.g. T-034 expands "3 built-in skins" to "11 built-in skins"), updating the original T-024 test to assert ≥11 is NOT test-weakening — the new contract strictly contains the old. Document the evolution in test comments so future maintainers understand why the assertion changed.
 
 **Comparison vs gemini-cli:**
+
 - gemini-cli ships 20 themes (11 dark + 8 light + 1 no-color) — see `packages/cli/src/ui/themes/builtin/{dark,light}/`.
 - Goli-CLI now ships 11 (8 dark + 2 light + 1 high-contrast a11y).
 - Gap: 9 themes. Future T-043 (if loop run 5) could add: Ayu Dark/Light, Shades of Purple, Holiday Dark, ANSI Dark/Light, Googlecode Light, XCode Light, GitHub Dark/Light Colorblind.
@@ -443,6 +454,7 @@ Screen-reader mode is activated by any of:
 **What changed:** New `SuggestionsDisplay` component (pure render) + integration into `PromptInput` with full keyboard navigation (Up/Dn/Tab/Esc/Enter).
 
 **Gotchas:**
+
 1. **`ink-testing-library` returns `''` not `null` for null components.** Tests asserting null returns should use `expect(lastFrame() ?? '').toBe('')`.
 2. **`globalCommands.entries()` returns a snapshot array.** When testing the registry, call `entries()` inside the test body, not at describe-block top-level — otherwise the snapshot is taken before `beforeEach` registers commands.
 3. **CRLF line endings break the Edit tool.** Files originally created on Windows have `\r\n` line endings. The Edit tool's exact-match replacement fails silently. Either convert with `sed -i 's/\r$//' <file>` first, or rewrite the entire file with `Write`.
@@ -452,16 +464,17 @@ Screen-reader mode is activated by any of:
 7. **Tab accepts as prefix; Enter dispatches.** This matches gemini-cli's UX: Tab lets the user keep typing args (`/tier ` → user types `T2`); Enter immediately runs the command.
 
 **Comparison vs gemini-cli:**
+
 - gemini-cli SuggestionsDisplay.tsx (164 LOC): full feature parity with our 119 LOC. They additionally support: command-kind suffixes (`[MCP]`, `[Agent]`), section headers (`-- MCP Commands --`), ExpandableText for long labels, sanitizeForDisplay for descriptions, scrollOffset via `▲`/`▼` markers.
 - Our implementation covers: prefix filtering, case-insensitive matching, active highlighting, scroll markers, position indicator, navigation hint, descriptions. Missing: command-kind suffixes (we don't have MCP/Agent command kinds yet), section headers (we don't categorize commands yet).
 - Gap: 2 sub-features. Future T-044 (if loop run 5) could add command categories + section headers.
-
 
 ---
 
 ## T-053 through T-059 (Loop Run 6 — TUI/UI/UX Focus)
 
 ### T-053: Markdown rendering enhancements
+
 - **Pattern:** LaTeX preprocessing happens BEFORE block parsing (single O(n) pass, short-circuits on no-`\`/`$`/`^`/`_` strings).
 - **Gotcha:** Ink v5 supports `strikethrough` prop on `<Text>` (gemini-cli uses `strikeCross` in older versions — don't copy that).
 - **Gotcha:** Don't use `*/` in JSDoc comments — it closes the comment block prematurely. Use `/ star ... star /` or similar in code examples.
@@ -469,12 +482,14 @@ Screen-reader mode is activated by any of:
 - **Pattern:** Code blocks show line numbers only when > 3 lines (avoids clutter on short snippets).
 
 ### T-054: Slash command expansion
+
 - **Pattern:** `altNames?: string[]` enables alias resolution (`/skin` → `/theme`) without duplicating the command. The registry maintains a separate `aliases: Map<string, string>` for O(1) lookup.
 - **Gotcha:** Don't claim command names that user-defined custom commands might use (e.g. `/context` conflicts with tests/unit/custom-commands.test.ts H17). Check existing test files before adding aliases.
 - **Pattern:** `hidden?: boolean` flag excludes commands from `/help` and autocomplete while still allowing dispatch. Useful for debug commands (`/echo`) and deprecated aliases.
 - **Pattern:** `visibleEntries()` filters hidden commands; `entries()` returns all (raw access). HelpPanel uses `visibleEntries()`.
 
 ### T-055: Accessibility
+
 - **Pattern:** `NO_COLOR` env var (industry standard, https://no-color.org/) takes precedence over `GOLI_SKIN` in `getActiveSkin()`. The `NO_COLOR_SKIN` has all colors as empty strings, which Ink interprets as "no color" (terminal default foreground).
 - **Gotcha:** `detectCapabilities()` caches its result for process lifetime. Tests that toggle `NO_COLOR` or `GOLI_CLI_ACCESSIBILITY` MUST call `resetCapabilitiesCache()` in `beforeEach` (and `afterEach` if other tests might be affected).
 - **Pattern:** Screen-reader-aware components check `useIsScreenReaderEnabled()` and render `altText` (static text) instead of animated frames. The animation interval is NEVER set in SR mode (zero CPU cost, not just visual hiding).
@@ -482,12 +497,14 @@ Screen-reader mode is activated by any of:
 - **Gotcha:** `process.env = { ...SAVED_ENV }` is too aggressive in tests (clears unrelated env vars). Use per-key save/restore: `if (SAVED !== undefined) process.env[X] = SAVED; else delete process.env[X];`
 
 ### T-056: HelpPanel + ShortcutsHelp
+
 - **Pattern:** HelpPanel renders 3 sections (Basics + Commands + Shortcuts). The `section` prop ('all' | 'basics' | 'commands' | 'shortcuts') filters which sections render — useful for `/help basics` style commands.
 - **Gotcha:** ink-testing-library truncates the frame at the terminal width. Tests that check the full commands list must use `cols={120}` (not the default 80).
 - **Gotcha:** Command name column in HelpPanel must be ≥32 chars to fit `/shortcuts (keys, hotkeys)` without truncation. 18 chars truncates `/shortcuts` → `/short`.
 - **Pattern:** ShortcutsHelp is a passive panel (no overlay) shown after `idleMs` of inactivity. 3 columns on wide terminals (≥70 cols), 2 on medium (50-69), 1 on narrow (<50). `idleMs=0` or `alwaysShow=true` shows immediately.
 
 ### T-057: LoadingIndicator
+
 - **Pattern:** Composed component pattern: `<LoadingIndicator>` wraps `<Spinner>` + phrase + thought + witty + elapsed + cancel hint. Props pass through to Spinner (style, gradient, altText).
 - **Pattern:** `useLoadingIndicator` hook manages timer reset across state transitions (Idle/Responding/Waiting). `startTime` is stored in a ref (no re-render) but returned as a value for convenience.
 - **Gotcha:** React `useEffect` runs AFTER paint. In ink-testing-library, `rerender()` is synchronous, so the effect from the PREVIOUS render runs first. Tests that check post-effect state need to account for this (the captured value during render reflects pre-effect state).
@@ -495,18 +512,21 @@ Screen-reader mode is activated by any of:
 - **Pattern:** `formatElapsed(ms)` returns "Ns" for <60s, "Nm Ns" for ≥60s. No hours (sessions rarely exceed 1h).
 
 ### T-058: DialogManager
+
 - **Pattern:** Priority-based dialog queue. `DEFAULT_PRIORITY: Record<DialogType, number>` (theme=30 > help=20 > about=10). Custom `priority` per entry overrides default.
 - **Pattern:** Only ONE dialog renders at a time (highest priority). When dismissed, the next-highest becomes visible on next render.
 - **Pattern:** Each dialog type is a separate component in `components/dialogs/`. The DialogManager routes via `switch (current.type)`.
 - **Pattern:** ThemeDialog uses `useInput` from Ink for keyboard navigation (Up/Down/Enter/Esc). Initial selection is the currently-active theme.
 
 ### T-059: ApprovalModeIndicator + ContextSummaryDisplay
+
 - **Pattern:** `ApprovalModeIndicator` shows 4 modes (BUILD/PLAN/SAFE/GOD) with colors. `godMode` prop overrides the `mode` prop (godmode is a separate flag in AppStateSnapshot).
 - **Pattern:** Keybind hint "(Ctrl+P to cycle)" shows on wide terminals (≥60 cols), hidden on narrow. `showHint` prop overrides.
 - **Pattern:** `ContextSummaryDisplay` shows 5 context source types (AGENTS.md, MCP, skills, IDE files, bg processes) with emoji symbols + counts. Narrow mode filters zero counts. SR mode uses plain text labels ("AGENTS.md: 2") instead of emojis.
 - **Gotcha:** Use `React.Fragment` (not `<Box>`) when mapping items with separators, so the separators don't get extra padding.
 
 ### General loop 6 learnings
+
 - **Test isolation:** Any test that renders a component using `useIsScreenReaderEnabled()` or `getActiveSkin()` must clear `NO_COLOR` and `GOLI_CLI_ACCESSIBILITY` env vars in `beforeEach` AND call `resetCapabilitiesCache()`. Otherwise leaked env vars from other test files cause flaky failures.
 - **Commit hygiene:** Use targeted `git add <specific files>` rather than `git add -A` when the working directory contains extracted reference projects (gemini-cli-main, goli-cli-extract). `git add -A` would commit 4000+ unrelated files.
 - **Pre-existing failures:** 4 test files (skills.test.ts, mcp-extension-api.test.ts, mcp-server-management.test.ts, tui-smoke.test.ts) fail because `packages/core/src/memory/skills/` is missing from the uploaded source zip. These are NOT regressions — they were failing before loop 6 started. Re-implementing the skills system is out of scope for a TUI/UI/UX loop.
@@ -514,6 +534,7 @@ Screen-reader mode is activated by any of:
 ## Loop Run 12 — Provider Integration + UI Cleanup (iteration 36+)
 
 ### Provider Integration
+
 - Integrated uploaded providers module at `packages/core/src/providers/` (ollama.ts, openai.ts, anthropic.ts, gemini.ts, mock.ts, config.ts, router.ts, ModelProvider.ts, index.ts)
 - New adapter: `packages/core/src/agent/provider-adapter.ts` — wraps any ModelProvider as a GLMClient via `ProviderBackedGLMClient`
 - `AgentLoop` constructor now checks `GOLI_DEFAULT_MODEL` env var; if it specifies a non-GLM provider (ollama/openai/anthropic), uses the provider adapter instead of GLMClient
@@ -523,23 +544,83 @@ Screen-reader mode is activated by any of:
 - `createProvider()` in router.ts is async (uses dynamic imports per provider)
 
 ### ESM Migration (require → import)
+
 - All 15 `require()` calls across CommandRegistry.ts, keymap.ts, CommandService.ts replaced with static ESM imports
 - This fixes the "require is not defined" error that broke slash commands at runtime
 
 ### UI Cleanup (Performance Fix)
+
 - After splash screen, only HeaderBar + HistoryScroll + PromptInput/StatusBar render
 - Removed during chat: AgentStateBar (redundant), ApprovalModeIndicator, ContextSummaryDisplay, ShortcutsHelp
 - These components still render on the initial splash screen, but are hidden once the user sends their first message
 - This reduces the render tree from ~500 nodes to ~200 nodes per frame, fixing lag/buffering on scroll
 
 ### Gotcha: provider-adapter type conversion
+
 - The providers module's `ToolCall` has `input: Record<string, unknown>`
 - The agent's `ToolCall` has `arguments: string` (raw JSON string)
 - The adapter converts: `arguments: typeof tc.input === 'string' ? tc.input : JSON.stringify(tc.input)`
 - Always use `as unknown as ToolCall[]` when casting (the types don't overlap sufficiently)
 
 ### Gotcha: sync vs async provider creation
+
 - `createProviderBackedClientSync()` — sync version, used by AgentLoop constructor (constructors can't be async)
 - `createProviderBackedClient()` — async version, supports Gemini (which needs dynamic import)
 - Sync version directly instantiates OllamaProvider/OpenAIProvider/AnthropicProvider
 - Sync version returns null for Gemini (falls back to GLMClient)
+
+
+## Loop Run 13 — Phase 0 monorepo gate completion (agent-core flat package)
+
+All four gates green: `npm run typecheck`, `npm run build`, `npx eslint . --max-warnings 0`, and `npm test` (222 files / 4498 tests, exit 0).
+
+### 1. `@goli-cli/*` subpath imports require `exports` maps for tsc
+
+vitest resolves `@goli-cli/<pkg>/<path>` via regex aliases (`/^@goli-cli\/([^/]+)\/(.+)$/` → `packages/$1/src/$2`) — but **tsc resolution is different**: it goes through the `node_modules` symlink → package `exports` map → `dist/<path>.d.ts`. A package with only `main`/`types` root entries resolves `@goli-cli/<pkg>` (root) but NOT `@goli-cli/<pkg>/subpath.js`. Tests pass where tsc fails.
+
+Fix (applied to config, tool-system, llm-providers, memory-engine, context-engine): shared-style wildcard exports map:
+
+```json
+"exports": {
+  ".": {
+    "types": "./dist/index.d.ts",
+    "import": "./dist/index.js"
+  },
+  "./*.js": {
+    "types": "./dist/*.d.ts",
+    "import": "./dist/*.js"
+  },
+  "./*": {
+    "types": "./dist/*.d.ts",
+    "import": "./dist/*.js"
+  }
+}
+```
+
+Requirement: every exported subpath must have a built `dist/*.d.ts` (verify before adding the map). The wildcard `*` captures subdirectories (`./mcp/index.js` → `./dist/mcp/index.js`).
+
+### 2. Flat-extracted packages must alias ALL `../` cross-package references
+
+`packages/agent-core/src/` is a flat extraction of `packages/core/src/agent/*`. Its `loop.ts` originally had 13+ relative imports that escape the agent subdir (into `config/`, `memory/`, `tools/`, `context/`, `utils/`). Besides top-level `import`/`import type` lines, **inline references also break tsc**: `import('../x.js').Type` type annotations, `ReturnType<typeof import('../x.js').createX>`, and lazy `require('../x.js')` calls. Grep for both `from '../` AND bare `'../` (the second catches inline `import()`/`require()` forms). Rewrite all to `@goli-cli/<pkg>/<path>.js` aliases, e.g. `@goli-cli/memory-engine/session/ephemeral.js`, `@goli-cli/tool-system/core/spawn-subagent.js`, `@goli-cli/context-engine/index.js`.
+
+Gotcha: `import/order` sorts `@goli-cli/shared` before `@goli-cli/tool-system` (alphabetical across the whole alias). Run `eslint --fix` on the file after rewriting imports.
+
+### 3. `/quit` schedules `process.exit(0)` after 50ms — guard with VITEST
+
+`packages/cli/src/tui/lib/CommandRegistry.ts` `/quit` handler defers exit via `setTimeout(() => process.exit(0), 50)`. In vitest, that deferred timer fires mid-suite and trips the "process.exit unexpectedly called with 0" uncaught-exception error: **all tests still pass (4498) but the run exits 1** — a false gate failure. The `slash-commands-t054.test.ts` comment claims the timer is "cleared", but nothing actually clears it. Fix follows the existing convention (`parentLog.ts`, `memoryMonitor.ts`): skip the exit when `process.env['VITEST']` is set.
+
+```ts
+if (!process.env['VITEST']) {
+  setTimeout(() => process.exit(0), 50);
+}
+```
+
+### 4. Studio excluded from the build gate — renamed `build` → `build:web`
+
+The npm in this repo does not honor `--exclude` for `npm run` (it silently passes the value through as a script arg, corrupting the next workspace's build command — e.g. `tsc -p tsconfig.json packages/studio`). `npm run build --workspaces --if-present` includes every workspace with a `build` script. Studio's `next` install is currently a 0.03 MB stub (empty `dist/bin`), so `next build` fails.
+
+Fix: renamed studio's `build` script to `build:web`, so `--if-present` skips it in the aggregate build gate. Root `studio:*` scripts now target the real workspace name `nextjs_tailwind_shadcn_ts` (NOT the previously-referenced non-existent `@goli-cli/studio`), and `studio:build` invokes `build:web`.
+
+### 5. AGENTS.md corruption (pre-existing) removed
+
+A UTF-16LE-encoded markdown document ("Goli-CLI Agents — The 11-Agent Swarm") had been appended as raw bytes after the Loop Run 12 section (a region of `x 0` / mangled chars). This loop truncated AGENTS.md at the end of the Loop Run 12 section and removed the corrupted block. If text ever renders as `x y x z`-style separated characters in AGENTS.md again, a UTF-16 block was appended — truncate it.

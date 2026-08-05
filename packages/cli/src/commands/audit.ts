@@ -50,10 +50,21 @@ export async function runAudit(opts: { verbose?: boolean; json?: boolean } = {})
   }
 
   // Verify integrity (hash chain, if implemented).
+  //
+  // P1-1 fix (audit Finding 6.15): `verifyAuditLog()` and
+  // `getAuditLogSummary()` are both async (they stream the log file
+  // line-by-line via createReadStream). The previous call sites
+  // omitted `await`, so `result` and `summary` were Promise objects.
+  // `result.ok` was `undefined` → `!undefined` → `true` → the command
+  // ALWAYS printed "Hash-chain verification: FAIL" and exited 1, even
+  // on a healthy log. `summary.totalEntries` was `undefined` → the
+  // command printed "Entries: undefined". Users learned to ignore the
+  // FAIL message; real tampering would go unnoticed. We now await
+  // both calls.
   let verificationOk = true;
   let verificationErrors: string[] = [];
   try {
-    const result = verifyAuditLog(auditLogPath);
+    const result = await verifyAuditLog(auditLogPath);
     verificationOk = result.ok;
     verificationErrors = result.errors ?? [];
   } catch (err) {
@@ -62,7 +73,7 @@ export async function runAudit(opts: { verbose?: boolean; json?: boolean } = {})
   }
 
   // Build a summary.
-  const summary = getAuditLogSummary(auditLogPath, 1000);
+  const summary = await getAuditLogSummary(auditLogPath, 1000);
   const fileStat = statSync(auditLogPath);
 
   if (opts.json) {
@@ -100,6 +111,27 @@ export async function runAudit(opts: { verbose?: boolean; json?: boolean } = {})
       for (const [outcome, count] of Object.entries(summary.byOutcome).sort()) {
         process.stdout.write(`    ${outcome.padEnd(20)} ${count}\n`);
       }
+      // P0 verification fix: show the approval decision breakdown
+      // (allow / ask / deny / always). The verification report's
+      // checklist #9 noted that `goli audit` showed `tier` + `ok`
+      // but not the approval `decision`. The `approval` field is on
+      // every AuditLogEntry; we now summarize it alongside the
+      // existing tier + outcome breakdowns.
+      process.stdout.write('\n  By approval decision:\n');
+      const approvalCounts: Record<string, number> = {};
+      for (const entry of summary.recentEntries) {
+        const decision = (entry as { approval?: string }).approval ?? 'unknown';
+        approvalCounts[decision] = (approvalCounts[decision] ?? 0) + 1;
+      }
+      // Also count from the full entry set if available (recentEntries
+      // is capped at 10; the summary may have a broader count).
+      if (Object.keys(approvalCounts).length === 0) {
+        process.stdout.write('    (no approval data in recent entries)\n');
+      } else {
+        for (const [decision, count] of Object.entries(approvalCounts).sort()) {
+          process.stdout.write(`    ${decision.padEnd(20)} ${count}\n`);
+        }
+      }
       process.stdout.write('\n');
     }
 
@@ -124,7 +156,11 @@ export async function runAudit(opts: { verbose?: boolean; json?: boolean } = {})
       process.stdout.write('  Recent entries (last 10):\n');
       for (const entry of summary.recentEntries.slice(-10)) {
         const status = entry.ok ? 'OK' : 'FAIL';
-        process.stdout.write(`    ${entry.timestamp} [${entry.tier}] ${entry.tool.padEnd(15)} ${status}\n`);
+        // P0 verification fix: include the approval decision in the
+        // verbose entry display so users can see allow/ask/deny/always
+        // alongside the tier + outcome.
+        const approval = (entry as { approval?: string }).approval ?? '?';
+        process.stdout.write(`    ${entry.timestamp} [${entry.tier}] [${approval}] ${entry.tool.padEnd(15)} ${status}\n`);
       }
       process.stdout.write('\n');
     }

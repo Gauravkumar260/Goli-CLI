@@ -405,7 +405,7 @@ describe('bash tool (Phase 5 sandbox)', () => {
     );
 
     const { readAuditLog } = await import('../../packages/core/src/sandbox/audit-log.js');
-    const entries = readAuditLog();
+    const entries = await readAuditLog();
     expect(entries.length).toBeGreaterThan(0);
     const lastEntry = entries[entries.length - 1]!;
     expect(lastEntry.tool).toBe('bash');

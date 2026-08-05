@@ -18,7 +18,20 @@ import type { SessionMemoryEntry, MemoryCategory } from '../types.js';
  * @module memory/session/ephemeral
  */
 export class SessionMemory {
+  /**
+   * Bound on the entries array. The previous implementation grew the
+   * array without bound — a long-running session that recorded an
+   * entry per tool call could accumulate tens of thousands of entries,
+   * each ~200 bytes, totaling multiple MB of retained strings. We
+   * now cap at 1000 entries (configurable via constructor option) and
+   * evict the OLDEST entry when full.
+   */
+  private readonly maxEntries: number;
   private readonly entries: SessionMemoryEntry[] = [];
+
+  constructor(opts: { maxEntries?: number } = {}) {
+    this.maxEntries = opts.maxEntries ?? 1000;
+  }
 
   /**
    * Record a new memory entry.
@@ -33,6 +46,10 @@ export class SessionMemory {
       timestamp: new Date().toISOString(),
     };
     this.entries.push(entry);
+    // Bound the array — evict the OLDEST entry (FIFO) when over cap.
+    while (this.entries.length > this.maxEntries) {
+      this.entries.shift();
+    }
     return entry;
   }
 
@@ -76,9 +93,18 @@ export class SessionMemory {
     return this.entries.length;
   }
 
-  /** Serialize to a summary string (for the curator). */
+  /**
+   * Serialize to a summary string (for the curator).
+   *
+   * The previous implementation included every entry verbatim — a
+   * 1000-entry session produced a 200KB summary string that blew
+   * the curator's context window. We now cap each category at 50
+   * items (configurable) and emit a "and N more" footer so the
+   * curator sees a representative sample without drowning.
+   */
   summarize(): string {
     if (this.entries.length === 0) return '(no session memories)';
+    const MAX_PER_CATEGORY = 50;
     const byCategory: Record<string, string[]> = {};
     for (const entry of this.entries) {
       const cat = entry.category;
@@ -87,9 +113,14 @@ export class SessionMemory {
     }
     const lines: string[] = [];
     for (const [cat, items] of Object.entries(byCategory)) {
+      const shown = items.slice(-MAX_PER_CATEGORY); // keep the NEWEST
+      const omitted = items.length - shown.length;
       lines.push(`### ${cat} (${items.length})`);
-      for (const item of items) {
+      for (const item of shown) {
         lines.push(`  - ${item}`);
+      }
+      if (omitted > 0) {
+        lines.push(`  ... and ${omitted} older ${cat} entr${omitted === 1 ? 'y' : 'ies'} omitted (use getByCategory('${cat}') to see all).`);
       }
     }
     return lines.join('\n');

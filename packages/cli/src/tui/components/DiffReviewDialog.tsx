@@ -118,16 +118,30 @@ function DiffReviewDialogImpl({
 }: Props): React.ReactElement {
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const entry = entries[currentIndex];
-  if (!entry) {
-    return (
-      <Box borderStyle="double" borderColor={T.green} paddingX={1} flexDirection="column">
-        <Text color={T.green}>All diffs reviewed.</Text>
-      </Box>
-    );
-  }
-
+  // T-089 (refinement): ALL hooks must be called before any early return
+  // to satisfy the Rules of Hooks. Previously `useInput` was called after
+  // the `!entry` early return, which would crash React if entries was
+  // empty (hook order would change between renders).
+  //
+  // P0-5 fix: The previous implementation lowercased `input` and then
+  // compared `lower === 'A'` / `lower === 'R'` — both branches were
+  // dead code, so "Accept All" (Shift+A) and "Reject All" (Shift+R)
+  // were unreachable. We now check the raw `input` for the uppercase
+  // variants. Using `key.shift` as an additional guard would also work,
+  // but Ink doesn't reliably set `key.shift` for letter keys across all
+  // terminals (some send the bare uppercase letter without the shift
+  // flag), so we rely on case sensitivity instead.
   useInput((input, key) => {
+    if (input === 'A') {
+      // Shift+A = accept all
+      onAcceptAll();
+      return;
+    }
+    if (input === 'R') {
+      // Shift+R = reject all
+      onRejectAll();
+      return;
+    }
     const lower = input.toLowerCase();
     if (lower === 'a') {
       onAccept(currentIndex);
@@ -139,21 +153,20 @@ function DiffReviewDialogImpl({
       if (currentIndex < entries.length - 1) setCurrentIndex(currentIndex + 1);
       return;
     }
-    if (lower === 'A') {
-      // Shift+A = accept all
-      onAcceptAll();
-      return;
-    }
-    if (lower === 'R') {
-      // Shift+R = reject all
-      onRejectAll();
-      return;
-    }
     if (key.escape) {
       onRejectAll();
       return;
     }
-  });
+  }, { isActive: entries.length > 0 });  // P1-25 fix: gate so we don't conflict with PromptInput
+
+  const entry = entries[currentIndex];
+  if (!entry) {
+    return (
+      <Box borderStyle="double" borderColor={T.green} paddingX={1} flexDirection="column">
+        <Text color={T.green}>All diffs reviewed.</Text>
+      </Box>
+    );
+  }
 
   return (
     <Box borderStyle="double" borderColor={T.yellow} paddingX={1} flexDirection="column">

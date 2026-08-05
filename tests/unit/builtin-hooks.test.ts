@@ -28,7 +28,11 @@ describe('block_destructive hook', () => {
   it('blocks rm -rf /', () => {
     const result = hook.handler(makeCtx({ args: { command: 'rm -rf /' } })) as { decision: string; reason?: string };
     expect(result.decision).toBe('deny');
-    expect(result.reason).toContain('rm -rf /');
+    // The reason describes the threat category ("rm -rf on
+    // root/workspace/home — would delete filesystem"). We check for
+    // the canonical `rm -rf` prefix rather than the literal `rm -rf /`
+    // (which doesn't appear in the threat description).
+    expect(result.reason).toContain('rm -rf');
   });
 
   it('blocks mkfs', () => {

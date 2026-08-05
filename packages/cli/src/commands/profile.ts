@@ -98,10 +98,31 @@ export function getGoliHome(): string {
   if (existsSync(currentFile)) {
     try {
       const profileName = readFileSync(currentFile, 'utf-8').trim();
-      if (profileName.length > 0) {
+      // P1-22 fix: Re-validate the profile name from the `current` file.
+      // Previously the raw file contents were used directly in
+      // `join(getProfilesDir(), profileName)` — if an attacker (or a
+      // malicious script with write access to `~/.goli/current`) wrote
+      // `../../../../tmp`, `getGoliHome()` would return `/tmp`, and
+      // downstream commands would write state files there. Combined
+      // with `rmSync(profile.path, { recursive: true })` in
+      // `deleteProfile`, this could delete arbitrary directories.
+      //
+      // `validateProfileName` enforces `^[a-zA-Z0-9][-a-zA-Z0-9]*$` (no
+      // path separators, no `..`), so any traversal-style content is
+      // rejected and we fall through to the legacy default.
+      const validation = validateProfileName(profileName);
+      if (validation.ok) {
         const profileDir = join(getProfilesDir(), profileName);
         if (existsSync(profileDir)) {
-          return profileDir;
+          // Defence-in-depth: resolve and confirm the result is still
+          // inside `getProfilesDir()`. (join() can produce unexpected
+          // paths on Windows if the name contains a drive letter, but
+          // validateProfileName already rejects those.)
+          const resolved = resolve(profileDir);
+          const resolvedRoot = resolve(getProfilesDir());
+          if (resolved.startsWith(resolvedRoot + '/') || resolved.startsWith(resolvedRoot + '\\')) {
+            return resolved;
+          }
         }
       }
     } catch {

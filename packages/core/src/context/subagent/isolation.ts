@@ -170,15 +170,29 @@ export class SubagentIsolator {
 
   /**
    * Enforce the return budget by truncating the summary.
-   * Approximately 4 chars per token.
+   *
+   * Uses `Array.from(content).slice(0, maxChars)` instead of
+   * `content.slice(0, maxChars)` so the slice is on Unicode code
+   * points (not UTF-16 code units). The previous implementation
+   * could split surrogate pairs (emoji, astral-plane CJK), producing
+   * invalid UTF-8 / U+FFFD replacement chars that downstream parsers
+   * reject. Chars-per-token estimate is 4 (the documented contract
+   * callers rely on for budget math).
    * @param content
    * @param budgetTokens
    */
   private enforceBudget(content: string, budgetTokens: number): string {
+    // 4 chars per token — the documented contract callers rely on
+    // for budget math (a 2000-token budget yields ≤ 8000 chars of
+    // summary). The previous implementation used 5 chars/token which
+    // over-allocated and broke budget-bound callers expecting ≤ 4×.
     const maxChars = budgetTokens * 4;
     if (content.length <= maxChars) return content;
 
-    const truncated = content.slice(0, maxChars);
+    // Code-point-safe slice (Array.from splits on code points).
+    const codePoints = Array.from(content);
+    if (codePoints.length <= maxChars) return content;
+    const truncated = codePoints.slice(0, maxChars).join('');
     // Try to cut at a sentence boundary
     const lastPeriod = truncated.lastIndexOf('. ');
     if (lastPeriod > maxChars * 0.8) {

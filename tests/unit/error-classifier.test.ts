@@ -13,7 +13,7 @@ import {
 
 describe('classifyApiError', () => {
   it('classifies 401 as auth', () => {
-    const result = classifyApiError({ status: 401, message: 'Unauthorized' }, 'z.ai', 'glm-5.2');
+    const result = classifyApiError({ status: 401, message: 'Unauthorized' }, 'openai', 'gpt-4o');
     expect(result.reason).toBe('auth');
     expect(result.shouldRotateCredential).toBe(true);
     expect(result.shouldRetry).toBe(true);
@@ -23,8 +23,8 @@ describe('classifyApiError', () => {
   it('classifies terminal auth as auth_permanent', () => {
     const result = classifyApiError(
       new Error('token_revoked: key has been revoked'),
-      'z.ai',
-      'glm-5.2',
+      'openai',
+      'gpt-4o',
     );
     expect(result.reason).toBe('auth_permanent');
     expect(result.shouldRotateCredential).toBe(true);
@@ -33,7 +33,7 @@ describe('classifyApiError', () => {
   });
 
   it('classifies 402 as billing', () => {
-    const result = classifyApiError({ status: 402, message: 'billing' }, 'z.ai', 'glm-5.2');
+    const result = classifyApiError({ status: 402, message: 'billing' }, 'openai', 'gpt-4o');
     expect(result.reason).toBe('billing');
     expect(result.shouldRotateCredential).toBe(true);
     expect(result.shouldRetry).toBe(false);

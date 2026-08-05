@@ -1,0 +1,46 @@
+// Goli Studio — Prisma schema.
+// SQLite only (environment constraint). One file DB at /home/z/my-project/db/custom.db.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// An agent conversation. Append-only transcript via Message[].
+model Session {
+  id             String    @id @default(cuid())
+  /// Auto-derived from the first prompt (truncated).
+  title          String    @default("New session")
+  /// Active permission mode for the session.
+  permissionMode String    @default("ask")
+  /// Optional AGENTS.md / project preamble text.
+  systemPreamble String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  messages       Message[]
+
+  @@index([updatedAt])
+}
+
+/// Ordered transcript row. role ∈ system|user|assistant|tool.
+/// `sequence` preserves order (SQLite has no stable default ordering).
+model Message {
+  id         String   @id @default(cuid())
+  sessionId  String
+  session    Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sequence   Int
+  role       String
+  content    String
+  /// For role='tool': the tool name.
+  toolName   String?
+  /// For role='tool': correlates to the originating assistant tool-call.
+  toolCallId String?
+  isError    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([sessionId, sequence])
+}

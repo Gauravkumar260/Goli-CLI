@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "goli://tools/read-file.schema.json",
+  "title": "ReadFile",
+  "description": "Read the contents of a file. The path must be inside the workspace root. Returns the file contents as a string, with line numbers prefixed (cat -n format).",
+  "type": "object",
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Path to the file, relative to the workspace root or absolute. Must resolve to inside the workspace root (TOCTOU-safe)."
+    },
+    "offset": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Optional 1-indexed line number to start reading from. Useful for large files."
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2000,
+      "description": "Optional maximum number of lines to read. Default 2000. Use offset+limit to paginate."
+    }
+  },
+  "required": ["path"],
+  "additionalProperties": false
+}

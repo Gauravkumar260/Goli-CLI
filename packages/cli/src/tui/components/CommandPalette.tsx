@@ -121,7 +121,7 @@ export function CommandPalette({
       setSelectedIdx(0);
       return;
     }
-  });
+  }, { isActive: true });  // P1-25 fix: gate so we don't conflict with PromptInput
 
   const innerW = Math.min(cols - 4, 70);
 

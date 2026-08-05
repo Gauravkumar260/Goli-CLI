@@ -124,7 +124,7 @@ describe('ComplexityClassifier', () => {
   it('routes to the correct model', () => {
     const classifier = new ComplexityClassifier();
     const routine = classifier.route('Add a comment');
-    expect(routine.model).toBe('glm-5.2');
+    expect(routine.model).toBe('deepseek-v3');
     expect(routine.effort).toBe('high');
     expect(routine.fallback).toBe(false);
 
@@ -299,7 +299,7 @@ describe('SwarmPipeline', () => {
 
     const result = await pipeline.wakeup('Refactor the auth module');
     expect(result.routingDecision.complexity).toBe('complex');
-    expect(result.routingDecision.model).toBe('glm-5.2');
+    expect(result.routingDecision.model).toBe('qwen3-coder');
     expect(result.routingDecision.effort).toBe('max');
   });
 

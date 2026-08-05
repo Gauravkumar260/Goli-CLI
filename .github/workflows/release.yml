@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    name: Build & Publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+
+      - name: Publish packages
+        run: |
+          npm publish --workspace packages/shared --access public
+          npm publish --workspace packages/sandbox --access public
+          npm publish --workspace packages/config --access public
+          npm publish --workspace packages/agent-core --access public
+          npm publish --workspace packages/tool-system --access public
+          npm publish --workspace packages/memory-engine --access public
+          npm publish --workspace packages/context-engine --access public
+          npm publish --workspace packages/llm-providers --access public
+          npm publish --workspace packages/orchestration --access public
+          npm publish --workspace packages/approval --access public
+          npm publish --workspace packages/observability --access public
+          npm publish --workspace packages/i18n --access public
+          npm publish --workspace packages/plugins --access public
+          npm publish --workspace packages/api --access public
+          npm publish --workspace packages/gateway --access public
+          npm publish --workspace packages/evals --access public
+          npm publish --workspace apps/cli --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

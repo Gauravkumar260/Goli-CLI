@@ -1,6 +1,6 @@
 # Phase 12 — Evals & Observability (Module 6)
 
-**Status:** Pending
+**Status:** Substantially Complete
 **Modules touched:** M6 (SWE-bench, OTel, Langfuse, Promptfoo, CI eval gate)
 **Compliance gates:** G4 (authorship ledger live — already in P7)
 
@@ -11,6 +11,14 @@ domain eval suite, the semantic-error evaluator (10% sampling), the
 OpenTelemetry tracing layer (`gen_ai.*` conventions), self-hosted
 Langfuse, cost/latency/stuck-loop alerting, Promptfoo red-teaming in CI,
 and the CI eval gate (50-instance subset per PR, 2% regression block).
+
+## Current Implementation Status
+
+SWE-bench harness (with stub-instance generation) + semantic evaluator (10% sampling) + regression gate (DEFAULT_QUALITY_THRESHOLDS) + promptfoo red-team config generation + evaluation + OTel tracer + Langfuse client (ADR-0032 self-hosted) + alert manager all shipped at packages/core/src/evals/ and packages/core/src/observability/. Self-hosted Langfuse deploy at infra/docker-compose.yml + k8s/ manifests. mini-swe-agent reference (ADR-0031) for leaderboard comparability. CI eval gate is the remaining gap.
+
+See the per-module sections in [docs/architecture.md](../architecture.md)
+for the current code locations and `AGENTS.md` for accumulated
+implementation patterns and gotchas.
 
 ## Definition of Done
 

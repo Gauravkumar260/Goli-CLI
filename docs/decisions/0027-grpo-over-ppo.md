@@ -20,6 +20,7 @@ the agent's coding ability. The two main RL algorithms are:
 Use **GRPO** (not PPO) for fine-tuning GLM-5.2.
 
 Rationale:
+
 1. **No critic model.** PPO's value model would double memory/compute
    at GLM-5.2's 744B scale. On 8×H100 (640GB VRAM), fitting both the
    744B policy + a 744B critic in FP8 is tight. GRPO only needs the
@@ -34,11 +35,13 @@ Rationale:
 ## Consequences
 
 **Positive:**
+
 - Halves the VRAM requirement (no critic).
 - Simpler training pipeline.
 - Proven for the GLM model family.
 
 **Negative:**
+
 - GRPO requires more rollouts per task (default: 30) to compute stable
   group statistics. This increases inference cost during training.
 - Less mature than PPO in some RL libraries. Mitigation: TRL (Transformers

@@ -113,8 +113,16 @@ export class HybridRetriever {
   classifyQuery(query: string): QueryType {
     const q = query.toLowerCase().trim();
 
-    // Structural patterns
-    if (q.match(/^(who calls|callers of|find callers)/)) return 'structural';
+    // Structural patterns — checked BEFORE lexical so "find all
+    // callers of foo" matches the structural `callers of` pattern
+    // (line 117), not the lexical `find all` pattern (line 124).
+    // The previous implementation had structural FIRST already, so
+    // the "find all" check after never shadowed it. But it also
+    // missed "find all callers" because that begins with "find all"
+    // (lexical pattern), and the structural "callers of" pattern
+    // requires "callers of" not "callers" alone. We add an explicit
+    // "find all callers" pattern to be sure.
+    if (q.match(/^(find all )?(who calls|callers of|find callers)/)) return 'structural';
     if (q.match(/^(what does.*call|callees of|find callees)/)) return 'structural';
     if (q.match(/^(where is.*defined|definition of|find definition)/)) return 'structural';
     if (q.match(/^(imports of|what does.*import)/)) return 'structural';
@@ -229,12 +237,31 @@ export class HybridRetriever {
     if (!pattern) return [];
 
     try {
+      // ReDoS defense: ripgrep treats the pattern as a regex by
+      // default. A user pattern like `(a+)+b` causes catastrophic
+      // backtracking (ReDoS) in ripgrep, hanging the retrieval for
+      // up to the 10-second timeout. We pass `--fixed-strings` when
+      // the pattern looks like a plain string (no regex
+      // metacharacters), and `--regexp` otherwise. For regex mode,
+      // we cap the pattern length at 200 chars and reject patterns
+      // with known catastrophic-backtracking shapes (nested
+      // quantifiers).
+      const isPlain = !/[.*+?^${}()|[\]\\]/.test(pattern);
+      const isSuspicious = /\([^)]*[+*][^)]*\)[+*]/.test(pattern); // (a+)+, (a*)+, etc.
+      if (isSuspicious || pattern.length > 200) {
+        // Skip the search entirely — return empty so the agent
+        // doesn't see a 10s hang.
+        return [];
+      }
+      const rgArgs = isPlain
+        ? ['--json', '--max-count', '20', '--fixed-strings', pattern, this.workspaceRoot]
+        : ['--json', '--max-count', '20', '--regexp', pattern, this.workspaceRoot];
       // Use execFileSync with an arg array (not a shell string) to
       // prevent command injection. The previous implementation used
       // `execSync(\`rg ... ${JSON.stringify(pattern)} ...\`)` which is
       // NOT shell-safe — inside double quotes, `$(...)` and backticks
       // are interpreted by the shell.
-      const stdout = execFileSync('rg', ['--json', '--max-count', '20', pattern, this.workspaceRoot], {
+      const stdout = execFileSync('rg', rgArgs, {
         encoding: 'utf-8',
         cwd: this.workspaceRoot,
         timeout: 10_000,

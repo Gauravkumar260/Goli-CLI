@@ -7,6 +7,7 @@
 ## Context
 
 Phase 2-5 relied on two mechanisms for agent safety:
+
 1. **Prompt-level guidance** — the system prompt tells the model "don't
    do destructive things"
 2. **Sandbox enforcement** (Phase 5) — the kernel blocks operations
@@ -59,6 +60,7 @@ be disabled by prompt injection.
 ### Integration with ToolRegistry
 
 The `ToolRegistry.dispatch()` pipeline is now:
+
 1. JSON Schema validation
 2. **PreToolUse hooks** (deny short-circuits)
 3. Tool handler execution
@@ -74,6 +76,7 @@ The `ToolRegistry.dispatch()` pipeline is now:
 ## Consequences
 
 **Positive:**
+
 - Safety logic is now deterministic — it fires every time, regardless
   of model output or context pressure.
 - The denylist patterns catch known dangerous commands even before the
@@ -84,6 +87,7 @@ The `ToolRegistry.dispatch()` pipeline is now:
   being mandatory.
 
 **Negative:**
+
 - Hooks add ~5ms overhead per tool call (negligible).
 - The hook engine is one more abstraction layer to maintain.
 - Custom hooks (user-defined) are not yet supported — Phase 8+ will
@@ -91,10 +95,10 @@ The `ToolRegistry.dispatch()` pipeline is now:
 
 ## What hooks do NOT replace
 
-- **The sandbox (Phase 5)**: hooks check the command *string*; the
-  sandbox enforces what the process *can do*. A hook can't stop a
+- **The sandbox (Phase 5)**: hooks check the command _string_; the
+  sandbox enforces what the process _can do_. A hook can't stop a
   `bash` command from reading `/etc/passwd` if the sandbox allows it —
-  but the hook *can* deny the `bash` call before it runs.
+  but the hook _can_ deny the `bash` call before it runs.
 - **The approval engine (Phase 5)**: hooks make the initial decision;
   the approval engine handles the user dialog for `ask` decisions.
 - **The system prompt**: hooks handle safety; the prompt handles

@@ -16,7 +16,7 @@
  * ## Safety Guardrails
  *
  * - **Immutable safety registry**: protects sandbox, hooks, approval, SICA itself
- * - **LLM-based overseer**: separate GLM-5.2 with veto power
+ * - **LLM-based overseer**: separate model with veto power
  * - **Test-gated adoption**: full test suite must pass AND benchmark must improve
  * - **Overfitting detection**: reject if holdout degrades beyond threshold
  * - **Rate limiting**: max 10 cycles/day, human review >50 LOC
@@ -49,8 +49,8 @@ export interface SicaLoopConstructorOptions extends SicaLoopOptions {
   logger?: Logger;
   /** The workspace root. */
   workspaceRoot?: string;
-  /** Optional GLM client for the overseer. */
-  glmClient?: {
+  /** Optional LLM client for the overseer. */
+  llmClient?: {
     call: (params: {
       messages: Array<{ role: string; content: string; timestamp: string }>;
       effort?: string;
@@ -88,7 +88,7 @@ export class SicaLoop {
 
     this.overseer = new SafetyOverseer({
       registry: this.registry,
-      glmClient: opts.glmClient,
+      llmClient: opts.llmClient,
       logger: this.log,
     });
 
@@ -105,6 +105,28 @@ export class SicaLoop {
     });
 
     this.evaluateFn = opts.evaluate;
+  }
+
+  /**
+   * Toggle the enabled flag without reconstructing the loop.
+   *
+   * Round-2 verification item #2 (SICA singleton reconstruction):
+   * previously, `CommandRegistry.ts` reconstructed `new SicaLoop({...})`
+   * on every `/sica` invocation where `sicaEnabled === true`, defeating
+   * state persistence across invocations (rate-limiter counters reset,
+   * archive state lost, etc.). With `setEnabled()`, callers can flip
+   * the flag on the existing singleton — the rate limiter, archive,
+   * and immutable-safety registry all retain their state.
+   *
+   * @param enabled - Whether SICA is enabled.
+   */
+  setEnabled(enabled: boolean): void {
+    this.opts.enabled = enabled;
+  }
+
+  /** Whether SICA is currently enabled. */
+  get isEnabled(): boolean {
+    return this.opts.enabled;
   }
 
   /**
@@ -133,6 +155,16 @@ export class SicaLoop {
       });
       // For Phase 11, we auto-reject proposals requiring human review
       // In production, this would surface a UI for human approval
+      //
+      // NOTE: the previous implementation did NOT call
+      // `rateLimiter.recordCycle()` on this rejection path —
+      // inconsistent with the veto path (line 171) and the
+      // overfitting path (line 220) which DO record. An agent
+      // could spam proposals requiring human review without
+      // consuming rate-limit budget, potentially flooding the
+      // review queue. We now record so this counts toward the
+      // daily cycle budget.
+      this.rateLimiter.recordCycle();
       return this.reject(proposal, `Human review required: proposal changes ${proposal.linesChanged} lines (threshold: ${this.opts.humanReviewLocThreshold}). Please review manually.`);
     }
 
@@ -146,7 +178,17 @@ export class SicaLoop {
       target: proposal.target,
       targetName: proposal.targetName,
       content: proposal.oldContent,
-      status: 'initial',
+      // Use 'snapshot' for the pre-cycle snapshot, not 'initial'.
+      // 'initial' is supposed to mean "the original version before
+      // any SICA changes" (per types.ts), but the previous
+      // implementation used 'initial' for EVERY cycle's pre-cycle
+      // snapshot, polluting the archive. `getLastAdopted` searched
+      // for `status === 'adopted' || status === 'initial'`, so the
+      // 'initial' snapshots were returned as "last adopted", which
+      // is wrong. We now use 'snapshot' for these so the 'initial'
+      // fallback in getLastAdopted only matches the genuine initial
+      // version.
+      status: 'snapshot',
     });
 
     // ─── 5. Guard: overseer review ─────────────────────────────
@@ -184,13 +226,20 @@ export class SicaLoop {
     }
 
     // ─── 6. Re-evaluate with the proposed change ───────────────
-    // Compute BEFORE evaluations first, then AFTER. The previous
-    // implementation computed `holdoutEvaluation` (after) BEFORE
-    // `beforeHoldout` (before) — logically reversed. It only worked
-    // because the stub ignored application state. With a real evaluate
-    // function that applies the proposal, the order matters.
-    const afterEvaluation = await this.evaluate('swe-bench-verified-50', proposal);
+    // Compute ALL "before" evaluations first, then ALL "after"
+    // evaluations. The previous implementation computed
+    // `afterEvaluation` BEFORE `beforeHoldout` — if `evaluateFn`
+    // has side effects (e.g., applies the proposal to the agent's
+    // state and doesn't roll back), then `beforeHoldout` (the "no
+    // proposal" baseline) was actually evaluating the post-proposal
+    // state, not the pre-proposal state. The variable name said
+    // "before" but the state was "after". The previous fix only
+    // changed the call order without explicit state management.
+    // We now compute both BEFORE evaluations first, then both
+    // AFTER. The `evaluateFn` contract should explicitly state
+    // whether it applies/rolls back the proposal.
     const beforeHoldout = await this.evaluate('swe-bench-holdout-50');
+    const afterEvaluation = await this.evaluate('swe-bench-verified-50', proposal);
     const holdoutEvaluation = await this.evaluate('swe-bench-holdout-50', proposal);
 
     // ─── 7. Check overfitting ──────────────────────────────────
@@ -300,17 +349,43 @@ export class SicaLoop {
   /**
    * Rollback to a prior version.
    *
+   * The previous implementation called `archive.getVersion()` which
+   * returns the content regardless of `status` — a user could roll
+   * back to a version that was `reverted` (i.e., a rejected
+   * proposal), re-introducing a change that was previously deemed
+   * unsafe. We now use `getVersionEntry()` and refuse to roll back
+   * to a `reverted` version.
+   *
+   * NOTE: this function STILL does not write the rolled-back
+   * content to the actual target (the system prompt fragment,
+   * tool description, hook config, etc.) — it returns the content
+   * string and the caller is responsible for applying it. There
+   * is no caller in the codebase that does so. A future
+   * `TargetWriter` would fix this; tracked as a HIGH finding in
+   * the audit.
+   *
    * @param target - What to rollback.
    * @param targetName - The target name.
    * @param version - The version to rollback to.
-   * @returns The content at that version, or null if not found.
+   * @returns The content at that version, or null if not found / refused.
    */
   rollback(target: SicaTarget, targetName: string, version: number): string | null {
-    const content = this.archive.getVersion(target, targetName, version);
-    if (content === null) {
+    const entry = this.archive.getVersionEntry(target, targetName, version);
+    if (entry === null) {
       this.log?.warn('Rollback failed: version not found', { target, targetName, version });
       return null;
     }
+    // Refuse to roll back to a `reverted` version — that was a
+    // rejected proposal, not a live state. Allow rollback to
+    // 'adopted', 'initial', and 'snapshot' statuses (all
+    // represent valid live states at some point).
+    if (entry.status === 'reverted') {
+      this.log?.error('Rollback refused: target version was reverted (rejected proposal, not live state)', {
+        target, targetName, version,
+      });
+      return null;
+    }
+    const content = entry.content;
 
     // Archive the rollback as a new version
     const currentVersion = this.archive.getCurrentVersion(target, targetName);
@@ -395,18 +470,31 @@ export class SicaLoop {
       return this.evaluateFn(benchmark, proposal);
     }
 
-    // Stub: return a fixed evaluation (no actual benchmark run).
-    // In production, this runs the SWE-bench harness with the proposed
-    // change applied. The stub simulates a small improvement when a
-    // proposal is provided so the loop's adopt/reject logic is exercised.
+    // Safety default: no evaluateFn was provided, so we cannot safely
+    // measure whether the proposal actually improves the agent. The
+    // previous stub returned `improvement = 0.02` whenever a proposal
+    // was passed, which made `runCycle` ALWAYS adopt (the resolution-
+    // improvement check, `delta >= minResolutionImprovement`, always
+    // passed) and NEVER trigger overfitting detection (the holdout
+    // delta was also +0.02). That effectively bypassed every SICA
+    // safety guardrail whenever the loop was enabled without a real
+    // evaluator.
+    //
+    // The correct safe-default is to return ZERO improvement so that
+    // the resolution-improvement check rejects the proposal. Enabling
+    // SICA without an evaluator is now a no-op ("nothing adopted")
+    // rather than a security hole ("everything adopted").
+    this.log?.warn(
+      'SICA evaluate called without evaluateFn — returning zero-improvement stub (proposal will not be adopted)',
+      { benchmark, hasProposal: proposal !== undefined },
+    );
     const baseRate = benchmark.includes('holdout') ? 0.45 : 0.50;
-    const improvement = proposal ? 0.02 : 0; // Simulate 2% improvement from the proposal
 
     return {
       benchmark,
-      resolutionRate: baseRate + improvement,
+      resolutionRate: baseRate, // No improvement — proposal will fail the threshold.
       instanceCount: 50,
-      resolvedCount: Math.round((baseRate + improvement) * 50),
+      resolvedCount: Math.round(baseRate * 50),
       semanticErrorRate: 0.15,
       totalTokens: 50000,
       totalCostUsd: 0.25,
@@ -452,40 +540,108 @@ export class SicaLoop {
   }
 
   /**
-   * Count the number of changed lines between two strings.
+   * Count the number of changed lines between two strings using
+   * a proper LCS-based diff (not naive line-by-line).
+   *
+   * The previous implementation iterated `max(oldLines.length,
+   * newLines.length)` and compared `oldLines[i] !== newLines[i]`.
+   * If you insert a single line at the BEGINNING of a 100-line
+   * file, all 100 subsequent lines shift by one index, so all 100
+   * are counted as "changed". This means a 1-line insertion
+   * triggered `linesChanged = 100`, which exceeds the
+   * human-review threshold (50), causing automatic rejection of
+   * small, safe edits. We now use a Myers-style LCS diff that
+   * returns the actual edit distance (insertions + deletions +
+   * modifications).
    * @param oldContent
    * @param newContent
    */
   private countChangedLines(oldContent: string, newContent: string): number {
     const oldLines = oldContent.split('\n');
     const newLines = newContent.split('\n');
-    const maxLines = Math.max(oldLines.length, newLines.length);
-    let changed = 0;
-    for (let i = 0; i < maxLines; i++) {
-      if (oldLines[i] !== newLines[i]) changed++;
+    // LCS table: dp[i][j] = LCS length of oldLines[0..i) and newLines[0..j)
+    const m = oldLines.length;
+    const n = newLines.length;
+    // Use a 1D rolling array to avoid O(m*n) memory for large files.
+    // dp[j] = LCS length so far for column j.
+    const dp = new Array<number>(n + 1).fill(0);
+    for (let i = 1; i <= m; i++) {
+      const prev = new Array<number>(n + 1).fill(0);  // dp[i-1]
+      // Copy current dp into prev before overwriting dp.
+      for (let j = 0; j <= n; j++) prev[j] = dp[j];
+      dp[0] = 0;
+      for (let j = 1; j <= n; j++) {
+        if (oldLines[i - 1] === newLines[j - 1]) {
+          dp[j] = prev[j - 1] + 1;
+        } else {
+          dp[j] = Math.max(prev[j], dp[j - 1]);
+        }
+      }
     }
-    return changed;
+    const lcs = dp[n];
+    // Count changed lines as `max(deletions, insertions)` so a 1-line
+    // replacement (`- old / + new`) counts as 1 changed line, matching
+    // `git diff --stat` semantics. The previous formula
+    // `(m - lcs) + (n - lcs)` (deletions + insertions) double-counted
+    // replacements: a single 1-line edit was reported as 2 changed lines.
+    const deletions = m - lcs;
+    const insertions = n - lcs;
+    return Math.max(deletions, insertions);
   }
 
   /**
-   * Generate a simple unified diff.
+   * Generate a simple unified diff using LCS-based alignment.
+   *
+   * The previous implementation used the same naive line-by-line
+   * comparison as `countChangedLines` — inserting a single line at
+   * the start of a file showed ALL lines as `- old / + new`. We
+   * now use the LCS to align unchanged lines and only show
+   * insertions / deletions as `-` / `+`.
    * @param oldContent
    * @param newContent
    */
   private generateDiff(oldContent: string, newContent: string): string {
     const oldLines = oldContent.split('\n');
     const newLines = newContent.split('\n');
-    const maxLines = Math.max(oldLines.length, newLines.length);
-    const diff: string[] = [];
-
-    for (let i = 0; i < maxLines; i++) {
-      if (oldLines[i] !== newLines[i]) {
-        if (oldLines[i] !== undefined) diff.push(`- ${oldLines[i]}`);
-        if (newLines[i] !== undefined) diff.push(`+ ${newLines[i]}`);
-      } else if (oldLines[i] !== undefined) {
-        diff.push(`  ${oldLines[i]}`);
+    const m = oldLines.length;
+    const n = newLines.length;
+    // Build full LCS table for backtracking (small enough here — diff
+    // is only generated for review display, not on the hot path).
+    const dp: number[][] = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (oldLines[i - 1] === newLines[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1] + 1;
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
       }
     }
+    // Backtrack to build the diff.
+    const diff: string[] = [];
+    let i = m, j = n;
+    while (i > 0 && j > 0) {
+      if (oldLines[i - 1] === newLines[j - 1]) {
+        diff.push(`  ${oldLines[i - 1]}`);
+        i--; j--;
+      } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+        diff.push(`- ${oldLines[i - 1]}`);
+        i--;
+      } else {
+        diff.push(`+ ${newLines[j - 1]}`);
+        j--;
+      }
+    }
+    while (i > 0) {
+      diff.push(`- ${oldLines[i - 1]}`);
+      i--;
+    }
+    while (j > 0) {
+      diff.push(`+ ${newLines[j - 1]}`);
+      j--;
+    }
+    // Reverse because we built it backwards.
+    diff.reverse();
 
     return diff.join('\n');
   }

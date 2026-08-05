@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "goli://tools/spawn-subagent.schema.json",
+  "title": "SpawnSubagent",
+  "description": "Spawn a subagent with its own context window and tool registry. The subagent runs the same agent loop but with a fresh context. Returns the subagent's final summary (not the full transcript). Useful for decomposing complex tasks.",
+  "type": "object",
+  "properties": {
+    "task": {
+      "type": "string",
+      "description": "A self-contained description of the subtask. The subagent does NOT see the parent's context, so the task must include all necessary context (file paths, requirements, etc.)."
+    },
+    "tools": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional list of tool names the subagent can use. Default: all tools. Use a restricted list to limit blast radius (e.g. ['read_file', 'grep'] for a read-only investigation)."
+    },
+    "model": {
+      "type": "string",
+      "description": "Optional model override for the subagent (e.g. 'anthropic/claude-3-5-sonnet' for a harder task). Default: same model as the parent."
+    },
+    "max_turns": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50,
+      "default": 10,
+      "description": "Maximum number of turns the subagent can run. Default 10. Use a higher limit for complex subtasks."
+    },
+    "isolated_worktree": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, the subagent runs in a separate git worktree. Use for parallel subagents that may write to the same files."
+    }
+  },
+  "required": ["task"],
+  "additionalProperties": false
+}

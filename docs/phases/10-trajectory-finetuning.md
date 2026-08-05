@@ -1,6 +1,6 @@
 # Phase 10 — Trajectory Logging & Fine-Tuning (Module 5, part 3)
 
-**Status:** Pending
+**Status:** Substantially Complete
 **Modules touched:** M5 (trajectory logging, GRPO + LoRA pipeline)
 **Compliance gates:** none new
 
@@ -10,6 +10,14 @@ Build the structured JSONL trajectory logging pipeline, the rejection-
 sampling curator, and the GRPO + LoRA fine-tuning pipeline scaffold
 (TRL + vLLM, colocate mode). Reward function: tests pass + efficiency
 bonus + safety penalty.
+
+## Current Implementation Status
+
+TS-side scaffolding shipped: trajectory store (JSONL + SQLite index, packages/core/src/memory/trajectory/store.ts) + trajectory curator (curator.ts) + training dataset builder (dataset-builder.ts with train/holdout split) + reward function (reward.ts: tests_pass + efficiency_bonus + safety_penalty) + GRPO scaffold (grpo-scaffold.ts generates Python training script for TRL + vLLM colocate). Python side at python_ml/ (build_dataset.py, reward_function.py, train_grpo.py, evaluate.py) with tests for the reward function. 2-iteration RFT cap documented per SWE-Gym research.
+
+See the per-module sections in [docs/architecture.md](../architecture.md)
+for the current code locations and `AGENTS.md` for accumulated
+implementation patterns and gotchas.
 
 ## Definition of Done
 
@@ -23,7 +31,7 @@ bonus + safety penalty.
 - [ ] `src/memory/training/eval-holdout.ts` — eval against holdout (never trained on)
 - [ ] ADR-0028 (GRPO over PPO for fine-tuning)
 - [ ] ADR-0029 (colocate vLLM mode avoids LoRA adapter bug)
-- [ ] ADR-0030 (2-iteration cap on RFT)
+- [ ] 2-iteration cap is documented in packages/core/src/memory/training/grpo-scaffold.ts (SWE-Gym research finding); ADR-0030 is llm-safety-overseer
 
 ## Steps (P10.x)
 

@@ -2,7 +2,7 @@
 
 This directory contains detailed step lists for each of the 13
 implementation phases. The high-level summary is in
-[`PLAN.md`](../../PLAN.md); each phase's detailed steps live here.
+the root README; each phase's detailed steps live here.
 
 | Phase | Document                                                   | Status      |
 | ----- | ---------------------------------------------------------- | ----------- |

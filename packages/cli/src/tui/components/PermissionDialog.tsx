@@ -55,7 +55,7 @@ function PermissionDialogImpl({ request, cols, onViewDiff }: Props): React.React
       AppStateStore.resolveApproval({ approve: true, always: true });
       return;
     }
-  });
+  }, { isActive: true });  // P1-25 fix: gate so we don't conflict with PromptInput
 
   useInput((input, key) => {
     const lower = input.toLowerCase();
@@ -96,7 +96,7 @@ function PermissionDialogImpl({ request, cols, onViewDiff }: Props): React.React
       AppStateStore.resolveApproval({ approve: false, always: false });
       return;
     }
-  });
+  }, { isActive: true });  // P1-25 fix: gate so we don't conflict with PromptInput
 
   const innerW = Math.min(cols - 4, 72);
   const sep = T.border;

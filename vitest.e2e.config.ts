@@ -1,7 +1,7 @@
 // Vitest configuration for GOLI-CLI e2e tests.
 //
 // E2E tests spawn the built CLI binary (`dist/cli/main.js`) and exercise
-// end-to-end flows: real GLM-5.2 calls (mocked at the HTTP layer via msw,
+// end-to-end flows: real API calls (mocked at the HTTP layer via msw,
 // or pointed at a real self-hosted endpoint via GOLI_E2E_ENDPOINT env),
 // real sandbox execution, real file I/O, real TUI rendering.
 

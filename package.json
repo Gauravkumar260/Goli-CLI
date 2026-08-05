@@ -1,7 +1,7 @@
 {
   "name": "goli-cli",
-  "version": "0.2.0-phase2",
-  "description": "GOLI-CLI — a production-grade, multi-agent software engineering tool. An 11-agent swarm (Scout → Documenter) for complex, autonomous development tasks. Built as an npm workspaces monorepo with TypeScript + Ink.",
+  "version": "0.3.0-phase2-studio",
+  "description": "GOLI-CLI — a production-grade, multi-agent software engineering tool. An 8-agent swarm (Orchestrator → Data) for complex, autonomous development tasks. Built as an npm workspaces monorepo with TypeScript + Ink, plus an optional Next.js 16 web console (Goli Studio).",
   "type": "module",
   "license": "MIT",
   "author": "GOLI-CLI Contributors <contrib@goli-cli.dev>",
@@ -29,14 +29,13 @@
     "node": ">=20.18.0"
   },
   "workspaces": [
-    "packages/core",
-    "packages/cli",
-    "packages/evals"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspaces --if-present",
     "dev": "tsx packages/cli/src/index.ts",
-    "typecheck": "npm run typecheck --workspaces",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -44,6 +43,8 @@
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm test",
+    "deps:check": "syncpack lint",
+    "deps:fix": "syncpack fix",
     "sbom:gen": "syft dir:. -o spdx-json > sbom/spdx.json",
     "sbom:check": "bash scripts/check-sbom.sh",
     "goli": "node packages/cli/dist/index.js",
@@ -58,7 +59,12 @@
     "test:perf": "vitest run --config vitest.config.ts tests/unit/perf-baseline.test.ts",
     "test:memory": "node --expose-gc -e \"global.gc(); const b=process.memoryUsage().heapUsed; require('./packages/cli/dist/index.js'); const a=process.memoryUsage().heapUsed; console.log('heap delta KB:', Math.round((a-b)/1024));\"",
     "gen:completions": "tsx scripts/gen-completions.ts",
-    "test:coverage": "vitest run --config vitest.config.ts --coverage"
+    "test:coverage": "vitest run --config vitest.config.ts --coverage",
+    "studio:dev": "npm run dev --workspace nextjs_tailwind_shadcn_ts",
+    "studio:build": "npm run build:web --workspace nextjs_tailwind_shadcn_ts",
+    "studio:runtime": "npm run start --workspace nextjs_tailwind_shadcn_ts",
+    "studio:db:push": "npm run db:push --workspace nextjs_tailwind_shadcn_ts",
+    "studio:db:generate": "npm run db:generate --workspace nextjs_tailwind_shadcn_ts"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -85,6 +91,7 @@
     "ink-testing-library": "4.0.0",
     "lint-staged": "^15.3.0",
     "prettier": "^3.4.2",
+    "syncpack": "^15.3.2",
     "tsx": "^4.19.2",
     "typedoc": "^0.27.6",
     "typescript": "^5.7.2",

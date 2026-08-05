@@ -35,7 +35,7 @@
  */
 import React from 'react';
 import { Box, Text } from 'ink';
-import { T } from '../theme/tokens.js';
+import { T, getBorderStyle } from '../theme/tokens.js';
 import { APP_VERSION } from '../../constants.js';
 import {
   ART, AGENTS, SKILLS,
@@ -94,7 +94,7 @@ function SplashBoxImpl(props: Props): React.ReactElement | null {
     <Box
       flexDirection="column"
       {...(bordered
-        ? { borderStyle: 'round' as const, borderColor: T.border }
+        ? { borderStyle: getBorderStyle() as 'round', borderColor: T.border }
         : {})}
       paddingX={1}
     >
@@ -151,7 +151,7 @@ function SplashBoxImpl(props: Props): React.ReactElement | null {
         <Sep />
         <TokenBar tokens={tokens} tokenLimit={tokenLimit} />
         <Sep />
-        <Text color={mode === 'GOD' ? T.red : T.green}>{mode}</Text>
+        <Text color={mode === 'GOD' ? T.red : T.green}>{tier}</Text>
         <Sep />
         <Text color={tc}>{appMode ?? 'build'}</Text>
         <Sep />
@@ -230,13 +230,28 @@ const RightCol = React.memo(function RightCol({
         <Text color={T.gray}>{shortModel}</Text>
       </Box>
 
-      {/* Mode toggle row — button + hint on a single horizontal line */}
+      {/* Mode toggle row — show the current AppMode prominently.
+          The 4 AppModes are: read-only (SAFE), plan, build, god.
+          `read-only` is displayed as "🛡 SAFE MODE" because SAFE is the
+          familiar label users see in ApprovalModeIndicator and /safemode.
+          The legacy `mode` prop ('SAFE'|'GOD') is still accepted for
+          backward compat but is no longer the source of truth here. */}
       <Box flexDirection="row" marginTop={1}>
-        <Text color={mode === 'GOD' ? T.red : T.green}>
-          {' '}{mode === 'GOD' ? '⚡ GOD MODE' : '🛡 SAFE MODE'}{' '}
+        <Text color={getModeColor(appMode ?? 'build')}>
+          {' '}{((): string => {
+            const m = appMode ?? 'build';
+            switch (m) {
+              case 'god':        return '⚡ GOD MODE';
+              case 'plan':       return '📋 PLAN MODE';
+              case 'read-only':  return '🛡 SAFE MODE';
+              case 'build':      return '🔧 BUILD MODE';
+              case 'local-llms': return '🧠 LOCAL-LLMS MODE';
+              default:           return '🛡 SAFE MODE';
+            }
+          })()}{' '}
         </Text>
         <Sep />
-        <Text color={T.gray} dimColor>(Ctrl+G to toggle)</Text>
+        <Text color={T.gray} dimColor>(Shift+Tab to cycle · /mode &lt;mode&gt;)</Text>
       </Box>
 
       {/* T-MODE: Mode picker row — label + chips + description + hint */}

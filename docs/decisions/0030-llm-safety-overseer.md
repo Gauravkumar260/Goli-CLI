@@ -49,11 +49,13 @@ the proposal is vetoed (fail-safe).
 ## Consequences
 
 **Positive:**
+
 - Catches novel evasion strategies that pattern detection misses.
 - No single model can approve its own changes.
 - Fail-safe: if the overseer can't review, it vetoes.
 
 **Negative:**
+
 - Adds latency (one LLM call per SICA proposal).
 - The overseer LLM itself could have blind spots. Mitigation: pattern-
   based detection always runs as a first line of defense.

@@ -40,6 +40,12 @@ describe('extractGlobalOptions', () => {
     expect(opts.auto).toBeUndefined();
     expect(opts.sandbox).toBeUndefined();
     expect(opts.effort).toBeUndefined();
+    expect(opts.localLlms).toBeUndefined();
+  });
+
+  it('extracts the localLlms flag', () => {
+    const opts = extractGlobalOptions({ localLlms: true });
+    expect(opts.localLlms).toBe(true);
   });
 });
 
@@ -62,10 +68,10 @@ describe('buildCommandContext', () => {
 
   it('preserves global options on the context', () => {
     const ctx = buildCommandContext(
-      { model: 'glm-5.2', effort: 'max' },
+      { model: 'gpt-4o', effort: 'max' },
       DEFAULT_CONFIG,
     );
-    expect(ctx.globalOptions.model).toBe('glm-5.2');
+    expect(ctx.globalOptions.model).toBe('gpt-4o');
     expect(ctx.globalOptions.effort).toBe('max');
   });
 });

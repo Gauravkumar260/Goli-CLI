@@ -9,10 +9,10 @@
 
 GOLI-CLI's `edit_file` and `write_file` tools historically applied changes
 immediately (atomic temp-file + rename) and offered `DiffReviewDialog`
-*after* the fact, with rollback via the `git_checkpoint` hook. This is the
+_after_ the fact, with rollback via the `git_checkpoint` hook. This is the
 **inverse** of industry best practice:
 
-- **Claude Code** shows a per-hunk diff *before* the file is written; the
+- **Claude Code** shows a per-hunk diff _before_ the file is written; the
   user accepts/rejects each change with vim-style keybindings (`a`/`r`/`A`/`R`).
 - **Cursor** Composer mode shows a multi-file diff before applying.
 - **Aider** shows the diff and asks for confirmation before each edit.
@@ -27,7 +27,7 @@ The post-hoc approach has three problems:
    entire edit. If 9 of 10 hunks are good, the user has to accept all,
    then manually fix the 10th.
 3. **Auditing is harder.** The diff is the artifact of intent. Storing it
-   in the audit log *before* the write is more useful than storing it
+   in the audit log _before_ the write is more useful than storing it
    after.
 
 ## Decision
@@ -41,7 +41,7 @@ Adopt **diff-first editing** for `edit_file` and `write_file`:
 3. The callback resolves with `{accepted: number[], rejected: number[]}`
    indicating per-entry decisions.
 4. If any entry is rejected, the tool returns `{ok: false, error:
-   'User rejected the proposed edit'}` and does NOT write.
+'User rejected the proposed edit'}` and does NOT write.
 5. If all entries are accepted, the atomic write proceeds as before.
 6. If no callback is registered (headless mode without `--diff-review`,
    or `autoMode`), the tool writes directly — preserving the original
@@ -62,7 +62,7 @@ undefined and tools write directly).
 - Unwanted edits no longer touch the working tree.
 - Per-hunk accept/reject is now possible (the `DiffEntry[]` array
   supports multiple entries for a future `edit_batch` tool).
-- Diff is auditable *before* the write.
+- Diff is auditable _before_ the write.
 - Backward-compatible: scripts and CI see no behavior change when the
   callback is not set.
 

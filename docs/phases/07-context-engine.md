@@ -1,6 +1,6 @@
 # Phase 7 — Context Engine (Module 2)
 
-**Status:** Pending
+**Status:** Substantially Complete
 **Modules touched:** M2 (tree-sitter, symbol graph, hybrid retriever, vector store, compaction, subagent isolation)
 **Compliance gates:** G4 (authorship ledger live)
 
@@ -13,6 +13,14 @@ GLM-summarized, 5 recent files), and subagent context isolation with
 enforced return budgets. End of Phase 7: the agent can answer "where is
 X defined?" and "who calls Y?" via the symbol graph, and compacts at
 700K tokens.
+
+## Current Implementation Status
+
+Tree-sitter indexer (regex fallback + optional native bindings via ADR-0046), SQLite symbol graph (symbols + edges tables, findByName/findCallers/findCallees/findImports), hybrid retriever (structural + lexical + semantic with reciprocal rank fusion k=60), 50% in-loop compaction trigger + 85% safety-net (AdvancedCompressor), subagent isolator (research/implementation/review with curated tools + return budgets), project map generator (Aider-style repo map ~2048 tokens) all shipped at packages/core/src/context/. LanceDB vector store is currently a keyword-matching stub (ADR-0021 acknowledges this).
+
+See the per-module sections in [docs/architecture.md](../architecture.md)
+for the current code locations and `AGENTS.md` for accumulated
+implementation patterns and gotchas.
 
 ## Definition of Done
 

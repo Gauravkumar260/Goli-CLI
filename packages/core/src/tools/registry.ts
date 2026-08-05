@@ -45,6 +45,19 @@ export class ToolRegistry {
   private readonly log?: Logger;
   private readonly maxToolResultTokens: number;
   private readonly hookEngine: HookEngine | null;
+  /**
+   * TTL cache for `check_fn` results. The previous implementation
+   * called `tool.check_fn()` on EVERY dispatch (line 220) AND again
+   * when `listAvailable` / `getAvailableToolDefinitions` built the
+   * schema. Unlike `SelfRegisteringRegistry` which caches `check_fn`
+   * for 30s, `ToolRegistry` had NO cache. If `check_fn` does an
+   * expensive probe (e.g., spawning `jupyter --version`), every
+   * dispatch paid the cost — and if `check_fn` had side effects
+   * (e.g., incremented a counter), it was called twice per turn.
+   * We now cache the boolean result for 30s per tool name.
+   */
+  private readonly checkFnCache = new Map<string, { value: boolean; expiresAt: number }>();
+  private static readonly CHECK_FN_TTL_MS = 30_000;
 
   constructor(opts: ToolRegistryOptions = {}) {
     this.log = opts.logger;
@@ -62,6 +75,32 @@ export class ToolRegistry {
   /** Get the hook engine (if any). */
   getHookEngine(): HookEngine | null {
     return this.hookEngine;
+  }
+
+  /**
+   * Probe `tool.check_fn` with a 30s TTL cache so the same probe
+   * doesn't run twice in a single agent turn (once for schema gen,
+   * once on dispatch). Returns `true` if the tool is currently
+   * available. Throws are caught and treated as unavailable.
+   */
+  private async probeCheckFn(tool: Tool): Promise<boolean> {
+    if (!tool.check_fn) return true;
+    const now = Date.now();
+    const cached = this.checkFnCache.get(tool.name);
+    if (cached && cached.expiresAt > now) {
+      return cached.value;
+    }
+    let available = true;
+    try {
+      available = Boolean(await tool.check_fn());
+    } catch {
+      available = false;
+    }
+    this.checkFnCache.set(tool.name, {
+      value: available,
+      expiresAt: now + ToolRegistry.CHECK_FN_TTL_MS,
+    });
+    return available;
   }
 
   /**
@@ -118,7 +157,16 @@ export class ToolRegistry {
         continue;
       }
       try {
-        const ok = await tool.check_fn();
+        // Call `tool.check_fn()` DIRECTLY — bypass the 30s TTL cache
+        // used by `dispatch()`. The cache made `listAvailable` return
+        // stale results when a `check_fn` probe flipped between calls
+        // (e.g., a service became available mid-turn): the first
+        // `listAvailable()` cached the (false) result, so subsequent
+        // `listAvailable()` calls kept hiding the tool for up to 30s
+        // even after the service came up. `dispatch()` still uses the
+        // cache (so schema-gen + dispatch within a single turn avoid
+        // double-probing).
+        const ok = Boolean(await tool.check_fn());
         if (ok) out.push(tool);
       } catch (err) {
         // check_fn throwing ⇒ treat as unavailable; do not crash the loop.
@@ -133,7 +181,7 @@ export class ToolRegistry {
 
   /**
    * Get all tool definitions in the OpenAI function-calling format.
-   * Used to build the `tools` array sent to GLM-5.2.
+   * Used to build the `tools` array sent to the model.
    *
    * NOTE: this method does NOT respect `check_fn`. It returns every
    * registered tool's definition. Use {@link getAvailableToolDefinitions}
@@ -213,14 +261,12 @@ export class ToolRegistry {
     // ─── 1b. check_fn gate (service-gated tools, T-020) ────────
     // Even if the model emits a call to a gated tool, refuse if the
     // prerequisite is currently unmet. (The tool should normally not
-    // appear in the schema, but we defend-in-depth.)
+    // appear in the schema, but we defend-in-depth.) We use the
+    // 30s TTL cache via `probeCheckFn` so the same probe doesn't
+    // run twice in a single agent turn (once for schema gen, once
+    // on dispatch).
     if (tool.check_fn) {
-      let available = true;
-      try {
-        available = Boolean(await tool.check_fn());
-      } catch {
-        available = false;
-      }
+      const available = await this.probeCheckFn(tool);
       if (!available) {
         this.log?.warn('Refused tool call: check_fn returned false', {
           tool: toolCall.name,
@@ -293,7 +339,68 @@ export class ToolRegistry {
       }
 
       if (preResult.modifiedInput) {
+        // Defense-in-depth: any input mutation by a hook must be re-validated
+        // against the schema and re-checked against the safety hooks that
+        // gate filesystem and command execution. Otherwise a plugin hook
+        // with priority >= 40 can rewrite a path the earlier safety hooks
+        // (block_destructive=10, block_secrets=20, block_writes_outside_workspace=30)
+        // already approved, and the new path can escape the workspace.
         effectiveArgs = preResult.modifiedInput;
+
+        const reValidation = validateToolArgs(effectiveArgs, tool.inputSchema);
+        if (!reValidation.ok) {
+          const reValidationMsg = formatValidationErrors(reValidation.errors);
+          this.log?.warn('Hook-modified input failed validation', {
+            tool: toolCall.name,
+            errors: reValidation.errors,
+          });
+          return {
+            toolCallId: toolCall.id,
+            ok: false,
+            content: '',
+            error: `Hook-modified input failed validation: ${reValidationMsg}`,
+            durationMs: Date.now() - startTime,
+          };
+        }
+
+        // Re-run the PreToolUse safety hooks on the modified input so that
+        // path/command safety is enforced on the *effective* args.
+        const reSafety = await this.hookEngine.runPreToolUse({
+          toolName: toolCall.name,
+          toolCall,
+          args: effectiveArgs,
+          workspaceRoot: context.workspaceRoot,
+          godMode: context.godMode,
+          logger: this.log,
+        });
+        if (reSafety.decision === 'deny') {
+          this.log?.warn('Hook-modified input denied by safety hook', {
+            tool: toolCall.name,
+            reason: reSafety.reason,
+          });
+          return {
+            toolCallId: toolCall.id,
+            ok: false,
+            content: '',
+            error: reSafety.reason ?? 'Modified input denied by safety hook',
+            durationMs: Date.now() - startTime,
+          };
+        }
+        if (reSafety.decision === 'ask') {
+          return {
+            toolCallId: toolCall.id,
+            ok: false,
+            content: '',
+            error: `Permission required: ${reSafety.reason ?? 'Modified input requires approval'}`,
+            durationMs: Date.now() - startTime,
+          };
+        }
+        // If the safety re-run also returned a modifiedInput, prefer the
+        // doubly-checked value. Do not recurse — a second mutation would
+        // already have been validated by the safety hook pipeline itself.
+        if (reSafety.modifiedInput) {
+          effectiveArgs = reSafety.modifiedInput;
+        }
       }
     }
 

@@ -202,9 +202,30 @@ export async function callWithRetry<T>(
 }
 
 /**
- * Promise-based sleep.
+ * Promise-based sleep that honors an optional abort signal.
+ *
+ * The previous implementation used a plain `setTimeout(resolve, ms)`
+ * sleep that waited the full delay even if the agent was aborted
+ * during the wait. The next iteration's abort check would catch
+ * it, but the user perceived a hung agent for up to `maxBackoffMs`
+ * (30s default). We now reject early if the signal aborts.
  * @param ms
+ * @param signal Optional AbortSignal — sleep rejects early with an AbortError if aborted.
  */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error('aborted'));
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new Error('aborted'));
+    };
+    if (signal) signal.addEventListener('abort', onAbort, { once: true });
+  });
 }

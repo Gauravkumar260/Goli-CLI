@@ -60,7 +60,7 @@ describe('Provider integration: getProviderTypeFromEnv()', () => {
   });
 
   it('returns null for unrecognized provider types', () => {
-    process.env.GOLI_DEFAULT_MODEL = 'glm-5.2';
+    process.env.GOLI_DEFAULT_MODEL = 'gpt-4o';
     expect(getProviderTypeFromEnv()).toBeNull();
   });
 
@@ -96,7 +96,7 @@ describe('Provider integration: createProviderBackedClientSync()', () => {
   });
 
   it('returns null for unrecognized provider types', () => {
-    process.env.GOLI_DEFAULT_MODEL = 'glm-5.2';
+    process.env.GOLI_DEFAULT_MODEL = 'gpt-4o';
     const client = createProviderBackedClientSync();
     expect(client).toBeNull();
   });

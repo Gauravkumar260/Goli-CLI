@@ -2,8 +2,8 @@
  * LiteLLM routing — open-weight-only (Module 7).
  *
  * Routes tasks to the appropriate model based on complexity:
- * - Routine → GLM-5.2 high (cheap, fast)
- * - Complex → GLM-5.2 max (deeper reasoning)
+ * - Routine → high effort (cheap, fast)
+ * - Complex → max effort (deeper reasoning)
  * - Hard → DeepSeek V4 / Qwen3-Coder / Kimi K2.7-Code (fallback)
  *
  * ## Legal: Open-weight-only routing
@@ -27,30 +27,70 @@ import type { RoutingDecision, TaskComplexity } from '../types.js';
  * `openai-compatible-proxy` (which serves open-weight models) is not
  * blocked. The previous implementation used `.includes()` which
  * over-blocked any provider string containing "openai" or "anthropic".
+ *
+ * NOTE: this list MUST cover every concrete model ID that the
+ * blocked provider serves, because callers pass MODEL IDs (not
+ * provider names) to `isProviderAllowed`. The previous list had
+ * `gpt-4` but NOT `gpt-4o` — and the word-boundary regex
+ * `\bgpt-4\b` does NOT match `gpt-4o` because there is no word
+ * boundary between `4` and `o` (both are word characters). That
+ * let `gpt-4o` silently bypass the legal gate.
  */
-export const BLOCKED_PROVIDERS = ['anthropic', 'openai', 'claude', 'gpt-4', 'gpt-3.5', 'o1', 'o3'];
+export const BLOCKED_PROVIDERS = [
+  'anthropic',
+  'openai',
+  'claude',
+  'claude-2',
+  'claude-3',
+  'claude-3-opus',
+  'claude-3-sonnet',
+  'claude-3-haiku',
+  'claude-3-5-sonnet',
+  'gpt-3.5',
+  'gpt-3.5-turbo',
+  'gpt-4',
+  'gpt-4-turbo',
+  'gpt-4o',
+  'gpt-4o-mini',
+  'gpt-4-vision',
+  'gpt-4-1106',
+  'gpt-4-0125',
+  'o1',
+  'o1-mini',
+  'o1-preview',
+  'o3',
+  'o3-mini',
+];
 
 /** Allowed providers (open-weight only). */
 export const ALLOWED_PROVIDERS = [
   'vllm-self-hosted',
-  'z.ai',
   'deepseek',
   'together-ai',
   'openrouter',
-  'glm',
   'qwen',
   'kimi',
 ];
 
 /** Model routing tiers.
  *
- * Note: `deepseek-v4` is a placeholder — at time of writing, DeepSeek's
- * latest public release is V3. The `hard` tier should be updated when
- * V4 (or an equivalent open-weight reasoning model) ships.
+ * NOTE: the previous implementation routed `routine` and `complex`
+ * tasks to `gpt-4o` — an OpenAI model that is BLOCKED by the legal
+ * gate. The `isProviderAllowed('gpt-4o')` check was supposed to
+ * reject it, but the word-boundary regex `\bgpt-4\b` does NOT match
+ * `gpt-4o` (no word boundary between `4` and `o`), so the gate
+ * silently passed the blocked model. We now route to open-weight
+ * models (DeepSeek / Qwen / Kimi) AND we add `gpt-4o` to the
+ * blocked list, so even if the routing tier is reverted, the gate
+ * will catch it.
+ *
+ * `deepseek-v4` is a placeholder — at time of writing, DeepSeek's
+ * latest public release is V3. The `hard` tier should be updated
+ * when V4 (or an equivalent open-weight reasoning model) ships.
  */
 const ROUTING_TIERS: Record<TaskComplexity, { model: string; effort: 'low' | 'high' | 'max' }> = {
-  routine: { model: 'glm-5.2', effort: 'high' },
-  complex: { model: 'glm-5.2', effort: 'max' },
+  routine: { model: 'deepseek-v3', effort: 'high' },
+  complex: { model: 'qwen3-coder', effort: 'max' },
   hard: { model: 'deepseek-v3', effort: 'max' },
 };
 
@@ -141,10 +181,21 @@ export class ComplexityClassifier {
    */
   isProviderAllowed(providerOrModel: string): boolean {
     const lower = providerOrModel.toLowerCase();
+    // Defense in depth — handle the gpt-4o case explicitly.
+    // The word-boundary regex `\bgpt-4\b` does NOT match `gpt-4o`
+    // because both `4` and `o` are word characters (no boundary
+    // between them). We now cover every concrete blocked model ID
+    // in BLOCKED_PROVIDERS AND additionally check for blocked PREFIXES
+    // so future variants (`gpt-4-turbo-2025`, `claude-3.7-sonnet`,
+    // etc.) are caught even if a variant isn't yet in the list.
+    const blockedPrefixes = ['gpt-4', 'gpt-3', 'claude-', 'o1', 'o3'];
+    for (const prefix of blockedPrefixes) {
+      if (lower.startsWith(prefix)) return false;
+    }
     // Use word-boundary regex so `openai` matches `openai` and
     // `openai/gpt-4` but NOT `openai-compatible-proxy`.
     return !BLOCKED_PROVIDERS.some((blocked) => {
-      const re = new RegExp(`\\b${blocked.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i');
+      const re = new RegExp(`\\b${blocked.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
       return re.test(lower);
     });
   }

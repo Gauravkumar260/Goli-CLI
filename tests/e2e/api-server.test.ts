@@ -20,7 +20,7 @@ describe('ApiServer', () => {
       host: '127.0.0.1',
       requireAuth: false,
       config: mockConfig,
-      models: ['glm-5.2', 'glm-5.2-coding-v1'],
+      models: ['gpt-4o', 'gpt-4o-mini'],
     });
     await server.start();
   });
@@ -49,7 +49,7 @@ describe('ApiServer', () => {
     expect(res.status).toBe(200);
     expect(data.object).toBe('list');
     expect(data.data).toHaveLength(2);
-    expect(data.data[0].id).toBe('glm-5.2');
+    expect(data.data[0].id).toBe('gpt-4o');
   });
 
   it('returns capabilities at /v1/capabilities', async () => {
@@ -65,7 +65,7 @@ describe('ApiServer', () => {
     const res = await fetchApi('/v1/chat/completions', {
       method: 'POST',
       body: JSON.stringify({
-        model: 'glm-5.2',
+        model: 'gpt-4o',
         messages: [{ role: 'user', content: 'Hello' }],
       }),
     });
@@ -86,7 +86,7 @@ describe('ApiServer', () => {
       method: 'POST',
       headers: { 'X-Session-ID': sessionId },
       body: JSON.stringify({
-        model: 'glm-5.2',
+        model: 'gpt-4o',
         messages: [{ role: 'user', content: 'Hello' }],
       }),
     });
@@ -99,7 +99,7 @@ describe('ApiServer', () => {
       method: 'POST',
       headers: { 'X-Session-ID': sessionId },
       body: JSON.stringify({
-        model: 'glm-5.2',
+        model: 'gpt-4o',
         messages: [{ role: 'user', content: 'Follow up' }],
       }),
     });

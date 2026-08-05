@@ -108,9 +108,15 @@ export class BudgetTracker {
    */
   recordCall(inputTokens: number, outputTokens: number, thinkingTokens: number): void {
     this.start();
-    if (Number.isFinite(inputTokens) && inputTokens > 0) this.inputTokens += inputTokens;
-    if (Number.isFinite(outputTokens) && outputTokens > 0) this.outputTokens += outputTokens;
-    if (Number.isFinite(thinkingTokens) && thinkingTokens > 0) this.thinkingTokens += thinkingTokens;
+    // Use `>= 0` instead of `> 0` so legitimate 0-token
+    // responses (e.g., cached responses, empty tool outputs)
+    // are still recorded. The previous implementation used
+    // `> 0`, silently dropping 0-token responses — the budget
+    // tracker under-counted, and the caller couldn't
+    // distinguish "no response" from "response with 0 tokens".
+    if (Number.isFinite(inputTokens) && inputTokens >= 0) this.inputTokens += inputTokens;
+    if (Number.isFinite(outputTokens) && outputTokens >= 0) this.outputTokens += outputTokens;
+    if (Number.isFinite(thinkingTokens) && thinkingTokens >= 0) this.thinkingTokens += thinkingTokens;
   }
 
   /**
@@ -158,7 +164,16 @@ export class BudgetTracker {
    * reported only the first via `else if`, hiding co-exceeded dimensions.
    */
   snapshot(): BudgetSnapshot {
-    this.start();
+    // The previous implementation called `this.start()` as a side
+    // effect of every `snapshot()` call. `start()` starts the
+    // wall-clock timer if it hasn't been started. So merely
+    // CHECKING the budget (a read operation) mutated state — a
+    // caller who called `snapshot()` before the first
+    // `recordCall()` would start the timer prematurely, including
+    // setup time in the wall-clock budget. We now only auto-start
+    // on `recordCall()` (which is the actual usage boundary).
+    // `snapshot()` is a pure read — it does not mutate the timer.
+    // If `startTime` is 0 (never started), wall-clock reports 0.
     const total = this.totalTokens;
     const cost = this.totalCostUsd;
     const wall = this.wallclockSeconds;

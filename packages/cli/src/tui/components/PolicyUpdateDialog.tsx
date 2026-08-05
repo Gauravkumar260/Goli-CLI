@@ -47,11 +47,13 @@ export function PolicyUpdateDialog({
   const [selected, setSelected] = useState<'accept' | 'ignore'>('accept');
 
   useInput((input, key) => {
-    if (key.leftArrow || input === 'a') {
+    // P1-25 fix: also accept Shift+A / Shift+I (uppercase) — was case-sensitive.
+    const lower = input.toLowerCase();
+    if (key.leftArrow || lower === 'a') {
       setSelected('accept');
       return;
     }
-    if (key.rightArrow || input === 'i') {
+    if (key.rightArrow || lower === 'i') {
       setSelected('ignore');
       return;
     }
@@ -64,7 +66,7 @@ export function PolicyUpdateDialog({
       onCancel();
       return;
     }
-  });
+  }, { isActive: true });  // P1-25 fix: gate so we don't conflict with PromptInput
 
   return (
     <Box

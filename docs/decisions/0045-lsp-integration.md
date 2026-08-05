@@ -5,7 +5,7 @@
 **Hermes Item:** H21 — LSP Integration
 **Extends:** ADR-0022 (tree-sitter over LSP) — partially. ADR-0022
 chose tree-sitter for the context engine (static analysis). This ADR
-adds LSP as a *complementary* tool for interactive queries.
+adds LSP as a _complementary_ tool for interactive queries.
 
 ## Context
 
@@ -59,7 +59,7 @@ with what it sees in file output.
 ### Coexistence with tree-sitter
 
 Tree-sitter remains the context engine's indexer (ADR-0022 unchanged).
-LSP is an *additional* tool for interactive queries — the two do not
+LSP is an _additional_ tool for interactive queries — the two do not
 conflict. Tree-sitter builds the symbol graph for retrieval; LSP
 answers ad-hoc queries the model makes during a task.
 

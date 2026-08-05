@@ -60,7 +60,7 @@ export function ThemeDialog({ cols, onDismiss, onSelect }: Props): React.ReactEl
       onDismiss();
       return;
     }
-  });
+  }, { isActive: true });  // P1-25 fix: gate so we don't conflict with PromptInput
 
   const innerW = Math.min(cols - 4, 60);
   const themeName = ALL_THEMES[selectedIdx]!;

@@ -110,11 +110,17 @@ export class AlertManager {
   /**
    * Check wall-clock latency.
    *
+   * The alert type was previously `'latency_p99'` which implies
+   * a statistical P99 percentile. The input is a single
+   * session's wall-clock duration, not a percentile. We now use
+   * `'wallclock_exceeded'` which accurately describes what's
+   * being checked.
+   *
    * @param wallclockSeconds - The elapsed wall-clock seconds.
    */
   checkLatency(wallclockSeconds: number): TriggeredAlert | null {
     if (wallclockSeconds >= this.thresholds.wallclockThresholdS) {
-      return this.trigger('latency_p99', wallclockSeconds, this.thresholds.wallclockThresholdS, 'hard_stop',
+      return this.trigger('wallclock_exceeded', wallclockSeconds, this.thresholds.wallclockThresholdS, 'hard_stop',
         `Wall-clock exceeded: ${wallclockSeconds}s (threshold: ${this.thresholds.wallclockThresholdS}s)`);
     }
     return null;
@@ -145,7 +151,21 @@ export class AlertManager {
     };
 
     this.log?.warn('Alert triggered', { ...alert });
-    this.onAlert?.(alert);
+    // Wrap onAlert in try/catch so a throwing callback doesn't
+    // prevent the alert from being returned. The previous
+    // implementation called `this.onAlert?.(alert)` synchronously
+    // — if the callback threw, the exception propagated up
+    // through `checkStuckLoop`/`checkSessionBudget`/etc., and
+    // the caller may not handle it — the alert was effectively
+    // lost (the throw prevented the return).
+    try {
+      this.onAlert?.(alert);
+    } catch (err) {
+      this.log?.error('Alert callback threw — alert still returned', {
+        type: alert.type,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
 
     return alert;
   }

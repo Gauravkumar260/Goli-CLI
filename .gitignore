@@ -34,3 +34,8 @@ node_modules/
 *.tsbuildinfo
 packages/*/dist/
 packages/*/*.tsbuildinfo
+
+# Scratch / transient files.
+/fix.cjs
+/demo-output.txt
+/demo-err.txt

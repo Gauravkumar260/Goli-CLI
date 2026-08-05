@@ -11,7 +11,7 @@ import './env-loader.js';
  *
  * ## Phase 2 Exports
  *
- * Phase 2 adds the Agent Core Loop (Module 1): the GLM-5.2 client,
+ * Phase 2 adds the Agent Core Loop (Module 1): the LLM client,
  * system-prompt assembler, ReAct master loop, TODO/planner engine,
  * retry/backoff, budget tracking, and stall detection.
  *
@@ -55,14 +55,24 @@ export {
 export type { ErrorCategory } from './utils/errors.js';
 
 // ─── Config ─────────────────────────────────────────────────────────
-/**
- *
- */
-export { loadConfig } from './config/loader.js';
+// MEDIUM-90: the previous barrel bypassed `./config/index.js` and
+// re-exported directly from `./config/loader.js`,
+// `./config/schema.js`, `./config/mode-prompts.js`, and
+// `./config/integrity.js`. This created two import paths for the
+// same modules (`@goli/core` and `@goli/core/config`) that could
+// drift out of sync. We now re-export from the config barrel so
+// there's a single source of truth.
 /**
  *
  */
 export {
+  loadConfig,
+  invalidateConfigCache,
+  MODE_PROMPTS,
+  getPromptForMode,
+  isToolAllowedForMode,
+  READ_ONLY_TOOLS,
+  PLAN_TOOLS,
   AppConfigSchema,
   ModelConfigSchema,
   BudgetConfigSchema,
@@ -70,12 +80,20 @@ export {
   StallConfigSchema,
   SandboxConfigSchema,
   LoggingConfigSchema,
+  LocalLlmsConfigSchema,
+  ReasoningEffortSchema,
+  SandboxModeSchema,
+  ApprovalPolicySchema,
   DEFAULT_CONFIG,
-} from './config/schema.js';
+  PolicyIntegrityManager,
+  IntegrityStatus,
+  calculateIntegrityHash,
+} from './config/index.js';
 /**
  *
  */
 export type {
+  AppMode,
   AppConfig,
   ModelConfig,
   BudgetConfig,
@@ -85,20 +103,10 @@ export type {
   SandboxMode,
   ApprovalPolicy,
   LoggingConfig,
+  LocalLlmsConfig,
   ReasoningEffort,
-} from './config/schema.js';
-export { MODE_PROMPTS, getPromptForMode } from './config/mode-prompts.js';
-export type { AppMode } from './config/mode-prompts.js';
-
-// ─── Policy Integrity (T-064) ────────────────────────────────────────
-/**
- * Policy Integrity Manager — SHA-256 hashing of policy/config files.
- */
-export { PolicyIntegrityManager, IntegrityStatus } from './config/integrity.js';
-/**
- *
- */
-export type { IntegrityResult } from './config/integrity.js';
+  IntegrityResult,
+} from './config/index.js';
 
 // ─── Agent Core Loop (Phase 2) ──────────────────────────────────────
 /**
@@ -231,6 +239,15 @@ export { AGENT_ROLES, AGENT_ROLE_LABELS } from './agent/types.js';
  *
  */
 export { repairJson, parseToolCallArgs } from './agent/json-repair.js';
+// P3-1: FrozenSnapshot — captured at session start, re-injected after compaction.
+/**
+ *
+ */
+export { createFrozenSnapshot, renderFrozenSnapshot, FROZEN_SNAPSHOT_PREFIX, FROZEN_SNAPSHOT_END_MARKER } from './agent/frozen-snapshot.js';
+/**
+ *
+ */
+export type { FrozenSnapshot } from './agent/frozen-snapshot.js';
 
 // ─── Tool Layer (Phase 4) ───────────────────────────────────────────
 /**
@@ -248,6 +265,8 @@ export type {
   ToolInputSchema,
   ToolHandler,
   PermissionTier,
+  ToolApprovalRequest,
+  ToolApprovalDecision,
 } from './tools/index.js';
 /**
  *
@@ -287,9 +306,20 @@ export {
   AUTO_FORMAT_HOOK,
   GIT_CHECKPOINT_HOOK,
   AUDIT_LOG_HOOK,
+  // P0-8: user-defined hook configuration (declarative .goli/hooks.json)
+  loadUserHooks,
+  saveUserHooks,
+  hookMatches,
+  UserHookSchema,
+  UserHookConfigSchema,
   MCPClientManager,
   REFERENCE_MCP_SERVERS,
+  buildReferenceMcpServers,
 } from './tools/index.js';
+/**
+ *
+ */
+export type { UserHook, UserHookConfig } from './tools/index.js';
 /**
  *
  */
@@ -309,6 +339,22 @@ export type {
   MCPClientManagerOptions,
   MCPToolCallResult,
 } from './tools/index.js';
+/**
+ *
+ */
+export type {
+  // P3-4: LSP types (for callers constructing their own LspClient).
+  LspClient,
+  LspLocation,
+  LspHoverResult,
+  LspDiagnostic,
+  LspSeverity,
+} from './tools/index.js';
+// P3-4: Concrete LSP client (value export — it's a class, not a type).
+/**
+ *
+ */
+export { TypeScriptLspClient } from './tools/index.js';
 
 // ─── Sandbox (Phase 5) ──────────────────────────────────────────────
 /**
@@ -404,18 +450,21 @@ export {
   PersistentMemory,
   SessionMemory,
   VectorMemoryPlugin,
+  // P3-5: honest-name alias (TF-IDF, not vector embeddings).
+  TFIDFMemoryPlugin,
   MemoryCurator,
   MEMORY_BUDGETS,
   TOTAL_MEMORY_BUDGET,
   createMemorySystem,
+  // P1-bonus: Skills system (re-enabled).
   SkillWriter,
   SkillCatalog,
   SkillLoader,
   SkillArchiver,
   SEED_SKILLS,
-  AUTO_ARCHIVE_DAYS,
-  MAX_L2_TOKENS,
   ESTIMATED_L1_TOKENS,
+  MAX_L2_TOKENS,
+  AUTO_ARCHIVE_DAYS,
   TrajectoryStore,
   TrajectoryCurator,
   computeReward,
@@ -445,14 +494,17 @@ export type {
   PersistentMemoryOptions,
   VectorMemoryPluginOptions,
   MemoryCuratorOptions,
+  // P1-bonus: Skills types.
   SkillMetadata,
   SkillCategory,
   Skill,
   TrajectoryEntry,
+  DisclosureLevel,
   SkillWriterOptions,
   SkillCatalogOptions,
   SkillLoaderOptions,
-  DisclosureLevel,
+  SkillArchiverOptions,
+  SeedSkill,
   TrajectoryStep,
   Trajectory,
   TrajectoryOutcome,
@@ -482,7 +534,9 @@ export type {
   SicaLoopConstructorOptions,
 } from './memory/index.js';
 
-// ─── Evals & Observability (Phase 12) ───────────────────────────────
+// ─── Evals (Phase 12) ────────────────────────────────────────────────
+// Observability exports moved to './observability/index.js' to break
+// the circular evals ↔ observability dependency (MEDIUM-72).
 /**
  *
  */
@@ -490,14 +544,12 @@ export {
   SWEBenchHarness,
   generateStubInstances,
   SemanticErrorEvaluator,
+  extractFirstJsonObject,
   RegressionGate,
   generateRedteamConfig,
   configToYaml,
   evaluateRedteamResults,
   DEFAULT_QUALITY_THRESHOLDS,
-  OtelTracer,
-  LangfuseClient,
-  AlertManager,
 } from './evals/index.js';
 /**
  *
@@ -519,11 +571,33 @@ export type {
   PromptfooProvider,
   PromptfooRedteamConfig,
   RedTeamGateResult,
-  OtelSpan,
-  OtelTracerOptions,
-  LangfuseClientOptions,
-  AlertManagerOptions,
 } from './evals/index.js';
+
+// ─── Observability (Phase 12) ────────────────────────────────────────
+/**
+ *
+ */
+export { OtelTracer } from './observability/tracing/otel.js';
+/**
+ *
+ */
+export type { OtelSpan, OtelTracerOptions } from './observability/tracing/otel.js';
+/**
+ *
+ */
+export { LangfuseClient } from './observability/langfuse/client.js';
+/**
+ *
+ */
+export type { LangfuseClientOptions } from './observability/langfuse/client.js';
+/**
+ *
+ */
+export { AlertManager } from './observability/alerts/manager.js';
+/**
+ *
+ */
+export type { AlertManagerOptions } from './observability/alerts/manager.js';
 
 // ─── Multi-Agent Orchestration (Phase 13) ───────────────────────────
 /**

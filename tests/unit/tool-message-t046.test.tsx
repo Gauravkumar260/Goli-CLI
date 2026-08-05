@@ -161,7 +161,13 @@ describe('T-046: MCP progress indicator (AC #3)', () => {
     expect(lastFrame() ?? '').toContain('%');
   });
 
-  it('detects MCP tools by underscore in name', () => {
+  it('does NOT detect MCP tools by underscore in name (P0-3 fix)', () => {
+    // P0-3 fix: previously any name containing `_` (e.g. github_search,
+    // edit_file, read_file) was treated as an MCP tool. This caused
+    // crashes because built-ins carry human-readable `meta` strings
+    // (e.g. "+5 -2") that parseFloat parsed into bogus progress ratios,
+    // then `'░'.repeat(16 - 192)` threw RangeError. Only the canonical
+    // `mcp-` prefix is treated as an MCP tool now.
     const mcpByUnderscore: ToolCall = {
       id: 'tc-2',
       name: 'github_search',
@@ -171,7 +177,7 @@ describe('T-046: MCP progress indicator (AC #3)', () => {
       meta: '0.4',
     };
     const { lastFrame } = render(<ToolMessage toolCall={mcpByUnderscore} />);
-    expect(lastFrame() ?? '').toContain('%');
+    expect(lastFrame() ?? '').not.toContain('%');
   });
 });
 

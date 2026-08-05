@@ -14,7 +14,7 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@goli/core": "*"
+    "@goli-cli/shared": "*"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

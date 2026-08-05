@@ -1,6 +1,6 @@
 # Phase 2 — Agent Core Loop (Module 1)
 
-**Status:** Pending
+**Status:** Complete
 **Modules touched:** M1 (Agent Core Loop)
 **Compliance gates:** none new
 
@@ -13,6 +13,14 @@ retry/backoff layer, and per-iteration token accounting. End of
 Phase 2: a real agent can be invoked with a prompt, call GLM-5.2,
 receive streamed thinking + content + tool_calls, and either complete
 or stop gracefully.
+
+## Current Implementation Status
+
+ReAct master loop + provider-backed model client (Ollama default) + system prompt assembler (10 fragments) + planner + budget + retry + stall detection + reflexion + effort router + advanced compression + credential pool + provenance tracker — all shipped at packages/core/src/agent/.
+
+See the per-module sections in [docs/architecture.md](../architecture.md)
+for the current code locations and `AGENTS.md` for accumulated
+implementation patterns and gotchas.
 
 ## Definition of Done
 

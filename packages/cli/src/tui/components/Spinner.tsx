@@ -44,7 +44,16 @@ import { T } from '../theme/tokens.js';
 import { useIsScreenReaderEnabled } from '../hooks/useIsScreenReaderEnabled.js';
 
 /** Available spinner styles. */
-export type SpinnerStyle = 'dots' | 'line' | 'arrow' | 'bounce' | 'triangle';
+export type SpinnerStyle =
+  | 'dots' | 'line' | 'arrow' | 'bounce' | 'triangle'
+  // T-088: Kawaii spinners inspired by Hermes' KawaiiSpinner (agent/display.py).
+  // Each is a sequence of unicode faces/glyphs that cycle to give the agent
+  // a friendly, personable feel while waiting.
+  | 'kawaii'      // (｡◕‿◕｡) → (◕‿◕✿) → ٩(◕‿◕｡)۶ → ...
+  | 'moon'        // 🌑 🌒 🌓 🌔 🌕 🌖 🌗 🌘
+  | 'pulse'       // ◉ ◯ ◉ ◯ (heartbeat)
+  | 'star'        // ✶ ✵ ✸ ✹ ✺ (rotating star)
+  | 'orbit';      // ◠ ◡ (eye orbit)
 
 /** Frame sequences for each spinner style. */
 const SPINNER_FRAMES: Record<SpinnerStyle, readonly string[]> = {
@@ -53,6 +62,12 @@ const SPINNER_FRAMES: Record<SpinnerStyle, readonly string[]> = {
   arrow:    ['←', '↖', '↑', '↗', '→', '↘', '↓', '↙'],
   bounce:   ['⠁', '⠂', '⠄', '⠂'],
   triangle: ['▖', '▘', '▝', '▗'],
+  // T-088: Kawaii spinner frames — Hermes-style waiting faces.
+  kawaii:   ['(｡◕‿◕｡)', '(◕‿◕✿)', '٩(◕‿◕｡)۶', '(✿◕‿◕)', '(｡♥‿♥｡)', '(◕‿◕)❤'],
+  moon:     ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'],
+  pulse:    ['◉', '◯', '◉', '◯'],
+  star:     ['✶', '✵', '✸', '✹', '✺', '✹', '✸', '✵'],
+  orbit:    ['◠', '◡', '◠', '◡'],
 } as const;
 
 /** Default spinner style (matches gemini-cli's braille dots). */

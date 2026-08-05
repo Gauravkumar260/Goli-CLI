@@ -19,22 +19,34 @@
  */
 import React from 'react';
 import { Box, Text } from 'ink';
-import { T } from '../theme/tokens.js';
+import { T, getBorderStyle } from '../theme/tokens.js';
 import { useSecsTick } from '../hooks/useSecsTick.js';
 import { MaybeFpsOverlay } from './FpsOverlay.js';
 import { MaybeDebugProfiler } from './DebugProfiler.js';
 import { TokenBar } from './TokenBar.js';
 import { displayPath, truncatePath } from '../lib/pathUtils.js';
+import { getModeColor, type AppMode } from '../theme/agents.js';
 
 interface Props {
   cols: number;
   model: string;
   tokens: number;
   tokenLimit: number;
-  mode: 'SAFE' | 'GOD';
+  /**
+   * P1-13 fix (remediation plan Phase 13): per-type token counts for
+   * the 3-bar TokenBar. When provided, the StatusBar passes them
+   * through to TokenBar so the user sees input/output/thinking as
+   * separate bars. When absent, TokenBar falls back to the legacy
+   * single-bar layout.
+   */
+  inputTokens?: number;
+  outputTokens?: number;
+  thinkingTokens?: number;
+  /** Legacy RunMode — kept for backward compat. Prefer `appMode`. */
+  mode?: 'SAFE' | 'GOD';
   tier: string;
   /** T-MODE: The current permission mode (read-only/plan/build/god). */
-  appMode?: string;
+  appMode?: AppMode;
   /** §8.4: optional cost field (e.g. "0.0012") — shown in full layout */
   cost?: string;
   /** §8.4: optional git branch — shown in full layout */
@@ -60,11 +72,14 @@ function modelShortName(model: string): string {
   return model.split('-').slice(0, 2).join('-');
 }
 
-function StatusBarImpl({ cols, model, tokens, tokenLimit, mode, tier, appMode, cost, branch, cwd, bordered = true, fpsActive = false }: Props): React.ReactElement {
+function StatusBarImpl({ cols, model, tokens, tokenLimit, inputTokens, outputTokens, thinkingTokens, mode, tier, appMode, cost, branch, cwd, bordered = true, fpsActive = false }: Props): React.ReactElement {
   const [secs] = useSecsTick();
   const secsStr = secs.toFixed(1);
   const limitStr = tokenLimit >= 1000 ? `${Math.floor(tokenLimit / 1000)}K` : String(tokenLimit);
   const mShort = modelShortName(model);
+  // T-MODE: prefer the canonical AppMode; fall back to legacy mode+tier.
+  const effectiveAppMode: AppMode = appMode ?? (mode === 'GOD' ? 'god' : 'build');
+  const modeColor = getModeColor(effectiveAppMode);
 
   // T-039: Tildeify + shorten the cwd. Reserve ~1/3 of cols for cwd; if the
   // terminal is narrow, truncate further via truncatePath.
@@ -76,7 +91,7 @@ function StatusBarImpl({ cols, model, tokens, tokenLimit, mode, tier, appMode, c
       <Box
         flexDirection="row"
         {...(bordered
-          ? { borderStyle: 'round' as const, borderColor: T.border }
+          ? { borderStyle: getBorderStyle() as 'round', borderColor: T.border }
           : {})}
         paddingX={1}
         width={cols}
@@ -96,7 +111,7 @@ function StatusBarImpl({ cols, model, tokens, tokenLimit, mode, tier, appMode, c
       <Box
         flexDirection="row"
         {...(bordered
-          ? { borderStyle: 'round' as const, borderColor: T.border }
+          ? { borderStyle: getBorderStyle() as 'round', borderColor: T.border }
           : {})}
         paddingX={1}
         width={cols}
@@ -106,11 +121,11 @@ function StatusBarImpl({ cols, model, tokens, tokenLimit, mode, tier, appMode, c
         <Text> </Text>
         <Text color={T.purple}>{mShort}</Text>
         <Sep />
-        <TokenBar tokens={tokens} tokenLimit={tokenLimit} />
+        <TokenBar tokens={tokens} tokenLimit={tokenLimit} inputTokens={inputTokens} outputTokens={outputTokens} thinkingTokens={thinkingTokens} />
         <Sep />
-        <Text color={mode === 'GOD' ? T.red : T.green}>{mode}</Text>
+        <Text color={modeColor}>{effectiveAppMode}</Text>
         <Text> </Text>
-        <Text color={T.green}>{appMode ?? tier}</Text>
+        <Text color={T.green}>{tier}</Text>
         <Sep />
         <Text>⏱ {secsStr}s</Text>
         {fpsActive && <Sep />}
@@ -125,7 +140,7 @@ function StatusBarImpl({ cols, model, tokens, tokenLimit, mode, tier, appMode, c
     <Box
       flexDirection="row"
       {...(bordered
-        ? { borderStyle: 'round' as const, borderColor: T.border }
+        ? { borderStyle: getBorderStyle() as 'round', borderColor: T.border }
         : {})}
       paddingX={1}
       width={cols}
@@ -137,11 +152,11 @@ function StatusBarImpl({ cols, model, tokens, tokenLimit, mode, tier, appMode, c
       <Sep />
       <Text>{tokens.toLocaleString()}/{limitStr}</Text>
       <Sep />
-      <TokenBar tokens={tokens} tokenLimit={tokenLimit} />
+      <TokenBar tokens={tokens} tokenLimit={tokenLimit} inputTokens={inputTokens} outputTokens={outputTokens} thinkingTokens={thinkingTokens} />
       <Sep />
-      <Text color={mode === 'GOD' ? T.red : T.green}>{mode}</Text>
+      <Text color={modeColor}>{effectiveAppMode}</Text>
       <Sep />
-      <Text color={T.green}>{appMode ?? tier}</Text>
+      <Text color={T.green}>{tier}</Text>
       {cwdDisplay && (
         <>
           <Sep />

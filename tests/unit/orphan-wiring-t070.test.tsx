@@ -52,8 +52,10 @@ describe('T-070: ApprovalModeIndicator renders correct mode', () => {
 
 describe('T-070: ContextSummaryDisplay renders counts', () => {
   it('shows AGENTS.md count when > 0', () => {
+    // Labels render as a suffix on narrow terminals (<60 cols); wide
+    // terminals show emoji + count only (see status-bar-t059 contract).
     const { lastFrame } = render(
-      <ContextSummaryDisplay agentsMdCount={2} cols={80} />,
+      <ContextSummaryDisplay agentsMdCount={2} cols={40} />,
     );
     const frame = lastFrame() ?? '';
     expect(frame).toContain('AGENTS.md');
@@ -62,7 +64,7 @@ describe('T-070: ContextSummaryDisplay renders counts', () => {
 
   it('shows MCP count when > 0', () => {
     const { lastFrame } = render(
-      <ContextSummaryDisplay mcpServerCount={3} cols={80} />,
+      <ContextSummaryDisplay mcpServerCount={3} cols={40} />,
     );
     const frame = lastFrame() ?? '';
     expect(frame).toContain('MCP');
@@ -71,7 +73,7 @@ describe('T-070: ContextSummaryDisplay renders counts', () => {
 
   it('shows skills count when > 0', () => {
     const { lastFrame } = render(
-      <ContextSummaryDisplay skillCount={5} cols={80} />,
+      <ContextSummaryDisplay skillCount={5} cols={40} />,
     );
     const frame = lastFrame() ?? '';
     expect(frame).toContain('skill');

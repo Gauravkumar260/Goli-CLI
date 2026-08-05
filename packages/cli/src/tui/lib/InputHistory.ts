@@ -26,6 +26,11 @@ import { join } from 'node:path';
 /** Maximum number of history entries to keep (in-memory + on-disk). */
 export const MAX_HISTORY_ENTRIES = 100;
 
+/** Normalize path separators to forward slashes (path.join() yields `\` on Windows). */
+function normalizeSeparators(p: string): string {
+  return p.replace(/\\/g, '/');
+}
+
 /**
  * Get the path to the history file.
  *
@@ -37,23 +42,26 @@ export const MAX_HISTORY_ENTRIES = 100;
  * This mirrors the getGoliHome() resolution from packages/cli/src/commands/profile.ts.
  */
 export function getHistoryFilePath(): string {
+  // os.homedir() does NOT read $HOME on Windows (it uses the profile dir);
+  // honor $HOME first so tests and custom setups can override the home.
+  const home = process.env.HOME || homedir();
   const goliHome = process.env['GOLI_HOME'];
   if (goliHome && goliHome.length > 0) {
-    return join(goliHome, 'history');
+    return normalizeSeparators(join(goliHome, 'history'));
   }
   // Check ~/.goli/current (active profile)
-  const profilePath = join(homedir(), '.goli', 'current');
+  const profilePath = join(home, '.goli', 'current');
   if (existsSync(profilePath)) {
     try {
       const profile = readFileSync(profilePath, 'utf-8').trim();
       if (profile.length > 0) {
-        return join(homedir(), '.goli', 'profiles', profile, 'history');
+        return normalizeSeparators(join(home, '.goli', 'profiles', profile, 'history'));
       }
     } catch {
       // Fall through to legacy default.
     }
   }
-  return join(homedir(), '.goli-cli', 'history');
+  return normalizeSeparators(join(home, '.goli-cli', 'history'));
 }
 
 /**

@@ -31,7 +31,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -62,23 +62,57 @@ export function defaultCronConfigPath(): string {
   return join(goliHome, 'cron.json');
 }
 
-/** Load the cron store. Returns an empty store if the file doesn't exist. */
+/**
+ * Load the cron store. Returns an empty store if the file doesn't exist.
+ *
+ * P1-20 fix: Previously a corrupt `cron.json` (e.g. from a non-atomic
+ * write that was interrupted) was silently swallowed — `catch { return []; }`
+ * with no logging. The user's scheduled tasks would silently stop
+ * running and they'd have no idea why. We now write a warning to stderr
+ * so the user at least knows the file is corrupt and can investigate
+ * (or restore from backup). We still return `[]` rather than throwing
+ * so the CLI doesn't crash, but the warning surfaces the problem.
+ */
 export function loadCronEntries(configPath: string = defaultCronConfigPath()): CronEntry[] {
   if (!existsSync(configPath)) return [];
   try {
     const data = JSON.parse(readFileSync(configPath, 'utf-8')) as CronStore;
     return data.entries ?? [];
-  } catch {
+  } catch (err) {
+    // P1-20 fix: log to stderr so the user knows their cron file is corrupt.
+    const msg = err instanceof Error ? err.message : String(err);
+    process.stderr.write(
+      `Warning: cron config at ${configPath} is corrupt (${msg}). ` +
+      `Scheduled tasks will not run until the file is fixed or removed.\n`,
+    );
     return [];
   }
 }
 
-/** Save the cron store. */
+/**
+ * Save the cron store.
+ *
+ * P1-20 fix: Use atomic write (temp file + rename) so a process crash
+ * mid-write doesn't corrupt `cron.json`. Previously `writeFileSync` did
+ * truncate-then-write — if the process was killed (SIGTERM, OOM,
+ * `executeTick`'s hard interrupt firing during a `markCronRun` call)
+ * between truncate and write, the file would be left empty or partial.
+ * Combined with the silent `catch { return []; }` in `loadCronEntries`,
+ * this was a silent scheduler outage: the user's scheduled tasks would
+ * stop running with no warning.
+ *
+ * `renameSync` is atomic on POSIX (single syscall, same filesystem).
+ * On Windows it's not strictly atomic but is still better than
+ * truncate-then-write.
+ */
 function saveCronEntries(entries: CronEntry[], configPath: string = defaultCronConfigPath()): void {
   const dir = join(configPath, '..');
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const store: CronStore = { entries };
-  writeFileSync(configPath, JSON.stringify(store, null, 2) + '\n', 'utf-8');
+  const tmp = configPath + '.tmp';
+  writeFileSync(tmp, JSON.stringify(store, null, 2) + '\n', 'utf-8');
+  // Atomic rename — readers never see a half-written file.
+  renameSync(tmp, configPath);
 }
 
 /**

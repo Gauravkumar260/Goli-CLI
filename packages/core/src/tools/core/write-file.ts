@@ -18,16 +18,20 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { writeFileSync, readFileSync, mkdirSync, renameSync, statSync, chmodSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync, renameSync, statSync, chmodSync, unlinkSync } from 'node:fs';
 import { dirname, relative } from 'node:path';
 
-
+import { computeBlastRadius, DEFAULT_BLAST_RADIUS_CONFIG } from '../../approval/blast-radius.js';
 import { ToolExecutionError } from '../../utils/errors.js';
 
 import { checkSingleEntryDiffApproval } from './diff-approval.js';
 import { buildDiffEntry, formatDiffAsString } from './diff-utils.js';
 import { resolveUserPath, checkPathInWorkspace } from './path-safety.js';
 import { specRegistry } from './spec-registry.js';
+// P1-10 fix (verification report deferred item #2): wire blast-radius
+// into the write_file approval flow (only fires when OVERWRITING an
+// existing file — new-file creation is always allowed). See edit-file.ts
+// for the full rationale.
 
 import type { Tool, ToolResult, ToolContext } from '../types.js';
 
@@ -97,9 +101,16 @@ async function writeFileHandler(
   // Read the existing content (if any) for diff computation.
   let oldContent = '';
   let prevMode: number | undefined;
+  // Track whether the file existed BEFORE the write — used for the
+  // action label. The previous implementation used
+  // `existsSync(resolvedPath) && oldContent` AFTER the write, which
+  // incorrectly reported overwrite-of-empty-file as 'created' (an
+  // empty file has `oldContent === ''` which is falsy).
+  let fileExistedBefore = false;
   try {
     oldContent = readFileSync(resolvedPath, 'utf-8');
     prevMode = statSync(resolvedPath).mode & 0o777;
+    fileExistedBefore = true;
   } catch (err) {
     const code = (err as { code?: string }).code;
     if (code !== 'ENOENT') {
@@ -112,6 +123,24 @@ async function writeFileHandler(
     // File doesn't exist yet — oldContent stays '' and prevMode stays undefined.
   }
 
+  // P1-10 fix: Blast-radius guard (only when OVERWRITING an existing
+  // file — new-file creation is always allowed since there's no "old
+  // content" to compare). Blocks overwrites that delete or add too
+  // many lines, preventing accidental large rewrites. Skipped in
+  // godMode. Runs BEFORE the diff-approval gate so the user never
+  // sees a diff for an edit that would be blocked anyway.
+  if (!ctx.godMode && fileExistedBefore && oldContent.length > 0) {
+    const blastResult = computeBlastRadius(oldContent, content, DEFAULT_BLAST_RADIUS_CONFIG);
+    if (!blastResult.allowed) {
+      throw new ToolExecutionError(
+        `write_file blocked by blast-radius guard: ${blastResult.reason ?? 'threshold exceeded'} ` +
+        `(${blastResult.deletedLines} deleted, ${blastResult.addedLines} added of ${blastResult.totalLines} total lines). ` +
+        `If this is an intentional full rewrite, run in god mode.`,
+        'write_file',
+      );
+    }
+  }
+
   // ─── Diff-first approval (H14) ──────────────────────────────
   if (ctx.requestDiffApproval && !ctx.diffReviewDisabled) {
     const entry = buildDiffEntry(resolvedPath, 'write_file', oldContent, content);
@@ -121,6 +150,47 @@ async function writeFileHandler(
       if (!approvalCheck.accepted) {
         return approvalCheck.rejection;
       }
+    }
+  } else if (ctx.requestApproval && !ctx.godMode && !ctx.autoMode) {
+    // P1-3 fix (audit Finding CC-2): PRE-EXECUTION approval gate for
+    // write_file when diff-review is not active. In build mode, T1
+    // file writes must prompt the user BEFORE the atomic write. When
+    // `requestApproval` is undefined (headless without approver), we
+    // fall through and write directly — preserving the original
+    // headless behavior (the caller can use --auto or --god, or the
+    // --diff-review flag for headless diff review). This branch only
+    // fires when an interactive approver IS wired (TUI mode) but diff
+    // review is OFF — the user gets a simple yes/no/always prompt
+    // instead of a per-file diff review.
+    const sizeLabel = content.length > 1024
+      ? `${(content.length / 1024).toFixed(1)} KB`
+      : `${content.length} bytes`;
+    const approvalDecision = await ctx.requestApproval({
+      toolCallId: ctx.toolCallId,
+      toolName: 'write_file',
+      tier: 'T1',
+      description: `${fileExistedBefore ? 'overwrite' : 'create'} ${filePath} (${sizeLabel})`,
+      args: { file_path: filePath, content },
+      timestamp: new Date().toISOString(),
+      // P0-3 fix (remediation plan Phase 3): populate `diffEntry` so
+      // the TUI's `DiffReviewDialog` can render the proposed write
+      // before the user approves. `oldContent` is the current file
+      // content (empty string for new files — `fileExistedBefore`
+      // was checked above); `content` is the new content to write.
+      diffEntry: {
+        filePath,
+        tool: 'write_file',
+        oldContent,
+        newContent: content,
+      },
+    });
+    if (!approvalDecision.approved) {
+      return {
+        toolCallId: ctx.toolCallId,
+        ok: false,
+        content: '',
+        error: `write_file denied by user${approvalDecision.reason ? `: ${approvalDecision.reason}` : ''}. Path: ${filePath}`,
+      };
     }
   }
 
@@ -153,7 +223,7 @@ async function writeFileHandler(
     renameSync(tempPath, resolvedPath);
   } catch (err) {
     // Clean up the temp file if rename failed.
-    try { renameSync(tempPath, `${tempPath}.orphan`); } catch { /* best-effort */ }
+    try { unlinkSync(tempPath); } catch { /* best-effort */ }
     throw new ToolExecutionError(
       `Failed to write ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
       'write_file',
@@ -171,7 +241,7 @@ async function writeFileHandler(
     ? `\n${formatDiffAsString(buildDiffEntry(resolvedPath, 'write_file', oldContent, content))}`
     : '';
 
-  const action = existsSync(resolvedPath) && oldContent ? 'overwrote' : 'created';
+  const action = fileExistedBefore ? 'overwrote' : 'created';
   return {
     toolCallId: ctx.toolCallId,
     ok: true,

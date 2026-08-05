@@ -190,7 +190,7 @@ describe('AdvancedCompressor', () => {
           content: '## Goal\nTest goal\n## Progress\n### Done\nSomething',
         }),
       };
-      const compressorWithLLM = new AdvancedCompressor({ glmClient: mockClient, protectFirstN: 1 });
+      const compressorWithLLM = new AdvancedCompressor({ llmClient: mockClient, protectFirstN: 1 });
       const messages = makeLargeMessages(10);
       const result = await compressorWithLLM.compress(messages, 5000, 4000);
 
@@ -206,7 +206,7 @@ describe('AdvancedCompressor', () => {
           throw new Error('LLM unavailable');
         },
       };
-      const compressorWithLLM = new AdvancedCompressor({ glmClient: mockClient, protectFirstN: 1 });
+      const compressorWithLLM = new AdvancedCompressor({ llmClient: mockClient, protectFirstN: 1 });
       const messages = makeLargeMessages(10);
       const result = await compressorWithLLM.compress(messages, 5000, 4000);
 

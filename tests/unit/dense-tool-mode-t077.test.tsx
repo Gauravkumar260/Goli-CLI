@@ -65,19 +65,34 @@ describe('T-077: isCompactTool()', () => {
     expect(isCompactTool('edit_file')).toBe(true);
     expect(isCompactTool('write_file')).toBe(true);
     expect(isCompactTool('grep')).toBe(true);
-    expect(isCompactTool('glob')).toBe(true);
-    expect(isCompactTool('ls')).toBe(true);
+    // Round-2 verification item T1: `glob` and `ls` are dead refs
+    // (no such tools are registered). Replaced with the actual
+    // registered names: `list_directory` (the ls-equivalent).
+    expect(isCompactTool('list_directory')).toBe(true);
     expect(isCompactTool('web_search')).toBe(true);
+    expect(isCompactTool('web_fetch')).toBe(true);
   });
 
-  it('returns false for non-allowlisted tools', () => {
+  it('returns false for non-allowlisted tools (including dead refs)', () => {
+    // Round-2 verification item T1: `run_shell_command`, `glob`,
+    // `ls`, `read_many_files` were dead refs — they should now
+    // return false because the dense renderer only recognizes
+    // actually-registered tool names.
     expect(isCompactTool('run_shell_command')).toBe(false);
+    expect(isCompactTool('glob')).toBe(false);
+    expect(isCompactTool('ls')).toBe(false);
+    expect(isCompactTool('read_many_files')).toBe(false);
     expect(isCompactTool('mcp_search')).toBe(false);
     expect(isCompactTool('unknown_tool')).toBe(false);
   });
 
-  it('COMPACT_TOOL_ALLOWLIST has at least 9 entries', () => {
-    expect(COMPACT_TOOL_ALLOWLIST.length).toBeGreaterThanOrEqual(9);
+  it('COMPACT_TOOL_ALLOWLIST has at least 7 entries', () => {
+    // Round-2 verification item T1: was previously 9 entries (with
+    // 3 dead refs `glob`, `ls`, `read_many_files`). After cleanup,
+    // the allowlist has 7 real entries (read_file, edit_file,
+    // write_file, grep, list_directory, web_search, web_fetch).
+    // Lower threshold to 7 to reflect the cleaned list.
+    expect(COMPACT_TOOL_ALLOWLIST.length).toBeGreaterThanOrEqual(7);
   });
 });
 

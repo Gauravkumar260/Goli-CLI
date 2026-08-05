@@ -76,20 +76,18 @@ describe('T-080: getPreferredEditor()', () => {
 // ─── openInEditor() ─────────────────────────────────────────────────
 
 describe('T-080: openInEditor()', () => {
+  // A portable no-op editor: exits 0 without modifying the file. `true` only
+  // exists on Unix; on Windows `cmd /c exit 0` is the equivalent. openInEditor
+  // splits the editor string on whitespace, so the command must be a single
+  // token + plain args (no quoted paths with spaces).
+  const NOOP_EDITOR = process.platform === 'win32' ? 'cmd /c exit 0' : 'true';
+
   it('returns the edited text when editor succeeds (using echo as editor)', () => {
-    // Use 'echo' as a fake "editor" that overwrites the file with a fixed string.
-    // We use a shell script approach: 'sh -c "echo edited > $0"'.
-    // Actually, openInEditor spawns the editor command with the temp file as
-    // the last arg. We need a command that writes to its last arg.
-    // Use: sh -c 'echo "edited content" > "$1"' -- <file>
-    process.env['EDITOR'] = 'sh -c "echo edited content > \\"$1\\"" --';
-    // This won't work because spawnSync splits on spaces. Let's use a simpler approach.
-    // Instead, use 'cp' with a source file... but we don't have a source.
-    // The simplest reliable test: use 'true' (which does nothing) and verify
+    // Use a no-op "editor" (exits 0, does not modify the file) and verify
     // the initial text is returned unchanged.
-    process.env['EDITOR'] = 'true';
+    process.env['EDITOR'] = NOOP_EDITOR;
     const result = openInEditor('initial text');
-    // 'true' doesn't modify the file, so the initial text should be returned.
+    // A no-op editor doesn't modify the file, so the initial text is returned.
     expect(result).toBe('initial text');
   });
 
@@ -100,20 +98,20 @@ describe('T-080: openInEditor()', () => {
   });
 
   it('handles empty initial text', () => {
-    process.env['EDITOR'] = 'true';
+    process.env['EDITOR'] = NOOP_EDITOR;
     const result = openInEditor('');
     expect(result).toBe('');
   });
 
   it('handles multi-line initial text', () => {
-    process.env['EDITOR'] = 'true';
+    process.env['EDITOR'] = NOOP_EDITOR;
     const multiLine = 'line 1\nline 2\nline 3\n';
     const result = openInEditor(multiLine);
     expect(result).toBe(multiLine);
   });
 
   it('cleans up the temp file after editing', () => {
-    process.env['EDITOR'] = 'true';
+    process.env['EDITOR'] = NOOP_EDITOR;
     openInEditor('test');
     // No assertion needed — if the temp file wasn't cleaned up, it would
     // leak but not fail. The test just verifies no exception is thrown.

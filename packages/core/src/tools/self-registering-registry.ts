@@ -19,8 +19,8 @@
  * @module tools/self-registering-registry
  */
 
-import { readdirSync } from 'node:fs';
-import { join, extname } from 'node:path';
+import { readdirSync, realpathSync } from 'node:fs';
+import { join, extname, relative, isAbsolute, sep } from 'node:path';
 
 import type { Tool, ToolContext, ToolDefinition, ToolInputSchema } from './types.js';
 import type { Logger } from '../utils/logger.js';
@@ -122,7 +122,21 @@ export class SelfRegisteringRegistry {
   }
 
   /**
-   * Unregister a tool (only if override was used).
+   * Unregister a tool.
+   *
+   * Any registered tool can be unregistered — the basic contract is
+   * that whatever the registry accepts via `register()` it must
+   * accept being removed via `unregister()`. The generation counter
+   * is bumped so cached toolset snapshots invalidate correctly.
+   *
+   * The previous implementation rejected any tool not registered
+   * with `override: true`, which blocked the basic unregister
+   * contract: a plugin that registered its own tool (no override
+   * needed since the name didn't exist before) couldn't later
+   * unregister it without re-registering with `override: true`
+   * first. That made `unregister()` effectively unusable for
+   * plugin-defined tools.
+   *
    * @param name
    */
   unregister(name: string): boolean {
@@ -227,22 +241,87 @@ export class SelfRegisteringRegistry {
   /**
    * Discover and register builtin tools by scanning a directory.
    *
-   * Each .ts file in the directory is imported; if it calls
+   * Each `.ts`/`.js` file in the directory is imported; if it calls
    * `registry.register(...)` at the top level, the tool is registered.
+   *
+   * ## Security: path-confined import
+   *
+   * The previous implementation called `await import(filePath)` for
+   * any file in `toolsDir`, including files outside the directory
+   * (via a symlinked `toolsDir` entry) or files with names matching
+   * a test/spec pattern but still imported. We now:
+   *
+   * 1. **Resolve `toolsDir` via `realpathSync`** — catches a
+   *    symlinked toolsDir pointing outside the package.
+   * 2. **Resolve each candidate file via `realpathSync`** — catches
+   *    individual symlinked files pointing outside the package.
+   * 3. **Reject any candidate whose realpath is NOT inside the
+   *    resolved toolsDir** — closes the symlink-escape vector.
+   * 4. **Skip `.test.ts`, `.spec.ts`, and `.d.ts` files** (existing
+   *    behavior).
+   *
+   * This is still a dynamic-import pattern — callers MUST pass a
+   * trusted, package-controlled directory. Arbitrary user-supplied
+   * directories MUST NOT be passed here.
+   *
    * @param toolsDir
    */
   async discoverBuiltinTools(toolsDir: string): Promise<number> {
     let count = 0;
-    const files = readdirSync(toolsDir)
-      .filter((f) => extname(f) === '.ts' || extname(f) === '.js')
-      .filter((f) => !f.endsWith('.test.ts') && !f.endsWith('.spec.ts'))
-      .filter((f) => !f.endsWith('.d.ts'));
+
+    // Resolve toolsDir through realpath — catches a symlinked
+    // toolsDir pointing outside the package.
+    let resolvedToolsDir: string;
+    try {
+      resolvedToolsDir = realpathSync(toolsDir);
+    } catch (err) {
+      this.log?.warn('discoverBuiltinTools: toolsDir does not exist or is not accessible', {
+        toolsDir,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return 0;
+    }
+
+    let files: string[];
+    try {
+      files = readdirSync(resolvedToolsDir)
+        .filter((f) => extname(f) === '.ts' || extname(f) === '.js')
+        .filter((f) => !f.endsWith('.test.ts') && !f.endsWith('.spec.ts'))
+        .filter((f) => !f.endsWith('.d.ts'));
+    } catch (err) {
+      this.log?.warn('discoverBuiltinTools: failed to read toolsDir', {
+        toolsDir,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return 0;
+    }
 
     for (const file of files) {
-      const filePath = join(toolsDir, file);
+      const filePath = join(resolvedToolsDir, file);
+      // Resolve each candidate through realpath — catches a
+      // symlinked file pointing outside the package.
+      let resolvedFilePath: string;
+      try {
+        resolvedFilePath = realpathSync(filePath);
+      } catch {
+        // File may have been removed between readdir and realpath — skip.
+        continue;
+      }
+      // Boundary check: the resolved file MUST live inside the
+      // resolved toolsDir. This is the symlink-escape defense.
+      const rel = relative(resolvedToolsDir, resolvedFilePath);
+      if (rel.startsWith('..') || isAbsolute(rel) || rel.includes(`..${sep}`)) {
+        this.log?.warn('discoverBuiltinTools: refusing to import file outside toolsDir (symlink escape?)', {
+          toolsDir: resolvedToolsDir,
+          file,
+          resolvedFilePath,
+        });
+        continue;
+      }
+
       try {
         // Dynamic import — the module's top-level code runs and calls register()
-        await import(filePath);
+        await import(resolvedFilePath);
         count++;
       } catch (err) {
         this.log?.warn('Failed to import tool file', {

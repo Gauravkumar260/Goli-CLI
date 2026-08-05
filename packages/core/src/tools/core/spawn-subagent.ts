@@ -149,6 +149,24 @@ async function spawnSubagentHandler(
     throw new ToolExecutionError('spawn_subagent requires a role', 'spawn_subagent');
   }
 
+  // Sandbox-mode check (MEDIUM-15). The previous implementation
+  // allowed spawning subagents in `read-only` mode without
+  // propagating the sandbox mode to the subagent's ToolContext.
+  // A subagent spawned in read-only mode could then call `bash` /
+  // `write_file` and mutate the workspace — bypassing the read-only
+  // restriction the user set. We now refuse to spawn in read-only
+  // mode unless god mode is active (god mode overrides everything).
+  if (ctx.sandboxMode === 'read-only' && !ctx.godMode) {
+    throw new ToolExecutionError(
+      'Cannot spawn subagent in read-only sandbox mode. ' +
+        'Subagents inherit the parent sandbox mode; a read-only subagent ' +
+        'would be unable to do useful work, and a write subagent would ' +
+        'bypass the read-only restriction. Switch to workspace-write or ' +
+        'danger-full-access before spawning.',
+      'spawn_subagent',
+    );
+  }
+
   // The actual spawn is delegated to the ctx callback. This keeps the
   // tool layer decoupled from the agent loop construction.
   if (!ctx.spawnSubagent) {
@@ -158,6 +176,31 @@ async function spawnSubagentHandler(
         'Pass a SubagentSpawner to AgentLoopOptions to enable spawn_subagent.',
       'spawn_subagent',
     );
+  }
+
+  // P1-3 fix (audit Finding CC-2 / 3.35): PRE-EXECUTION approval gate.
+  // spawn_subagent is T2 (spawning agents is risky — they can make
+  // unbounded tool calls in a worktree). In build mode with an
+  // interactive approver wired (TUI), prompt BEFORE delegating to the
+  // spawner. Fail-closed when no approver is wired in headless mode
+  // UNLESS godMode/autoMode — the caller can use --auto or --god.
+  if (ctx.requestApproval && !ctx.godMode && !ctx.autoMode) {
+    const approvalDecision = await ctx.requestApproval({
+      toolCallId: ctx.toolCallId,
+      toolName: 'spawn_subagent',
+      tier: 'T2',
+      description: `spawn ${role} subagent${useWorktree ? ' in worktree' : ' in-process'} — ${prompt.slice(0, 120)}${prompt.length > 120 ? '…' : ''}`,
+      args,
+      timestamp: new Date().toISOString(),
+    });
+    if (!approvalDecision.approved) {
+      return {
+        toolCallId: ctx.toolCallId,
+        ok: false,
+        content: '',
+        error: `spawn_subagent denied by user${approvalDecision.reason ? `: ${approvalDecision.reason}` : ''}.`,
+      };
+    }
   }
 
   // Spec-mode and diff-review don't apply to subagents — they have

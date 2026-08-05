@@ -28,11 +28,15 @@ import { PolicyUpdateDialog } from '../../packages/cli/src/tui/components/Policy
 // ─── calculateIntegrityHash ───────────────────────────────────────────────
 
 describe('T-064: calculateIntegrityHash', () => {
+  // Normalize path separators so the mock virtual FS (forward-slash keys)
+  // matches paths produced by path.join() on Windows (backslashes).
+  const norm = (p: string) => p.replace(/\\/g, '/');
+
   // Helper: build a mock statFn that treats known paths as files or dirs.
   function makeMockStat(dirs: Set<string>, files: Set<string>) {
     return (path: string) => ({
-      isDirectory: () => dirs.has(path),
-      isFile: () => files.has(path),
+      isDirectory: () => dirs.has(norm(path)),
+      isFile: () => files.has(norm(path)),
     });
   }
 
@@ -41,9 +45,9 @@ describe('T-064: calculateIntegrityHash', () => {
       ['/fake/a.toml', 'content-a'],
       ['/fake/b.toml', 'content-b'],
     ]);
-    const readFile = (p: string) => files.get(p) ?? '';
+    const readFile = (p: string) => files.get(norm(p)) ?? '';
     const readDir = (p: string) =>
-      p === '/fake' ? ['a.toml', 'b.toml'] : [];
+      norm(p) === '/fake' ? ['a.toml', 'b.toml'] : [];
     const statFn = makeMockStat(new Set(['/fake']), new Set(['/fake/a.toml', '/fake/b.toml']));
 
     const h1 = calculateIntegrityHash('/fake', readFile, readDir, statFn);
@@ -111,11 +115,12 @@ describe('T-064: calculateIntegrityHash', () => {
       ['/fake/sub/b.toml', 'b'],
       ['/fake/sub/deep/c.toml', 'c'],
     ]);
-    const readFile = (p: string) => files.get(p) ?? '';
+    const readFile = (p: string) => files.get(norm(p)) ?? '';
     const readDir = (p: string) => {
-      if (p === '/fake') return ['a.toml', 'sub'];
-      if (p === '/fake/sub') return ['b.toml', 'deep'];
-      if (p === '/fake/sub/deep') return ['c.toml'];
+      const n = norm(p);
+      if (n === '/fake') return ['a.toml', 'sub'];
+      if (n === '/fake/sub') return ['b.toml', 'deep'];
+      if (n === '/fake/sub/deep') return ['c.toml'];
       return [];
     };
     const statFn = makeMockStat(
@@ -231,7 +236,18 @@ describe('T-064: PolicyIntegrityManager', () => {
     expect(existsSync(storagePath)).toBe(true);
     const content = readFileSync(storagePath, 'utf-8');
     const parsed = JSON.parse(content);
-    expect(parsed['project:/my/project']).toBe(result.hash);
+    // The manager sanitizes the storage key (replaces `/` with `_`,
+    // appends a SHA-256 suffix) so Windows paths with colons can't
+    // collide. We assert that exactly one entry was persisted and it
+    // maps to `result.hash`.
+    const values = Object.values(parsed) as string[];
+    expect(values).toHaveLength(1);
+    expect(values[0]).toBe(result.hash);
+    // The key starts with the sanitized scope ("project:") — verify
+    // at least that much so a future regression to a totally
+    // different key shape is caught.
+    const key = Object.keys(parsed)[0]!;
+    expect(key.startsWith('project:')).toBe(true);
   });
 
   it('checkIntegrity returns NEW for empty policy directory', () => {

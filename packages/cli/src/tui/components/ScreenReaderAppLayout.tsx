@@ -32,6 +32,7 @@ import { Box, Text } from 'ink';
 import { HistoryScroll } from './HistoryScroll.js';
 
 import type { Message } from '../state/types.js';
+import type { AppMode } from '../theme/agents.js';
 
 /** Props for the ScreenReaderAppLayout component. */
 export interface ScreenReaderAppLayoutProps {
@@ -47,8 +48,10 @@ export interface ScreenReaderAppLayoutProps {
   cwd: string;
   /** Token usage info (for the status line). */
   tokenUsage?: { used: number; limit: number };
-  /** The current mode (SAFE / GOD). */
+  /** Legacy RunMode — kept for backward compat. Prefer `appMode`. */
   mode?: 'SAFE' | 'GOD';
+  /** T-MODE: The current permission mode (read-only/plan/build/god). */
+  appMode?: AppMode;
 }
 
 /**
@@ -70,17 +73,20 @@ export function ScreenReaderAppLayout({
   cwd,
   tokenUsage,
   mode = 'SAFE',
+  appMode,
 }: ScreenReaderAppLayoutProps): React.ReactElement {
   const status = isBusy ? `Busy (${agentPhase})` : 'Ready';
   const tokens = tokenUsage
     ? `${tokenUsage.used}/${tokenUsage.limit} tokens`
     : 'tokens: N/A';
+  // T-MODE: prefer the canonical AppMode; fall back to legacy mode.
+  const effectiveAppMode: AppMode = appMode ?? (mode === 'GOD' ? 'god' : 'build');
 
   return (
     <Box flexDirection="column" width="100%">
       {/* Header — plain text, no box, no box-drawing chars */}
       <Text bold>
-        Goli-CLI — {model} — {mode} mode
+        Goli-CLI — {model} — {effectiveAppMode} mode
       </Text>
 
       {/* Status line — announce phase changes as plain text */}

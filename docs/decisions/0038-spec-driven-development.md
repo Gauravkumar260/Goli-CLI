@@ -14,7 +14,7 @@ contract — every task was ad-hoc, with no acceptance criteria, no
 traceable implementation, and no verification against intent.
 
 The TODO list is a planning tool (what the agent will do); a spec is
-a *contract* (what the implementation must satisfy). They are
+a _contract_ (what the implementation must satisfy). They are
 complementary, not alternatives.
 
 ## Decision
@@ -49,7 +49,7 @@ This is enforced by a check in both tool handlers that queries
 
 ### Gating semantics
 
-The gating is intentionally simple: spec-mode requires *at least one*
+The gating is intentionally simple: spec-mode requires _at least one_
 approved spec to exist. It does NOT attempt to map specs to specific
 files (e.g., "this spec governs `src/auth/*`"). Rationale:
 

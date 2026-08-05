@@ -172,8 +172,25 @@ export class CheckpointManager {
     // available for restore() / list() across process restarts.
     this.loadManifest();
 
-    // Run auto-prune on init (this also persists the cleaned manifest)
-    this.prune(workspaceRoot);
+    // Defer prune to avoid blocking startup. The previous
+    // implementation called `this.prune(workspaceRoot)` on every
+    // `init()`. `prune()` calls `git gc --prune=now --quiet` on
+    // the shadow store — on a large store (hundreds of checkpoints,
+    // GBs of objects), `git gc` can take minutes, blocking the
+    // agent's startup. We now defer prune to the next tick so
+    // `init()` returns immediately and the agent loop can start.
+    // The prune runs in the background; if it fails, the old
+    // checkpoints remain (no harm — they'll be pruned on the next
+    // init).
+    setImmediate(() => {
+      try {
+        this.prune(workspaceRoot);
+      } catch (err) {
+        this.log?.warn('Deferred prune failed', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
 
     this.log?.info('Checkpoint manager initialized', {
       workspaceRoot,
@@ -210,12 +227,23 @@ export class CheckpointManager {
       return null;
     }
 
-    this.checkpointThisTurn = true;
+    // NOTE: we set `checkpointThisTurn = true` ONLY after the
+    // shadow checkpoint has actually been created and the manifest
+    // saved. The previous implementation set it BEFORE the try
+    // block, so if `createShadowCheckpoint` threw (disk full, git
+    // error), the catch block returned `null` but
+    // `checkpointThisTurn` remained `true`. Subsequent `checkpoint()`
+    // calls in the same turn returned `null` immediately ("Checkpoint
+    // already created this turn — skipping"). The agent proceeded
+    // with file mutations believing a rollback point existed when
+    // none did.
 
     try {
       const checkpoint = this.createShadowCheckpoint(workspaceRoot, triggeredBy);
       this.checkpoints.push(checkpoint);
       this.saveManifest();
+      // Mark this turn as checkpointed ONLY after success.
+      this.checkpointThisTurn = true;
 
       this.log?.info('Checkpoint created', {
         id: checkpoint.id,
@@ -266,8 +294,26 @@ export class CheckpointManager {
       // Use shadow git to restore the working tree. Pass the SHA as a
       // separate arg (not interpolated into a shell string) to prevent
       // command injection if a checkpoint ID were ever crafted.
+      // We also use `--` to mark end-of-options so a tampered
+      // manifest (commitSha starting with `-`, e.g.
+      // `--upload-pack=evil`) is treated as a tree-ish, not an
+      // option. The previous implementation omitted `--`, so a
+      // local attacker who could write to
+      // ~/.goli-cli/checkpoints/store/manifest.json (which is
+      // JSON.parse'd without validation in `loadManifest`) could
+      // inject git options.
       const env = this.shadowEnv(workspaceRoot);
-      execFileSync('git', ['checkout', '-f', checkpoint.commitSha], {
+      // Validate the commit SHA — must be a 40-char hex string (or
+      // the 7-char short form). Reject anything that starts with `-`.
+      const sha = checkpoint.commitSha;
+      if (!/^[0-9a-f]{7,40}$/i.test(sha)) {
+        this.log?.error('Checkpoint commitSha failed validation — refusing to restore', {
+          checkpointId,
+          commitSha: sha.slice(0, 12) + '…',
+        });
+        return false;
+      }
+      execFileSync('git', ['checkout', '-f', sha, '--'], {
         env: { ...process.env, ...env },
         cwd: workspaceRoot,
         encoding: 'utf-8',
@@ -428,21 +474,64 @@ export class CheckpointManager {
     return join(this.storePath, 'manifest.json');
   }
 
-  /** Load the on-disk checkpoint manifest into the in-memory array. */
+  /** Load the on-disk checkpoint manifest into the in-memory array.
+   *
+   * The previous implementation used `JSON.parse(raw) as Checkpoint[]`
+   * — an unchecked cast. A corrupted or tampered manifest could have
+   * `commitSha: '../../etc/passwd'`, `ref: 'refs/heads/main'`
+   * (deleting the user's branch on next `prune`), or
+   * `workspaceRoot: '/'` (causing `prune` to delete refs for the
+   * wrong workspace). We now validate each checkpoint entry's
+   * fields before accepting it.
+   */
   private loadManifest(): void {
     try {
       if (!existsSync(this.manifestPath)) return;
       const raw = readFileSync(this.manifestPath, 'utf-8');
-      const parsed = JSON.parse(raw) as Checkpoint[];
-      if (Array.isArray(parsed)) {
-        this.checkpoints.length = 0;
-        this.checkpoints.push(...parsed);
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      this.checkpoints.length = 0;
+      for (const entry of parsed) {
+        if (this.validateCheckpointEntry(entry)) {
+          this.checkpoints.push(entry as Checkpoint);
+        } else {
+          this.log?.warn('Skipping invalid checkpoint manifest entry', {
+            entry: JSON.stringify(entry).slice(0, 200),
+          });
+        }
       }
     } catch (err) {
       this.log?.warn('Failed to load checkpoint manifest', {
         error: err instanceof Error ? err.message : String(err),
       });
     }
+  }
+
+  /**
+   * Validate a parsed checkpoint manifest entry. Rejects entries
+   * with missing/wrong-typed fields, suspicious `commitSha` values
+   * (must be 7-40 hex chars — no path traversal), suspicious `ref`
+   * values (must start with `refs/goli/`), or wrong-typed
+   * `workspaceRoot`.
+   */
+  private validateCheckpointEntry(entry: unknown): entry is Checkpoint {
+    if (typeof entry !== 'object' || entry === null) return false;
+    const e = entry as Record<string, unknown>;
+    // Required fields.
+    if (typeof e['id'] !== 'string') return false;
+    if (typeof e['turnNumber'] !== 'number') return false;
+    if (typeof e['triggeredBy'] !== 'string') return false;
+    // commitSha: must be hex (7-40 chars). Reject anything that
+    // looks like a path (contains `/`, `..`, starts with `-`).
+    const sha = e['commitSha'];
+    if (typeof sha !== 'string' || !/^[0-9a-f]{7,40}$/i.test(sha)) return false;
+    // ref: must start with 'refs/goli/' to prevent deleting user
+    // branches like 'refs/heads/main'.
+    const ref = e['ref'];
+    if (typeof ref !== 'string' || !ref.startsWith('refs/goli/')) return false;
+    // workspaceRoot: optional but if present must be a string.
+    if (e['workspaceRoot'] !== undefined && typeof e['workspaceRoot'] !== 'string') return false;
+    return true;
   }
 
   /** Persist the in-memory checkpoint array to disk (atomic write). */

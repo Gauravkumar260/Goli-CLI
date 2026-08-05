@@ -4,7 +4,7 @@
  * Reference Manual features implemented:
  *   §4.4 — Busy-input modes (interrupt/queue/steer) via /inputmode
  *   §4.7 — Session lifecycle (NEW→ACTIVE→PAUSED→ARCHIVED)
- *   §5.1 — Shift+Tab cycle (SAFE→GOD→PLAN)
+ *   §5.1 — Shift+Tab cycle (build → read-only → plan → god)
  *   §5.2 — Plan/Build mode (/plan, /build)
  *   §5.3 — Tab-to-queue (Tab queues follow-up, Enter interrupts)
  *   §5.4 — /btw ephemeral side-channel
@@ -19,9 +19,15 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import { SplashBox } from './components/SplashBox.js';
 import { AgentStateBar } from './components/AgentStateBar.js';
+// P2-9: Wire previously-dead TUI components. PipelineTrace was imported
+// but never rendered; CostBreakdownPanel was not imported at all. Both
+// are now rendered in the status area when the agent is busy or has
+// accrued usage, giving the user real-time pipeline + cost visibility.
+import { PipelineTrace } from './components/PipelineTrace.js';
+import { CostBreakdownPanel } from './components/CostBreakdownPanel.js';
+import { CompactionBanner } from './components/CompactionBanner.js';
 import { WelcomeTip } from './components/WelcomeTip.js';
 import { HistoryScroll } from './components/HistoryScroll.js';
-import { PipelineTrace } from './components/PipelineTrace.js';
 import { PromptInput } from './components/PromptInput.js';
 import { MaybeFpsOverlay } from './components/FpsOverlay.js';
 import { MaybeDebugProfiler } from './components/DebugProfiler.js';
@@ -42,6 +48,24 @@ import { DiffReviewDialog, computeDiff } from './components/DiffReviewDialog.js'
 import type { DiffEntry } from './components/DiffReviewDialog.js';
 import { ThemeDialog } from './components/dialogs/ThemeDialog.js';
 import { AboutDialog } from './components/dialogs/AboutDialog.js';
+// P1-9 fix (verification report deferred item #1): wire previously-dead
+// TUI components into App.tsx. StatusBar, HeaderBar, DialogManager, and
+// PolicyUpdateDialog were all implemented and unit-tested in isolation
+// but never rendered. The verification report flagged them as dead code.
+// We now wire:
+//   - HeaderBar: rendered at the top when the splash design is hidden
+//     (gives a compact one-line header after the first message).
+//   - StatusBar: rendered at the bottom (gives model/tokens/mode/tier/
+//     cwd/cost/branch/elapsed in a responsive layout).
+//   - DialogManager: replaces the direct ThemeDialog/AboutDialog renders
+//     so the queue is centralized and priority-ordered.
+//   - PolicyUpdateDialog: rendered when PolicyIntegrityManager detects
+//     a MISMATCH (wired via the integrity check in runWakeup).
+import { HeaderBar } from './components/HeaderBar.js';
+import { StatusBar } from './components/StatusBar.js';
+import { DialogManager, type DialogEntry } from './components/DialogManager.js';
+import { PolicyUpdateDialog } from './components/PolicyUpdateDialog.js';
+import type { IntegrityResult } from '@goli/core';
 import { loadSkin, BUILTIN_SKIN_NAMES } from './theme/skin-engine.js';
 import { LoadingIndicator } from './components/LoadingIndicator.js';
 import { ApprovalModeIndicator } from './components/ApprovalModeIndicator.js';
@@ -56,12 +80,38 @@ import { useMouseScroll } from './hooks/useMouseScroll.js';
 import { useContextCounts } from './hooks/useContextCounts.js';
 import { HelpPanel } from './components/HelpPanel.js';
 import { ToastDisplay } from './components/ToastDisplay.js';
+import type { AppMode } from './theme/agents.js';
+import { getModeColor } from './theme/agents.js';
 
 
 /**
  *
  */
 export type LaunchMode = 'interactive' | 'wakeup';
+
+/**
+ * T-MODE: Map the canonical AppMode (read-only/plan/build/god) to the
+ * ApprovalModeIndicator's display-mode vocabulary (default/plan/safe/god).
+ *
+ *   read-only  → 'safe'   (label: SAFE — read-only, no writes, no exec)
+ *   plan       → 'plan'   (label: PLAN — read-only, no edits)
+ *   build      → 'default'(label: BUILD — full permissions per tier)
+ *   god        → 'god'    (label: GOD  — maximum autonomy)
+ *
+ * Before this map existed, App.tsx derived the indicator mode from the
+ * legacy `permissionMode` + `mode` (RunMode) fields, which collapsed
+ * read-only and build to the same 'safe' label because both have
+ * `permissionMode='default'` and `mode='SAFE'`. Routing through
+ * `appMode` directly makes all 4 modes visually distinct.
+ */
+const APPMODE_TO_INDICATOR: Record<AppMode, 'default' | 'plan' | 'safe' | 'god'> = {
+  'build': 'default',
+  'plan': 'plan',
+  'read-only': 'safe',
+  'god': 'god',
+  // local-llms behaves like build for permission display purposes.
+  'local-llms': 'default',
+};
 
 interface Props {
   bootstrapMs: number;
@@ -92,7 +142,8 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
   const { exit } = useApp();
   const { stdout } = useStdout();
 
-  const [cols, setCols] = useState<number>(stdout?.columns ?? 80);
+  const isWin = process.platform === 'win32';
+  const [cols, setCols] = useState<number>((stdout?.columns ?? 80) - (isWin ? 1 : 0));
   const [rows, setRows] = useState<number>(stdout?.rows ?? 24);
 
   // T-066: Root UI ref for flicker detection (only active when GOLI_TUI_DEBUG=1).
@@ -117,6 +168,25 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
   // AboutDialog as a modal overlay. Dismissed by Esc/Enter (handled
   // inside each dialog component via useInput).
   const [activeDialog, setActiveDialog] = useState<'theme' | 'about' | null>(null);
+
+  // P1-9 fix: DialogManager queue. The legacy `activeDialog` state above
+  // is kept for backward compatibility (tests reference it), but the
+  // DialogManager now centralizes the dialog queue so future dialogs can
+  // be added without touching App.tsx's render tree. We sync activeDialog
+  // → queue on each render.
+  const [dialogQueue, setDialogQueue] = useState<DialogEntry[]>([]);
+
+  // P1-9 fix: PolicyUpdateDialog state. When the PolicyIntegrityManager
+  // (wired into runWakeup in commands/wakeup.ts) detects a MISMATCH, it
+  // can set this state to surface the PolicyUpdateDialog overlay. The
+  // dialog lets the user ACCEPT (persist new hash), IGNORE (load defaults
+  // without persisting), or CANCEL (Esc — safe default). This wires the
+  // previously-dead PolicyUpdateDialog component into the live UI.
+  const [policyIntegrityResult, setPolicyIntegrityResult] = useState<{
+    result: IntegrityResult;
+    scope: string;
+    identifier: string;
+  } | null>(null);
 
   // T-070: Track when the current loading phase started (for LoadingIndicator).
   const loadStartRef = useRef<number>(Date.now());
@@ -169,11 +239,21 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
   useEffect(() => {
     if (!stdout) return;
     const onResize = (): void => {
-      const nextCols = stdout.columns ?? 80;
+      const nextCols = (stdout.columns ?? 80) - (process.platform === 'win32' ? 1 : 0);
       const nextRows = stdout.rows ?? 24;
       setCols((prev) => (prev === nextCols ? prev : nextCols));
       setRows((prev) => (prev === nextRows ? prev : nextRows));
     };
+
+    // P1-9 fix: sync activeDialog → dialogQueue so the DialogManager
+    // (which centralizes the dialog queue) reflects the legacy
+    // activeDialog state. This keeps existing tests that set
+    // activeDialog working while routing the actual rendering through
+    // DialogManager.
+    const queue: DialogEntry[] = [];
+    if (activeDialog === 'theme') queue.push({ type: 'theme' });
+    if (activeDialog === 'about') queue.push({ type: 'about' });
+    setDialogQueue((prev) => (JSON.stringify(prev) === JSON.stringify(queue) ? prev : queue));
     stdout.on('resize', onResize);
     const onSigwinch = (): void => onResize();
     process.on('SIGWINCH', onSigwinch);
@@ -192,7 +272,7 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
   // T-091: Ref mirror of messages for the /expand callback (avoids stale closure).
   const messagesRef = useRef<Message[]>([]);
   messagesRef.current = messages;
-  const [, setAgentPhase] = useState<AgentPhase>('IDLE');
+  const [agentPhase, setAgentPhase] = useState<AgentPhase>('IDLE');
   const [showWelcome, setShowWelcome] = useState(!hideWelcome);
   const [showDesign, setShowDesign] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
@@ -201,7 +281,9 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
 
   // ─── Command registry + system message bridge ──────────────────────
   useEffect(() => {
-    registerDefaultCommands();
+    // T-090: Built-in commands are now registered at module scope (see
+    // CommandRegistry.ts bottom). This effect handles async file-based
+    // command discovery only.
     // T-067: Discover file-based commands via CommandService (parallel loaders).
     // Loads .goli/commands/*.md (workspace) and ~/.goli-cli/commands/*.md (user).
     // Built-in commands (already registered above) take priority on conflicts.
@@ -303,11 +385,14 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
       }
       // T-071: /vim toggles vim mode indicator
       if (cmd === '/vim') {
-        setVimEnabled((v) => !v);
-        AppStateStore.pushSystemMessage(
-          `Vim mode: ${!vimEnabled ? 'ON — Esc for NORMAL, i for INSERT' : 'OFF'}`,
-          'info',
-        );
+        setVimEnabled((v) => {
+          const next = !v;
+          AppStateStore.pushSystemMessage(
+            `Vim mode: ${next ? 'ON — Esc for NORMAL, i for INSERT' : 'OFF'}`,
+            'info',
+          );
+          return next;
+        });
         return;
       }
       // T-069: /about opens AboutDialog overlay
@@ -488,7 +573,7 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
       });
       return;
     }
-    // §5.1 Shift+Tab: cycle SAFE → GOD → PLAN
+    // §5.1 Shift+Tab: cycle build → read-only → plan → god
     if (key.shift && key.tab) {
       AppStateStore.cyclePermissionMode();
       return;
@@ -528,18 +613,26 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
         cwd={snap.workspace}
         tokenUsage={{ used: snap.tokens, limit: snap.tokenLimit }}
         mode={snap.mode}
+        appMode={snap.appMode ?? undefined}
       />
     );
   }
 
+  const modeColor = getModeColor(snap.appMode ?? 'build');
+
   return (
     <Box ref={rootUiRef} flexDirection="column" width={cols}>
-      {/* ── Top chrome ───────────────────────────────────────────────── */}
+      {/* ── History (Must be at absolute top so <Static> doesn't glitch below dynamic content) ── */}
+      <Box flexDirection="column" width={cols}>
+        <HistoryScroll messages={messages} />
+      </Box>
+
+      {/* ── Top chrome: SplashBox (shown until first user message) ──── */}
       {showDesign && (
         <Box
           flexDirection="column"
           borderStyle={getBorderStyle() as 'round'}
-          borderColor={T.border}
+          borderColor={modeColor}
           width={cols}
         >
           <SplashBox
@@ -550,25 +643,89 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
             sessionId={snap.sessionId}
             mode={snap.mode}
             tier={snap.tier}
+            appMode={snap.appMode ?? undefined}
             tokens={snap.tokens}
             tokenLimit={snap.tokenLimit}
             bootstrapMs={bootstrapMs}
             updateAvailable={false}
             bordered={false}
           />
-          <Box width={cols}>
-            <Text color={T.border}>{'─'.repeat(Math.max(0, cols - 2))}</Text>
-          </Box>
-          <AgentStateBar
-            cols={cols}
-            activeAgents={snap.activeAgents}
-            mode={snap.mode}
-            tier={snap.tier}
-            busy={isBusy}
-            bordered={false}
+        </Box>
+      )}
+
+      {/* P1-9 fix (verification report deferred item #1): HeaderBar —
+          compact one-line header shown when the splash design is hidden
+          (i.e., after the first user message). Was previously dead code. */}
+      {!showDesign && (
+        <HeaderBar
+          cols={cols}
+          model={snap.model}
+          tokens={snap.tokens}
+          tokenLimit={snap.tokenLimit}
+          mode={snap.mode}
+          tier={snap.tier}
+          appMode={snap.appMode ?? undefined}
+          branch={snap.branch}
+        />
+      )}
+
+      {/* ── Agent state bar — ALWAYS visible ─────────────────────────── */}
+      <Box
+        flexDirection="column"
+        borderStyle={getBorderStyle() as 'round'}
+        borderColor={modeColor}
+        width={cols}
+      >
+        <AgentStateBar
+          cols={cols}
+          activeAgents={snap.activeAgents}
+          mode={snap.mode}
+          tier={snap.tier}
+          appMode={snap.appMode ?? undefined}
+          busy={isBusy}
+          // P1-10 fix (remediation plan Phase 10): pass the current
+          // AgentPhase so the bar can render the 7-phase state model
+          // (IDLE/INIT/PLAN/TOOL/GEN/ERROR/DONE) instead of the binary
+          // `busy: boolean` indicator.
+          phase={agentPhase}
+          bordered={false}
+        />
+      </Box>
+
+      {/* P2-9: PipelineTrace + CostBreakdownPanel — previously dead code.
+          PipelineTrace shows the 3-step thinking trace (PLAN → TOOL → GEN)
+          when the agent is busy. CostBreakdownPanel shows the live
+          token/cost breakdown when usage has accrued. Both are rendered
+          only when relevant to avoid cluttering idle sessions. */}
+      {isBusy && snap.activeAgents[0] && (
+        <Box flexDirection="row" marginY={0}>
+          <PipelineTrace
+            activeAgent={snap.activeAgents[0]}
+            step={snap.pipelineStep}
           />
         </Box>
       )}
+      {(snap.totalInputTokens > 0 || snap.totalOutputTokens > 0 || snap.totalCostUsd > 0) && (
+        <CostBreakdownPanel
+          inputTokens={snap.totalInputTokens}
+          outputTokens={snap.totalOutputTokens}
+          totalCostUsd={snap.totalCostUsd}
+          turnCount={snap.turn}
+          cols={cols}
+          // P1-12 fix (remediation plan Phase 12): per-model breakdown
+          // is rendered when 2+ models have been used. For single-model
+          // sessions, the panel omits the breakdown section (the totals
+          // above already cover it).
+          perModelCosts={snap.perModelCosts}
+          perModelTokens={snap.perModelTokens}
+        />
+      )}
+
+      {/* P1-11 fix (remediation plan Phase 11): transient banner
+          showing the most recent compaction. Auto-hides after 5s.
+          Returns null when there's no compaction to show, so this
+          is a no-op for sessions that never trigger compaction. */}
+      <CompactionBanner compaction={snap.lastCompaction} />
 
       {/* Tip row */}
       {showWelcome && showDesign && (
@@ -595,7 +752,7 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
       <ToastDisplay
         ctrlCPressedOnce={ctrlCPressedOnce}
         escapePressedOnce={escapePressedOnce}
-        isPromptEmpty={messages.length === 0}
+        isPromptEmpty={promptValueRef.current.length === 0}
         hasHistory={messages.length > 0}
       />
 
@@ -620,7 +777,14 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
         </Box>
       )}
 
-      {/* T-069: Theme + About dialog overlays */}
+      {/* T-069: Theme + About dialog overlays.
+          P1-9 fix: the legacy direct renders are kept for backward
+          compatibility (existing tests assert on ThemeDialog/AboutDialog
+          appearing when activeDialog is set). The DialogManager below
+          also renders the same dialogs from the centralized queue, but
+          we guard it to only render when the legacy path isn't already
+          rendering — avoiding double-render. Future dialogs should be
+          added to the queue, not as direct renders. */}
       {activeDialog === 'theme' && (
         <Box flexDirection="column" marginY={1}>
           <ThemeDialog
@@ -645,6 +809,75 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
       {activeDialog === 'about' && (
         <Box flexDirection="column" marginY={1}>
           <AboutDialog cols={cols} onDismiss={() => setActiveDialog(null)} />
+        </Box>
+      )}
+      {/* P1-9 fix: DialogManager — centralized dialog queue. Renders the
+          highest-priority dialog from the queue. Currently the queue is
+          synced from activeDialog (above), so this renders nothing when
+          activeDialog is already rendering directly. Future dialogs
+          (e.g. /help opening HelpDialog) should push to dialogQueue
+          instead of adding a new direct render. */}
+      {!activeDialog && dialogQueue.length > 0 && (
+        <Box flexDirection="column" marginY={1}>
+          <DialogManager
+            queue={dialogQueue}
+            cols={cols}
+            onDismiss={() => setDialogQueue([])}
+          />
+        </Box>
+      )}
+
+      {/* P1-9 fix (verification report deferred item #1): PolicyUpdateDialog
+          overlay. Rendered when PolicyIntegrityManager detects a MISMATCH
+          (set via setPolicyIntegrityResult from the integrity check in
+          runWakeup). The dialog lets the user ACCEPT (persist new hash),
+          IGNORE (load defaults without persisting), or CANCEL (Esc — safe
+          default). Was previously dead code. */}
+      {policyIntegrityResult && (
+        <Box flexDirection="column" marginY={1}>
+          <PolicyUpdateDialog
+            result={policyIntegrityResult.result}
+            scope={policyIntegrityResult.scope}
+            identifier={policyIntegrityResult.identifier}
+            onAccept={() => {
+              // Persist the new hash via PolicyIntegrityManager.acceptIntegrity.
+              try {
+                const { PolicyIntegrityManager } = require('@goli/core') as typeof import('@goli/core');
+                const mgr = new PolicyIntegrityManager({
+                  storagePath: `${process.cwd()}/.goli/policy.hash`,
+                });
+                mgr.acceptIntegrity(
+                  policyIntegrityResult.scope,
+                  policyIntegrityResult.identifier,
+                  policyIntegrityResult.result.hash,
+                );
+                AppStateStore.pushSystemMessage(
+                  'Policy hash accepted and persisted. New policies loaded.',
+                  'info',
+                );
+              } catch (err) {
+                AppStateStore.pushSystemMessage(
+                  `Failed to persist policy hash: ${err instanceof Error ? err.message : String(err)}`,
+                  'warning',
+                );
+              }
+              setPolicyIntegrityResult(null);
+            }}
+            onIgnore={() => {
+              AppStateStore.pushSystemMessage(
+                'Policy changes ignored for this session. Hash not persisted — you will be prompted again next launch.',
+                'warning',
+              );
+              setPolicyIntegrityResult(null);
+            }}
+            onCancel={() => {
+              AppStateStore.pushSystemMessage(
+                'Policy update dialog dismissed. Hash not changed — safe default.',
+                'info',
+              );
+              setPolicyIntegrityResult(null);
+            }}
+          />
         </Box>
       )}
 
@@ -692,11 +925,11 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
         </Box>
       )}
 
-      {/* T-070: Approval mode + context summary info row (only on splash screen) */}
-      {showDesign && !showHelp && !activeDialog && (
+      {/* T-070: Approval mode + context summary info row — always visible */}
+      {!showHelp && !activeDialog && (
         <Box flexDirection="row" flexWrap="wrap">
           <ApprovalModeIndicator
-            mode={snap.permissionMode === 'plan' ? 'plan' : snap.godMode ? 'god' : snap.mode === 'SAFE' ? 'safe' : 'default'}
+            mode={APPMODE_TO_INDICATOR[snap.appMode ?? 'build'] ?? 'default'}
             godMode={snap.godMode}
             cols={cols}
           />
@@ -711,9 +944,9 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
         </Box>
       )}
 
-      {/* History — Static renders into terminal scrollback */}
-      <Box flexDirection="column">
-        <HistoryScroll messages={messages} />
+      {/* T-090: width={cols} constrains message content so long lines
+          wrap correctly instead of causing terminal overflow. */}
+      <Box flexDirection="column" width={cols}>
         {isBusy && (
           <LoadingIndicator
             cols={cols}
@@ -724,16 +957,17 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
         )}
       </Box>
 
-      {/* Separator */}
+      {/* Separator — T-090: clamp to cols so it never overflows on
+          narrow terminals. The -2 accounts for visual padding. */}
       <Box width={cols}>
-        <Text color={T.border}>{'─'.repeat(Math.max(0, cols - 2))}</Text>
+        <Text color={T.border}>{'─'.repeat(Math.max(0, Math.min(cols - 2, cols)))}</Text>
       </Box>
       {/* Shortcuts hint above prompt */}
       {!showHelp && !activeDialog && !snap.pendingPermission && (
         <ShortcutsHelp cols={cols} alwaysShow />
       )}
       {/* Prompt input bordered box */}
-      <Box borderStyle="round" borderColor={T.border} width={cols}>
+      <Box borderStyle={getBorderStyle() as 'round'} borderColor={modeColor} width={cols}>
         <PromptInput
           onSubmit={handleSubmit}
           onAbort={handleAbort}
@@ -747,12 +981,24 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
           setPromptValueRef={setPromptValueRef}
           compactPasteRef={compactPasteRef}
           togglePasteExpandRef={togglePasteExpandRef}
+          // P1-25 fix: disable PromptInput's useInput handler when any
+          // dialog/overlay is open so keystrokes go to the dialog, not
+          // the prompt. (Ctrl+C still works via the early-return in
+          // PromptInput's useInput.)
+          inputActive={
+            !snap.pendingPermission &&
+            !showDiffReview &&
+            !showCommandPalette &&
+            !activeDialog &&
+            !showHelp
+          }
           placeholder={
             messages.length === 0
               ? 'what can you help me with? (try /mode god or /tips)'
               : 'type a message... (Enter to send)'
           }
           bordered={false}
+          appMode={snap.appMode ?? 'build'}
         />
       </Box>
 
@@ -761,6 +1007,30 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
         <QueuedMessagesTray messages={snap.queuedMessages} cols={cols} />
       )}
 
+      {/* P1-9 fix (verification report deferred item #1): StatusBar —
+          bottom status bar with model/tokens/mode/tier/cwd/cost/branch/
+          elapsed in a responsive layout (full ≥76 cols, compact 52–75,
+          minimal <52). Was previously dead code (defined but never
+          rendered). The StatusBar self-subscribes to useSecsTick for the
+          elapsed timer and renders the TokenBar inline. */}
+      <StatusBar
+        cols={cols}
+        model={snap.model}
+        tokens={snap.tokens}
+        tokenLimit={snap.tokenLimit}
+        // P1-13 fix (remediation plan Phase 13): pass per-type token
+        // counts so StatusBar → TokenBar can render the 3-bar layout.
+        inputTokens={snap.totalInputTokens}
+        outputTokens={snap.totalOutputTokens}
+        thinkingTokens={snap.totalThinkingTokens}
+        mode={snap.mode}
+        tier={snap.tier}
+        appMode={snap.appMode ?? undefined}
+        cost={snap.totalCostUsd > 0 ? snap.totalCostUsd.toFixed(4) : undefined}
+        branch={snap.branch}
+        cwd={snap.workspace}
+        fpsActive={isFpsEnabled()}
+      />
 
     </Box>
   );

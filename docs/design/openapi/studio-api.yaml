@@ -1,0 +1,432 @@
+openapi: 3.1.0
+info:
+  title: Goli Studio HTTP API
+  version: 0.1.0
+  description: |
+    The REST API surface of Goli Studio (the Next.js 16 web console for
+    Goli-CLI). The Studio also exposes a socket.io endpoint at
+    `/?XTransformPort=3003` for streaming agent events; see
+    `docs/design/socket-protocol.md` for the socket protocol contract.
+
+    The REST API covers **session management**, **workspace introspection**,
+    and **AGENTS.md retrieval**. The **agent loop itself** runs over
+    socket.io (not HTTP) because long-running agent turns don't fit
+    HTTP's request/response model.
+
+    ## Authentication
+    The v0.1 release is **single-user / local**. There is no auth on
+    the API; the Studio is intended to be behind a reverse proxy (Caddy
+    / nginx) with auth at the edge. Multi-user auth (NextAuth.js v4 +
+    Prisma `User` model) is scaffolded but not enforced; see
+    `packages/studio/prisma/schema.prisma`.
+
+    ## Versioning
+    The API is versioned via the URL prefix (`/api/v1/...` planned for
+    v0.2). The current endpoints are unversioned (`/api/...`) and
+    subject to change before v0.2.
+
+  license:
+    name: MIT
+    url: https://opensource.org/license/mit/
+  contact:
+    name: Goli-CLI Contributors
+    url: https://github.com/goli-cli/goli-cli/issues
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://studio.goli-cli.dev
+    description: Hosted (planned)
+
+tags:
+  - name: Sessions
+    description: List, create, retrieve, and export agent sessions.
+  - name: Workspace
+    description: Inspect the workspace directory the agent operates on.
+  - name: AGENTS.md
+    description: Retrieve the AGENTS.md file the agent loads at startup.
+
+paths:
+  /api:
+    get:
+      tags: [Sessions]
+      summary: API health check
+      description: Returns a small JSON object identifying the API.
+      operationId: getApiRoot
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: goli-studio-api
+                  version:
+                    type: string
+                    example: 0.1.0
+                  status:
+                    type: string
+                    example: ok
+
+  /api/sessions:
+    get:
+      tags: [Sessions]
+      summary: List all sessions
+      description: Returns a list of all sessions, most-recent first.
+      operationId: listSessions
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of sessions to return.
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+        - name: cursor
+          in: query
+          description: Pagination cursor (the `id` of the last session in the previous page).
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SessionSummary'
+                  nextCursor:
+                    type: string
+                    nullable: true
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Sessions]
+      summary: Create a new session
+      description: Creates a new session with an optional title.
+      operationId: createSession
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Optional human-readable title for the session.
+                  maxLength: 200
+                workspaceDir:
+                  type: string
+                  description: Optional workspace directory override. Defaults to the configured SANDBOX_ROOT.
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/sessions/{id}:
+    get:
+      tags: [Sessions]
+      summary: Retrieve a session by ID
+      description: Returns the full session including all messages.
+      operationId: getSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Sessions]
+      summary: Delete a session
+      description: Permanently deletes a session and all its messages.
+      operationId: deleteSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '204':
+          description: No Content
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/sessions/{id}/export:
+    get:
+      tags: [Sessions]
+      summary: Export a session
+      description: |
+        Exports a session in the requested format. Supported formats:
+        - `jsonl` — one JSON object per line (compatible with the CLI's session format).
+        - `json` — a single JSON object with all messages.
+        - `markdown` — a human-readable Markdown transcript.
+      operationId: exportSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [jsonl, json, markdown]
+            default: jsonl
+      responses:
+        '200':
+          description: OK
+          content:
+            application/x-jsonlines:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+            text/markdown:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/workspace:
+    get:
+      tags: [Workspace]
+      summary: Get workspace info
+      description: Returns the workspace directory and basic stats.
+      operationId: getWorkspace
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workspaceDir:
+                    type: string
+                    example: /home/z/my-project/workspace
+                  fileCount:
+                    type: integer
+                    example: 1234
+                  totalSizeBytes:
+                    type: integer
+                    example: 5678901
+
+  /api/workspace/files:
+    get:
+      tags: [Workspace]
+      summary: List files in the workspace
+      description: Returns a list of files in the workspace, optionally filtered by glob.
+      operationId: listWorkspaceFiles
+      parameters:
+        - name: glob
+          in: query
+          description: Glob pattern to filter files (e.g. `src/**/*.ts`).
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        path:
+                          type: string
+                          example: src/lib/agent/loop.ts
+                        size:
+                          type: integer
+                          example: 12345
+                        modifiedAt:
+                          type: string
+                          format: date-time
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/agents-md:
+    get:
+      tags: [AGENTS.md]
+      summary: Get the AGENTS.md content
+      description: |
+        Returns the parsed AGENTS.md file from the workspace root. The
+        agent loads this file at startup and injects it into the system
+        prompt. See `docs/ai-agent/agents-md-spec.md` for the file format.
+      operationId: getAgentsMd
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+                    description: The raw Markdown content of AGENTS.md.
+                  sha256:
+                    type: string
+                    description: SHA-256 hash of the content (for integrity checking).
+                    example: 4f8c2b1e...
+                  sections:
+                    type: array
+                    description: Parsed section headings.
+                    items:
+                      type: object
+                      properties:
+                        level:
+                          type: integer
+                          example: 2
+                        title:
+                          type: string
+                          example: Gotchas
+                        lineStart:
+                          type: integer
+                          example: 42
+        '404':
+          description: No AGENTS.md found in the workspace.
+
+components:
+  parameters:
+    SessionId:
+      name: id
+      in: path
+      required: true
+      description: The session ID (UUID v4).
+      schema:
+        type: string
+        format: uuid
+      example: 550e8400-e29b-41d4-a716-446655440000
+
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Forbidden (path is outside the workspace)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: NOT_FOUND
+        message:
+          type: string
+          example: Session 550e8400-... was not found.
+
+    SessionSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        messageCount:
+          type: integer
+        lastTurn:
+          type: integer
+          description: The turn number of the last message.
+        workspaceDir:
+          type: string
+
+    Session:
+      allOf:
+        - $ref: '#/components/schemas/SessionSummary'
+        - type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/Message'
+
+    Message:
+      type: object
+      required: [id, role, content, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant, tool, system]
+        content:
+          type: string
+          description: The message text (or JSON for tool messages).
+        toolCallId:
+          type: string
+          nullable: true
+          description: Set when role=tool; the ID of the tool call this is a result of.
+        toolName:
+          type: string
+          nullable: true
+          description: Set when role=tool; the name of the tool that was called.
+        toolInput:
+          type: object
+          nullable: true
+          description: Set when role=assistant and a tool call was made.
+        toolResult:
+          type: object
+          nullable: true
+          description: Set when role=tool; the result of the tool call.
+          properties:
+            ok:
+              type: boolean
+            content:
+              type: string
+            isError:
+              type: boolean
+        turn:
+          type: integer
+          description: The turn number this message belongs to.
+        createdAt:
+          type: string
+          format: date-time

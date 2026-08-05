@@ -79,8 +79,15 @@ export class StallDetector {
   private signature(toolCall: ToolCall): string {
     // If parsing failed, use the raw arguments string so that two malformed
     // calls with different content don't collide on `name:{}`.
+    // Normalize whitespace so that semantically identical calls
+    // with different formatting (e.g., `{"a":1}` vs `{"a": 1}`)
+    // produce the same signature. The previous implementation
+    // used the raw string verbatim — two semantically identical
+    // calls with different JSON formatting would produce different
+    // signatures, missing the stall.
     if (toolCall.parseError || !toolCall.argumentsParsed) {
-      return `${toolCall.name}:RAW:${toolCall.arguments}`;
+      const normalized = toolCall.arguments.replace(/\s+/g, ' ').trim();
+      return `${toolCall.name}:RAW:${normalized}`;
     }
     const sorted = sortObjectKeys(toolCall.argumentsParsed);
     return `${toolCall.name}:${JSON.stringify(sorted)}`;

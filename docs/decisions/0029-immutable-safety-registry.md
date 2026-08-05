@@ -44,12 +44,14 @@ Phase 13+: filesystem enforcement (chmod 444, chattr +i, read-only mounts).
 ## Consequences
 
 **Positive:**
+
 - The agent physically cannot modify its own safety guardrails.
 - SICA cannot disable the sandbox, remove hooks, weaken approval, or
   delete audit logging.
 - The registry is extensible (custom paths can be added).
 
 **Negative:**
+
 - Some legitimate improvements to safety code require manual update
   (bypassing SICA). This is intentional — safety code should be
   human-reviewed.

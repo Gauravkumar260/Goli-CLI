@@ -201,6 +201,22 @@ export class WorktreeIsolation {
       return false;
     }
 
+    // Remember the branch the user had checked out BEFORE we did
+    // `git checkout targetBranch` so we can restore it on merge
+    // failure (or success — don't surprise the user by switching
+    // their working branch).
+    let originalBranch: string | undefined;
+    try {
+      originalBranch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+        cwd: this.workspaceRoot,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+    } catch {
+      // Detached HEAD or other — leave originalBranch undefined.
+    }
+
+    let mergeSucceeded = false;
     try {
       // Check out the target branch in the main workspace so the merge
       // lands on the intended branch (not whatever was checked out before).
@@ -219,6 +235,7 @@ export class WorktreeIsolation {
         stdio: ['pipe', 'pipe', 'pipe'],
         timeout: 15_000,
       });
+      mergeSucceeded = true;
 
       // Delete the merged branch.
       execFileSync('git', ['branch', '-d', worktree.branch], {
@@ -229,14 +246,50 @@ export class WorktreeIsolation {
       });
 
       this.log?.info('Worktree merged', { subagentId, branch: worktree.branch, target: targetBranch });
-      return true;
     } catch (err) {
-      this.log?.error('Worktree merge failed', {
+      this.log?.error('Worktree merge failed — preserving branch + worktree for manual recovery', {
         subagentId,
+        branch: worktree.branch,
+        target: targetBranch,
         error: err instanceof Error ? err.message : String(err),
       });
-      return false;
+      // If the merge started but conflicted, abort it so the user's
+      // working tree is not left in a conflicted state.
+      if (mergeSucceeded === false) {
+        try {
+          execFileSync('git', ['merge', '--abort'], {
+            cwd: this.workspaceRoot,
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+            timeout: 5_000,
+          });
+        } catch {
+          // No merge in progress — ignore.
+        }
+      }
+      // DO NOT delete the branch — the conflicting work is still
+      // in `worktree.branch` and may be recoverable. The caller
+      // (swarm-pipeline.ts) sees the `false` return and preserves
+      // the worktree (we already updated the call site in the
+      // CRITICAL pass).
+    } finally {
+      // Restore the original branch so we don't surprise the user
+      // by switching their working branch (we did `git checkout
+      // targetBranch` above).
+      if (originalBranch && originalBranch !== 'HEAD' && originalBranch !== targetBranch) {
+        try {
+          execFileSync('git', ['checkout', originalBranch], {
+            cwd: this.workspaceRoot,
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+            timeout: 5_000,
+          });
+        } catch {
+          // Best-effort.
+        }
+      }
     }
+    return mergeSucceeded;
   }
 
   /** Get all active worktrees. */

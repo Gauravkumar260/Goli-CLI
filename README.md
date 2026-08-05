@@ -7,9 +7,10 @@
 [![TypeScript: 5.7+](https://img.shields.io/badge/TypeScript-%E2%89%A55.7-blue)](package.json)
 [![Phase: 2](https://img.shields.io/badge/Phase-2%20Agent%20Loop-blue)](PLAN.md)
 [![Tests: 3053](https://img.shields.io/badge/tests-3053%20passing-brightgreen)](tests/)
-[![Version: 0.2.0-phase2](https://img.shields.io/badge/version-0.2.0--phase2-blueviolet)](package.json)
+[![Version: 0.3.0-phase2-studio](https://img.shields.io/badge/version-0.3.0--phase2--studio-blueviolet)](package.json)
+[![Studio: experimental](https://img.shields.io/badge/studio-experimental-orange)](packages/studio/README.md)
 
-> **Documentation:** [CHANGELOG.md](CHANGELOG.md) · [API Reference](docs/api/_generated/index.html) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Agent Guide](AGENTS.md) · [MCP Extensions](docs/extensions/mcp.md)
+> **Documentation:** [CHANGELOG.md](CHANGELOG.md) · [API Reference](docs/api/_generated/index.html) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Agent Guide](AGENTS.md) · [MCP Extensions](docs/extensions/mcp.md) · [Goli Studio](packages/studio/README.md) · [Docs Index](docs/README.md)
 
 GOLI-CLI is an enterprise-grade AI coding agent — a CLI/TUI autonomous
 coding assistant — with a pluggable multi-provider model layer. The
@@ -29,12 +30,14 @@ It implements a 7-module architecture across 13 implementation phases:
 
 ---
 
-## Current Status: Phase 2 (Agent Loop + TUI) ✅
+## Current Status: Phase 2 + (Shipped) ✅ — Phases 3–7 + 8–13 substantially landed
 
 Phase 2 delivers a runnable agent loop, a pluggable provider system, and
-a mature TUI polished across **35+ iterations** with **3053 tests
-passing** and **0 regressions**. See [PLAN.md](PLAN.md) for the full
-13-phase breakdown.
+a mature TUI polished across **35+ iterations** with **3,053 tests
+passing** and **0 regressions**. Phases 3–7 are also fully shipped (TUI,
+tools, sandbox, MCP+hooks, context engine). Phases 8–13 are substantially
+complete (memory, SICA, evals, orchestration) — see
+[docs/phases/README.md](docs/phases/README.md) for per-phase status.
 
 ### Provider System
 
@@ -44,13 +47,13 @@ abstracts LLM access behind a single `ModelProvider` interface. The
 runtime selects the backend from the `GOLI_DEFAULT_MODEL` env var (set
 in `.env`):
 
-| Provider  | Spec prefix  | Default model                  | Notes                                        |
-| --------- | ------------ | ------------------------------ | -------------------------------------------- |
-| Ollama    | `ollama/`    | `ollama/gpt-oss:120b` (default)| Ollama Cloud; open-weight                    |
-| OpenAI    | `openai/`    | `openai/gpt-4o`                | Requires `OPENAI_API_KEY`                    |
-| Anthropic | `anthropic/` | `anthropic/claude-3-5-sonnet`  | Requires `ANTHROPIC_API_KEY`                 |
-| Gemini    | `gemini/`    | `gemini/gemini-1.5-pro`        | Requires `GEMINI_API_KEY`                    |
-| Mock      | `mock/`      | `mock/echo`                    | Deterministic; used by `--demo` mode & tests |
+| Provider  | Spec prefix  | Default model                   | Notes                                        |
+| --------- | ------------ | ------------------------------- | -------------------------------------------- |
+| Ollama    | `ollama/`    | `ollama/gpt-oss:120b` (default) | Ollama Cloud; open-weight                    |
+| OpenAI    | `openai/`    | `openai/gpt-4o`                 | Requires `OPENAI_API_KEY`                    |
+| Anthropic | `anthropic/` | `anthropic/claude-3-5-sonnet`   | Requires `ANTHROPIC_API_KEY`                 |
+| Gemini    | `gemini/`    | `gemini/gemini-1.5-pro`         | Requires `GEMINI_API_KEY`                    |
+| Mock      | `mock/`      | `mock/echo`                     | Deterministic; used by `--demo` mode & tests |
 
 A `.env` file with the Ollama Cloud config is shipped in the repo root —
 no external `dotenv` dependency is required (the loader reads `.env`
@@ -175,22 +178,53 @@ npm run verify
 
 ## Documentation
 
-| Document                           | What's in it                                     |
-| ---------------------------------- | ------------------------------------------------ |
-| [PLAN.md](PLAN.md)                 | 13-phase implementation plan with steps          |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | High-level architecture + module map             |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Coding standards, PR process, AI-assist policy   |
-| [SECURITY.md](SECURITY.md)         | Threat model, vuln disclosure, incident response |
-| [docs/decisions/](docs/decisions/) | Architectural Decision Records (ADRs)            |
-| [docs/phases/](docs/phases/)       | Per-phase detailed step lists                    |
-| [docs/modules/](docs/modules/)     | Per-module deep dives (added as each lands)      |
-| [docs/extensions/mcp.md](docs/extensions/mcp.md) | MCP extension API + hello-world example (A8) |
-| [docs/architecture.md](docs/architecture.md) | High-level architecture + 11-agent pipeline map |
-| [docs/getting-started.md](docs/getting-started.md) | 5-minute tutorial |
-| [docs/agents.md](docs/agents.md) | Per-agent reference (Scout → Documenter) |
-| [docs/tui/architecture.md](docs/tui/architecture.md) | TUI component tree + state model |
-| [docs/cli/themes.md](docs/cli/themes.md) | Theme catalog (20 built-in + user YAML skins) |
-| [docs/coverage-report.md](docs/coverage-report.md) | Test coverage report + gap analysis |
+| Document                                               | What's in it                                          |
+| ------------------------------------------------------ | ----------------------------------------------------- |
+| [docs/architecture.md](docs/architecture.md)           | High-level architecture + 8-agent pipeline map        |
+| [docs/agents.md](docs/agents.md)                       | Per-agent reference (Scout → Documenter)              |
+| [docs/getting-started.md](docs/getting-started.md)     | 5-minute tutorial                                     |
+| [docs/tui/architecture.md](docs/tui/architecture.md)   | TUI component tree + state model                      |
+| [docs/cli/themes.md](docs/cli/themes.md)               | Theme catalog (20 built-in + user YAML skins)         |
+| [docs/extensions/mcp.md](docs/extensions/mcp.md)       | MCP extension API + hello-world example (A8)          |
+| [docs/api/README.md](docs/api/README.md)               | API reference for @goli/core, @goli/cli, @goli/evals  |
+| [docs/phases/README.md](docs/phases/README.md)         | 13-phase implementation roadmap + status              |
+| [docs/decisions/](docs/decisions/)                     | 45 Architectural Decision Records (ADRs)              |
+| [docs/coverage-report.md](docs/coverage-report.md)     | Test coverage report + gap analysis                   |
+| [docs/a11y-report.md](docs/a11y-report.md)             | Accessibility audit (color contrast)                  |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                     | Coding standards, PR process, AI-assist policy        |
+| [SECURITY.md](SECURITY.md)                             | Threat model, vuln disclosure, incident response      |
+| [CHANGELOG.md](CHANGELOG.md)                           | Per-version change log (Keep-a-Changelog format)      |
+| [AGENTS.md](AGENTS.md)                                 | Living patterns & gotchas doc for the codebase        |
+| [legal/TERMS_OF_SERVICE.md](legal/TERMS_OF_SERVICE.md) | ToS (open-weight routing, liability)                  |
+| [legal/PRIVACY_POLICY.md](legal/PRIVACY_POLICY.md)     | Privacy policy (GDPR + EU AI Act)                     |
+| [docs/README.md](docs/README.md)                       | Documentation master index (17 categories / 39 items) |
+| [packages/studio/README.md](packages/studio/README.md) | **Goli Studio** — optional Next.js 16 web console     |
+| [docs/studio-worklog.md](docs/studio-worklog.md)       | Goli Studio build log + handover notes                |
+
+---
+
+## Goli Studio (optional web console)
+
+Goli Studio is a browser-based companion surface for the Goli-CLI agent —
+a Next.js 16 + React 19 + Tailwind 4 + shadcn/ui web app that drives a
+server-side ReAct loop over `z-ai-web-dev-sdk`. It is **experimental** and
+**opt-in**: the CLI remains the canonical, fully-featured surface. The
+studio exists for users who want a browser UI (remote sessions, richer
+Markdown rendering, sharable URLs) and as a second implementation of the
+agent contract to keep it surface-agnostic.
+
+```bash
+# From the monorepo root — bring up the studio (terminal 1: runtime, terminal 2: app)
+npm install
+npm run studio:db:generate && npm run studio:db:push
+npm run studio:runtime   # socket.io agent runtime on :3003
+npm run studio:dev       # Next.js app on :3000  →  http://localhost:3000
+```
+
+If the runtime is not running, the UI auto-falls back to **Demo mode**
+(mock agent stream) so you can explore the surface without a backend. See
+[`packages/studio/README.md`](packages/studio/README.md) for architecture,
+folder layout, and the full socket protocol.
 
 ---
 

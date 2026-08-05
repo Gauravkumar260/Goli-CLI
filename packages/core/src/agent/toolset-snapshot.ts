@@ -37,6 +37,7 @@
  */
 
 import { createRequire } from 'node:module';
+
 import type { ToolDefinition } from '../tools/types.js';
 
 /**
@@ -128,7 +129,7 @@ export class ToolsetSnapshot {
  * @returns 64-character hex SHA-256 digest of the tool names.
  */
 export function computeToolNamesHash(tools: readonly ToolDefinition[]): string {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   const { createHash } = createRequire(import.meta.url)('node:crypto');
   const names = tools.map((t) => t.function.name).join('\n');
   return createHash('sha256').update(names, 'utf8').digest('hex');

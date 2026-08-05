@@ -33,7 +33,9 @@ import {
   MODE_PROMPTS,
   MODE_TOOLS,
   MODE_DESCRIPTIONS,
+  MODE_PRIMARY_AGENT,
   getAgentsForMode,
+  getPrimaryAgentForMode,
   getSkillsForMode,
   getPromptForMode,
   getAllowedToolsForMode,
@@ -53,53 +55,64 @@ describe('Mode config: Mode→Agent mapping', () => {
     expect(MODE_AGENTS['god']).toBeDefined();
   });
 
-  it('read-only mode has 3 agents (orchestrator, searcher, reviewer)', () => {
+  it('read-only mode has 4 agents (orchestrator, scout, researcher, reviewer)', () => {
     const agents = getAgentsForMode('read-only');
-    expect(agents).toHaveLength(3);
-    expect(agents).toContain('orchestrator');
-    expect(agents).toContain('searcher');
-    expect(agents).toContain('reviewer');
-  });
-
-  it('plan mode has 4 agents (+ designer)', () => {
-    const agents = getAgentsForMode('plan');
     expect(agents).toHaveLength(4);
     expect(agents).toContain('orchestrator');
-    expect(agents).toContain('searcher');
+    expect(agents).toContain('scout');
+    expect(agents).toContain('researcher');
     expect(agents).toContain('reviewer');
-    expect(agents).toContain('designer');
   });
 
-  it('build mode has all 8 agents', () => {
-    const agents = getAgentsForMode('build');
-    expect(agents).toHaveLength(8);
+  it('plan mode has 6 agents (+ architect, planner)', () => {
+    const agents = getAgentsForMode('plan');
+    expect(agents).toHaveLength(6);
     expect(agents).toContain('orchestrator');
-    expect(agents).toContain('coder');
+    expect(agents).toContain('scout');
+    expect(agents).toContain('researcher');
+    expect(agents).toContain('architect');
+    expect(agents).toContain('planner');
     expect(agents).toContain('reviewer');
-    expect(agents).toContain('searcher');
-    expect(agents).toContain('devops');
-    expect(agents).toContain('designer');
-    expect(agents).toContain('security');
-    expect(agents).toContain('data');
   });
 
-  it('god mode has all 8 agents', () => {
+  it('build mode has 9 agents (no scout/researcher — execution-focused)', () => {
+    const agents = getAgentsForMode('build');
+    expect(agents).toHaveLength(9);
+    expect(agents).toContain('orchestrator');
+    expect(agents).toContain('architect');
+    expect(agents).toContain('planner');
+    expect(agents).toContain('implementer');
+    expect(agents).toContain('debugger');
+    expect(agents).toContain('qa-tester');
+    expect(agents).toContain('reviewer');
+    expect(agents).toContain('security-auditor');
+    expect(agents).toContain('documenter');
+  });
+
+  it('god mode has all 11 agents', () => {
     const agents = getAgentsForMode('god');
-    expect(agents).toHaveLength(8);
+    expect(agents).toHaveLength(11);
   });
 
-  it('read-only mode does NOT have coder agent', () => {
-    expect(isAgentActive('read-only', 'coder')).toBe(false);
-    expect(isAgentActive('read-only', 'devops')).toBe(false);
+  it('read-only mode does NOT have implementer agent', () => {
+    expect(isAgentActive('read-only', 'implementer')).toBe(false);
+    expect(isAgentActive('read-only', 'debugger')).toBe(false);
   });
 
-  it('build mode has coder agent', () => {
-    expect(isAgentActive('build', 'coder')).toBe(true);
-    expect(isAgentActive('build', 'devops')).toBe(true);
+  it('build mode has implementer agent', () => {
+    expect(isAgentActive('build', 'implementer')).toBe(true);
+    expect(isAgentActive('build', 'debugger')).toBe(true);
   });
 
   it('isAgentActive returns false for unknown agent', () => {
     expect(isAgentActive('build', 'nonexistent')).toBe(false);
+  });
+
+  it('each mode has a primary agent for AgentLoop.run({ role })', () => {
+    expect(getPrimaryAgentForMode('read-only')).toBe('reviewer');
+    expect(getPrimaryAgentForMode('plan')).toBe('architect');
+    expect(getPrimaryAgentForMode('build')).toBe('implementer');
+    expect(getPrimaryAgentForMode('god')).toBe('orchestrator');
   });
 });
 
@@ -121,12 +134,16 @@ describe('Mode config: Mode→Skill mapping', () => {
     expect(skills).toContain('docs');
   });
 
-  it('plan mode has 3 skills (+ code-gen)', () => {
+  it('plan mode has 3 skills (+ refactoring)', () => {
+    // Round-2 verification item #7: previously asserted `code-gen`,
+    // but `MODE_DESCRIPTIONS.plan.skills` says `refactoring`. The
+    // data and the description have been aligned to `refactoring`
+    // (plan mode benefits from refactoring guidance, not code-gen).
     const skills = getSkillsForMode('plan');
     expect(skills).toHaveLength(3);
     expect(skills).toContain('review');
     expect(skills).toContain('docs');
-    expect(skills).toContain('code-gen');
+    expect(skills).toContain('refactoring');
   });
 
   it('build mode has all 6 skills', () => {

@@ -151,6 +151,21 @@ export class SearchStore {
     countSession?: Database.Statement;
     countAll?: Database.Statement;
     getSessionIds?: Database.Statement;
+    // FTS sync statements — added because the previous implementation
+    // re-prepared these on every iteration of `index()`/`indexBatch()`,
+    // defeating the purpose of the stmts cache. For `indexBatch` with
+    // 1,000 messages, this was 3,000 unnecessary `prepare()` calls.
+    getRowId?: Database.Statement;
+    deleteFts?: Database.Statement;
+    insertFts?: Database.Statement;
+    // Search prepared variants — the previous implementation
+    // re-prepared the search SQL on every call. The dynamic WHERE
+    // clause means a single cached statement won't work, so we
+    // cache variants keyed by filter combination.
+    searchNoFilter?: Database.Statement;
+    searchBySession?: Database.Statement;
+    searchByRole?: Database.Statement;
+    searchBySessionAndRole?: Database.Statement;
   } = {};
 
   constructor(opts: SearchStoreOptions = {}) {
@@ -224,6 +239,17 @@ export class SearchStore {
     this.stmts.countSession = this.db.prepare('SELECT COUNT(*) AS n FROM messages WHERE session_id = ?');
     this.stmts.countAll = this.db.prepare('SELECT COUNT(*) AS n FROM messages');
     this.stmts.getSessionIds = this.db.prepare('SELECT DISTINCT session_id FROM messages ORDER BY session_id');
+
+    // FTS sync statements — added because the previous
+    // implementation re-prepared these on every iteration of
+    // `index()`/`indexBatch()`. For `indexBatch` with 1,000
+    // messages, this was 3,000 unnecessary `prepare()` calls
+    // (better-sqlite3's `prepare()` parses and compiles SQL on
+    // every call). Cached prepared statements are the documented
+    // performance pattern.
+    this.stmts.getRowId = this.db.prepare('SELECT rowid AS r FROM messages WHERE id = ?');
+    this.stmts.deleteFts = this.db.prepare('DELETE FROM messages_fts WHERE rowid = ?');
+    this.stmts.insertFts = this.db.prepare('INSERT INTO messages_fts (rowid, content) VALUES (?, ?)');
   }
 
   /**
@@ -246,16 +272,15 @@ export class SearchStore {
       // Rebuild FTS for this message's content. Delete-then-insert keeps the
       // FTS rowid in sync (we use a rowid-mirroring strategy: FTS rowid = messages rowid).
       // Simpler: use a trigger-based approach OR explicit re-index. We use explicit
-      // for clarity + testability.
-      const row = this.db.prepare('SELECT rowid AS r FROM messages WHERE id = ?').get(msg.id) as
-        | { r: number }
-        | undefined;
+      // for clarity + testability. Use the CACHED prepared statements
+      // (this.stmts.getRowId / deleteFts / insertFts) instead of
+      // `this.db.prepare(...)` per call — the previous implementation
+      // re-prepared 3 statements on every index() call, defeating
+      // the purpose of the stmts cache.
+      const row = this.stmts.getRowId!.get(msg.id) as { r: number } | undefined;
       if (row) {
-        this.db.prepare('DELETE FROM messages_fts WHERE rowid = ?').run(row.r);
-        this.db.prepare('INSERT INTO messages_fts (rowid, content) VALUES (?, ?)').run(
-          row.r,
-          msg.content,
-        );
+        this.stmts.deleteFts!.run(row.r);
+        this.stmts.insertFts!.run(row.r, msg.content);
       }
     })();
   }
@@ -281,15 +306,14 @@ export class SearchStore {
           content: msg.content,
           tokens: msg.tokens ?? 0,
         });
-        const row = this.db.prepare('SELECT rowid AS r FROM messages WHERE id = ?').get(msg.id) as
-          | { r: number }
-          | undefined;
+        // Use the CACHED prepared statements — for a 1,000-message
+        // batch, the previous implementation called
+        // `this.db.prepare(...)` 3,000 times. better-sqlite3's
+        // `prepare()` parses and compiles SQL on every call.
+        const row = this.stmts.getRowId!.get(msg.id) as { r: number } | undefined;
         if (row) {
-          this.db.prepare('DELETE FROM messages_fts WHERE rowid = ?').run(row.r);
-          this.db.prepare('INSERT INTO messages_fts (rowid, content) VALUES (?, ?)').run(
-            row.r,
-            msg.content,
-          );
+          this.stmts.deleteFts!.run(row.r);
+          this.stmts.insertFts!.run(row.r, msg.content);
         }
       }
     })();
@@ -457,8 +481,13 @@ export class SearchStore {
   clear(): void {
     this.db.transaction(() => {
       this.db.exec('DELETE FROM messages');
-      // DELETE FROM works for regular FTS5 tables.
-      // ('delete-all' is only for contentless/external-content FTS5 tables.)
+      // Use `DELETE FROM messages_fts` (not the FTS5 special
+      // 'delete-all' command). The 'delete-all' command only works
+      // for contentless / external-content FTS5 tables; `messages_fts`
+      // is a regular (contentful) FTS5 table, where the 'delete-all'
+      // command is a no-op and leaves the rows behind. `DELETE FROM`
+      // walks every row and updates the b-tree, but for our typical
+      // index sizes this is fast enough and actually clears the table.
       this.db.exec('DELETE FROM messages_fts');
     })();
     this.log?.debug('search-store: index cleared');
@@ -524,7 +553,15 @@ export function buildQuery(input: string): string {
     return `${words[0]}*`;
   }
   // Multiple words — phrase match for precise multi-word queries.
-  return `"${trimmed}"`;
+  // Escape double quotes and backslashes for FTS5 phrase queries.
+  // The previous implementation wrapped the trimmed input in
+  // `"${trimmed}"` without escaping — a user input containing a
+  // `"` (e.g., `hello "world"`) produced the malformed FTS5
+  // query `"hello "world""` which FTS5 either errored on or
+  // matched unexpectedly. FTS5 phrase queries require `"` to be
+  // escaped as `\"` inside the phrase.
+  const escaped = trimmed.replace(/["\\]/g, '\\$&');
+  return `"${escaped}"`;
 }
 
 /**

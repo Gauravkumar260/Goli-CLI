@@ -10,9 +10,11 @@
  */
 
 import { readdirSync, statSync, readFileSync, existsSync } from 'node:fs';
-import { resolve, relative, join } from 'node:path';
+import { relative, join } from 'node:path';
 
 import { ToolExecutionError } from '../../utils/errors.js';
+
+import { resolveUserPath, checkPathInWorkspace } from './path-safety.js';
 
 import type { Tool, ToolResult, ToolContext } from '../types.js';
 
@@ -62,21 +64,19 @@ async function listDirectoryHandler(
   const dirPath = (args['path'] as string | undefined) ?? '.';
   const maxEntries = (args['max_entries'] as number | undefined) ?? 200;
 
-  const resolvedPath = resolve(dirPath.startsWith('~')
-    ? resolve(process.env['HOME'] ?? '', dirPath.slice(1))
-    : dirPath.startsWith('/')
-      ? dirPath
-      : resolve(ctx.workspaceRoot, dirPath));
-
-  // Security: block reads outside workspace unless god mode
-  if (!ctx.godMode) {
-    const rel = relative(ctx.workspaceRoot, resolvedPath);
-    if (rel.startsWith('..')) {
-      throw new ToolExecutionError(
-        `Cannot list directory outside workspace: ${dirPath}`,
-        'list_directory',
-      );
-    }
+  // Security: resolve + check via the shared path-safety helper. The
+  // previous implementation did an inline `relative()` check on the
+  // UNRESOLVED path — `realpathSync` was never called, so an in-workspace
+  // symlink pointing to `/etc` (creatable via the bash `ln -s` bypass
+  // — see bash.ts Cross-File Issues) was invisible to the check, and
+  // `list_directory('/workspace/evil-symlink-to-etc')` would list `/etc`.
+  const resolvedPath = resolveUserPath(dirPath, ctx.workspaceRoot);
+  const pathCheck = checkPathInWorkspace(resolvedPath, ctx.workspaceRoot, ctx.godMode ?? false);
+  if (!pathCheck.ok) {
+    throw new ToolExecutionError(
+      `Cannot list directory outside workspace: ${dirPath} (${pathCheck.reason})`,
+      'list_directory',
+    );
   }
 
   // Check it exists and is a directory

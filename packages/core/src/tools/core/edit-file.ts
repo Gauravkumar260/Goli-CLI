@@ -36,16 +36,26 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { readFileSync, writeFileSync, renameSync, statSync, chmodSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, statSync, chmodSync, unlinkSync } from 'node:fs';
 import { relative } from 'node:path';
 
-
+import { computeBlastRadius, DEFAULT_BLAST_RADIUS_CONFIG } from '../../approval/blast-radius.js';
 import { ToolExecutionError } from '../../utils/errors.js';
 
 import { checkSingleEntryDiffApproval } from './diff-approval.js';
 import { buildDiffEntry, formatDiffAsString } from './diff-utils.js';
 import { resolveUserPath, checkPathInWorkspace } from './path-safety.js';
 import { specRegistry } from './spec-registry.js';
+// P1-10 fix (verification report deferred item #2): wire blast-radius
+// into the edit_file approval flow. computeBlastRadius() was fully
+// implemented (multiplicity-aware diff, deletion + addition guards) but
+// had zero production callers — the verification report flagged it as
+// dead code. We now call it after computing newContent and before the
+// diff-approval/requestApproval gate. If the blast radius exceeds the
+// configured thresholds, the edit is blocked with a clear reason,
+// preventing the agent from accidentally deleting large portions of
+// files or injecting large payloads (backdoors, minified scripts).
+// Skipped in godMode (explicit user consent to bypass all safety).
 
 import type { Tool, ToolResult, ToolContext } from '../types.js';
 
@@ -104,6 +114,13 @@ async function editFileHandler(
   if (!boundaryCheck.ok) {
     throw new ToolExecutionError(boundaryCheck.reason, 'edit_file');
   }
+  // Use the realpath (symlink-resolved) for the readFiles tracking
+  // set — the previous implementation used the resolved-but-not-
+  // symlink-resolved path, so reading `/workspace/link` (a symlink
+  // to `/workspace/real`) tracked `/workspace/link`, but editing
+  // `/workspace/real` then failed the Read-before-Edit check
+  // because `/workspace/real` wasn't in the set.
+  const trackedPath = boundaryCheck.realPath ?? resolvedPath;
 
   // Read-only sandbox check
   if (ctx.sandboxMode === 'read-only' && !ctx.godMode) {
@@ -123,7 +140,7 @@ async function editFileHandler(
   }
 
   // Read-before-Edit enforcement
-  if (!ctx.godMode && !ctx.readFiles.has(resolvedPath)) {
+  if (!ctx.godMode && !ctx.readFiles.has(trackedPath)) {
     throw new ToolExecutionError(
       `Cannot edit file without reading it first: ${filePath}. Call read_file on this file before editing.`,
       'edit_file',
@@ -175,6 +192,26 @@ async function editFileHandler(
     newContent = content.slice(0, idx) + newString + content.slice(idx + oldString.length);
   }
 
+  // P1-10 fix: Blast-radius guard. Compute the diff between old and
+  // new content and block if the deletion/addition exceeds configured
+  // thresholds. This prevents the agent from accidentally deleting
+  // large portions of files or injecting large payloads. Skipped in
+  // godMode (explicit user consent to bypass all safety) and for
+  // files below minLinesToEnforce (default 10 — tiny files are
+  // exempt). The guard runs BEFORE the diff-approval gate so the
+  // user never sees a diff for an edit that would be blocked anyway.
+  if (!ctx.godMode) {
+    const blastResult = computeBlastRadius(content, newContent, DEFAULT_BLAST_RADIUS_CONFIG);
+    if (!blastResult.allowed) {
+      throw new ToolExecutionError(
+        `edit_file blocked by blast-radius guard: ${blastResult.reason ?? 'threshold exceeded'} ` +
+        `(${blastResult.deletedLines} deleted, ${blastResult.addedLines} added of ${blastResult.totalLines} total lines). ` +
+        `If this is an intentional large refactor, use write_file (full rewrite) or run in god mode.`,
+        'edit_file',
+      );
+    }
+  }
+
   // ─── Diff-first approval (H14) ──────────────────────────────
   // If a diff-approval callback is registered (TUI mode or headless
   // --diff-review), surface the proposed change BEFORE touching the
@@ -184,6 +221,35 @@ async function editFileHandler(
     const approvalCheck = await checkSingleEntryDiffApproval(ctx, entry, 'edit', filePath);
     if (!approvalCheck.accepted) {
       return approvalCheck.rejection;
+    }
+  } else if (ctx.requestApproval && !ctx.godMode && !ctx.autoMode) {
+    // P1-3 fix (audit Finding CC-2): PRE-EXECUTION approval gate for
+    // edit_file when diff-review is not active. Mirrors write_file.
+    // P0-3 fix (remediation plan Phase 3): populate `diffEntry` so the
+    // TUI's `DiffReviewDialog` can render the proposed change before
+    // the user approves. `content` is the current file content (read
+    // above); `newContent` is the content after the edit is applied.
+    const approvalDecision = await ctx.requestApproval({
+      toolCallId: ctx.toolCallId,
+      toolName: 'edit_file',
+      tier: 'T1',
+      description: `edit ${filePath} (${oldString.length} chars → ${newString.length} chars${replaceAll ? ', all occurrences' : ''})`,
+      args: { file_path: filePath, old_string: oldString, new_string: newString, replace_all: replaceAll },
+      timestamp: new Date().toISOString(),
+      diffEntry: {
+        filePath,
+        tool: 'edit_file',
+        oldContent: content,
+        newContent,
+      },
+    });
+    if (!approvalDecision.approved) {
+      return {
+        toolCallId: ctx.toolCallId,
+        ok: false,
+        content: '',
+        error: `edit_file denied by user${approvalDecision.reason ? `: ${approvalDecision.reason}` : ''}. Path: ${filePath}`,
+      };
     }
   }
 
@@ -208,7 +274,7 @@ async function editFileHandler(
     renameSync(tempPath, resolvedPath);
   } catch (err) {
     // Clean up the temp file if rename failed.
-    try { renameSync(tempPath, `${tempPath}.orphan`); } catch { /* best-effort */ }
+    try { unlinkSync(tempPath); } catch { /* best-effort */ }
     throw new ToolExecutionError(
       `Failed to write ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
       'edit_file',

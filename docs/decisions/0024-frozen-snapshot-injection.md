@@ -44,11 +44,13 @@ The snapshot is read-only — the agent CANNOT modify it mid-session.
 ## Consequences
 
 **Positive:**
+
 - The agent cannot rewrite its own memory to escape constraints.
 - Memory is stable for the entire session.
 - The curator makes informed curation decisions at session end.
 
 **Negative:**
+
 - Within-session learnings are not immediately available in the system
   prompt (they're in Tier 1 session memory instead). Mitigation: session
   memory is searchable via the `VectorMemoryPlugin`.

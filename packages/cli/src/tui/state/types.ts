@@ -5,6 +5,7 @@
  * React components actually consume.
  */
 import type { TierId, AppMode } from '../theme/agents.js';
+import type { CompactionInfo } from '../../services/IAgentLoop.js';
 
 /**
  *
@@ -48,6 +49,20 @@ export interface ToolCall {
   meta?: string;
   error?: string;
   output?: string;
+  /**
+   * P1-9 fix (remediation plan Phase 9): provenance source.
+   * 'tool' = builtin tool, 'mcp' = MCP server virtual tool,
+   * 'subagent' = subagent-produced result, 'hook' = hook-injected.
+   * Bridged from core's `ProvenanceTracker.tag` field via the
+   * `kind: 'tool'` event in `CliAgentLoop`.
+   */
+  source?: 'tool' | 'mcp' | 'subagent' | 'hook' | 'user' | 'system';
+  /** Unix epoch ms — when the tool call was emitted. */
+  timestamp?: number;
+  /** Session ID (bridged from provenance). */
+  sessionId?: string;
+  /** Turn number within the session (bridged from provenance). */
+  turn?: number;
 }
 
 /**
@@ -145,6 +160,13 @@ export interface AppStateSnapshot {
   totalCostUsd: number;
   totalInputTokens: number;
   totalOutputTokens: number;
+  /**
+   * P1-13 fix (remediation plan Phase 13): total thinking tokens
+   * consumed (extended-thinking models only). Surfaced to `TokenBar`
+   * for the 3-bar layout. Accumulated via `addUsage()` when the
+   * `thinkingTokens` arg is non-zero.
+   */
+  totalThinkingTokens: number;
   tokens: number;
   tokenLimit: number;
   turn: number;
@@ -161,4 +183,26 @@ export interface AppStateSnapshot {
   pastePlaceholder: string | null;
   /** §6.4 Context compact hint — set when tokens > 95%. */
   compactHint: boolean;
+  /**
+   * P1-11 fix (remediation plan Phase 11): details of the most recent
+   * compaction, or `null` if none has occurred in this session. Set by
+   * `AppStateStore.setLastCompaction()` when the `useAgentLoop` hook
+   * receives a `kind: 'compaction'` event from `CliAgentLoop`.
+   *
+   * Consumed by `CompactionBanner` (rendered in `App.tsx`) to show a
+   * transient banner with the token delta.
+   */
+  lastCompaction: CompactionInfo | null;
+  /**
+   * P1-12 fix (remediation plan Phase 12): per-model cost accumulator.
+   * Keyed by model ID (e.g. 'ollama/gpt-oss:120b', 'openai/gpt-4o').
+   * The value is the cumulative USD cost attributed to that model.
+   * Rendered by `CostBreakdownPanel` when 2+ entries exist.
+   */
+  perModelCosts: Record<string, number>;
+  /**
+   * P1-12: per-model token accumulator. Keyed by model ID; value is
+   * the cumulative input/output token count for that model.
+   */
+  perModelTokens: Record<string, { input: number; output: number }>;
 }

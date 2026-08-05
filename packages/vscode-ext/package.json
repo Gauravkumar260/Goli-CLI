@@ -131,6 +131,7 @@
   "scripts": {
     "vscode:prepublish": "npm run build",
     "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "watch": "tsc -p tsconfig.json --watch",
     "lint": "eslint src --ext ts",
     "test": "node ./dist/test/runTest.js"

@@ -1,0 +1,230 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/protocol/main/docs/specification/2025-06-18/mcpb/manifest.schema.json",
+  "version": "0.3.0",
+  "mcp_version": "2025-06-18",
+  "name": "goli-cli",
+  "display_name": "Goli-CLI",
+  "description": "Enterprise-grade, open-weight-first AI coding agent. Exposes a curated subset of Goli-CLI's built-in tools (read_file, edit_file, grep, glob, list_directory, web_search, web_fetch, todo_write, spawn_subagent) to any MCP-compatible client.",
+  "long_description": "Goli-CLI is a terminal-based AI coding agent that emphasizes reproducibility, security, and open-weight model choice. This MCP server manifest exposes a read-mostly subset of Goli-CLI's tools to any MCP-compatible client (Claude Desktop, Cursor, Continue, etc.). The full tool set (bash, write_file, notebook_edit, lsp_*) is not exposed by default because they require the sandbox; install the Goli-CLI binary directly to use them.",
+  "homepage": "https://github.com/goli-cli/goli-cli",
+  "repository": "https://github.com/goli-cli/goli-cli",
+  "license": "MIT",
+  "author": {
+    "name": "Goli-CLI Contributors",
+    "email": "contrib@goli-cli.dev"
+  },
+  "categories": ["developer-tools", "ai-coding", "agents"],
+  "keywords": ["ai", "agent", "coding-agent", "cli", "mcp", "sandbox", "enterprise"],
+  "tools": [
+    {
+      "name": "read_file",
+      "description": "Read the contents of a file. The path must be inside the workspace root.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path to the file, relative to the workspace root or absolute."
+          },
+          "offset": {
+            "type": "integer",
+            "description": "Optional 1-indexed line number to start reading from.",
+            "minimum": 1
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Optional maximum number of lines to read.",
+            "minimum": 1,
+            "maximum": 2000
+          }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "name": "edit_file",
+      "description": "Edit a file by replacing old_str with new_str. The old_str must be unique in the file. Produces a unified diff for review before applying.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "old_str": { "type": "string", "description": "The exact text to replace. Must be unique in the file." },
+          "new_str": { "type": "string", "description": "The text to replace it with. Use empty string to delete." }
+        },
+        "required": ["path", "old_str", "new_str"]
+      }
+    },
+    {
+      "name": "grep",
+      "description": "Search file contents using ripgrep 14. Supports the full ripgrep regex syntax.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pattern": { "type": "string", "description": "ripgrep regex pattern" },
+          "path": { "type": "string", "description": "Directory to search in. Default: workspace root." },
+          "glob": { "type": "string", "description": "Glob filter (e.g. '*.ts')." },
+          "ignore_case": { "type": "boolean", "default": false },
+          "multiline": { "type": "boolean", "default": false, "description": "Enable ripgrep -U for cross-line patterns." },
+          "max_results": { "type": "integer", "default": 100, "maximum": 1000 }
+        },
+        "required": ["pattern"]
+      }
+    },
+    {
+      "name": "glob",
+      "description": "Find files by glob pattern. Uses the workspace root as the base.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pattern": { "type": "string", "description": "Glob pattern (e.g. 'src/**/*.ts')." },
+          "path": { "type": "string", "description": "Base directory. Default: workspace root." }
+        },
+        "required": ["pattern"]
+      }
+    },
+    {
+      "name": "list_directory",
+      "description": "List the contents of a directory.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "recursive": { "type": "boolean", "default": false }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "name": "web_search",
+      "description": "Search the web via the configured search provider (default: DuckDuckGo).",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" },
+          "max_results": { "type": "integer", "default": 10, "maximum": 50 }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "web_fetch",
+      "description": "Fetch a URL and return the content as Markdown (readability-extracted).",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "format": "uri" },
+          "max_chars": { "type": "integer", "default": 30000, "maximum": 200000 }
+        },
+        "required": ["url"]
+      }
+    },
+    {
+      "name": "todo_write",
+      "description": "Write or update the agent's todo list. The list is shown in the TUI and is used to track progress on multi-step tasks.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "todos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "content": { "type": "string" },
+                "status": { "type": "string", "enum": ["pending", "in_progress", "completed"] },
+                "priority": { "type": "string", "enum": ["high", "medium", "low"] }
+              },
+              "required": ["id", "content", "status"]
+            }
+          }
+        },
+        "required": ["todos"]
+      }
+    },
+    {
+      "name": "spawn_subagent",
+      "description": "Spawn a subagent with its own context window and tool registry. Returns the subagent's summary (not the full transcript).",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "task": { "type": "string", "description": "A self-contained description of the subtask." },
+          "tools": { "type": "array", "items": { "type": "string" }, "description": "Optional list of tool names the subagent can use. Default: all tools." },
+          "model": { "type": "string", "description": "Optional model override for the subagent." }
+        },
+        "required": ["task"]
+      }
+    }
+  ],
+  "prompts": [
+    {
+      "name": "explain-codebase",
+      "description": "Produce a high-level architectural overview of the codebase in the workspace.",
+      "arguments": [
+        { "name": "focus", "description": "Optional area to focus on (e.g. 'agent loop', 'sandbox', 'memory').", "required": false }
+      ]
+    },
+    {
+      "name": "find-bugs",
+      "description": "Identify likely bugs in a specific file or directory.",
+      "arguments": [
+        { "name": "path", "description": "File or directory to analyze.", "required": true }
+      ]
+    },
+    {
+      "name": "write-tests",
+      "description": "Generate unit tests for a specific file, following the project's testing conventions.",
+      "arguments": [
+        { "name": "path", "description": "Source file to generate tests for.", "required": true }
+      ]
+    },
+    {
+      "name": "refactor",
+      "description": "Propose a refactor of a specific file, explaining the motivation and the steps.",
+      "arguments": [
+        { "name": "path", "description": "File to refactor.", "required": true },
+        { "name": "goal", "description": "Refactoring goal (e.g. 'reduce coupling', 'extract function').", "required": true }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "uri": "goli://agents.md",
+      "name": "AGENTS.md",
+      "description": "The living-patterns & gotchas doc for the current workspace.",
+      "mime_type": "text/markdown"
+    },
+    {
+      "uri": "goli://config/default.toml",
+      "name": "default config",
+      "description": "The default TOML configuration for Goli-CLI.",
+      "mime_type": "application/toml"
+    },
+    {
+      "uri": "goli://sessions",
+      "name": "session list",
+      "description": "A JSON list of all stored sessions.",
+      "mime_type": "application/json"
+    }
+  ],
+  "runtime": {
+    "type": "stdio",
+    "command": "goli",
+    "args": ["mcp", "serve"],
+    "env": {
+      "GOLI_MCP_MODE": "1",
+      "GOLI_SANDBOX": "1"
+    }
+  },
+  "permissions": {
+    "default_mode": "ask",
+    "modes": ["ask", "yolo", "plan"],
+    "tools_requiring_permission": ["edit_file", "spawn_subagent"],
+    "tools_blocked_in_plan_mode": ["edit_file", "spawn_subagent", "web_fetch"]
+  },
+  "security": {
+    "sandbox": "kernel-enforced (Landlock / Seatbelt / cgroups)",
+    "network_egress": "default deny; allowlist for web_search and web_fetch",
+    "filesystem_writes": "restricted to workspace root",
+    "audit_log": "supported via --audit-log flag"
+  }
+}

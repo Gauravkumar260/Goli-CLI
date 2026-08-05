@@ -67,12 +67,38 @@ export class RegressionGate {
   /**
    * Check if the evaluation passes the gate.
    *
+   * The previous implementation only checked resolution rate — it
+   * ignored the semantic error rate (the % of "solved" cases that
+   * are actually wrong). A PR that gamed the benchmark (e.g.,
+   * modifying test files to pass) would have a high resolution rate
+   * AND a high semantic error rate. We now also block on semantic
+   * error rate above the threshold (default: 20%).
+   *
    * @param evaluation - The benchmark evaluation to check.
    * @returns The gate result.
    */
   check(evaluation: BenchmarkEvaluation): RegressionGateResult {
     const currentRate = evaluation.resolutionRate;
     const relativeRegression = currentRate - this.baselineRate;
+    // Semantic error rate gate (MEDIUM-69). DEFAULT_QUALITY_THRESHOLDS
+    // doesn't currently define this — default to 0.20 (20%).
+    const semanticErrorThreshold = 0.20;
+
+    // 0. Check semantic error rate (catches benchmark gaming).
+    if (evaluation.semanticErrorRate > semanticErrorThreshold) {
+      const result: RegressionGateResult = {
+        passed: false,
+        decision: 'BLOCK',
+        currentRate,
+        baselineRate: this.baselineRate,
+        absoluteThreshold: this.absoluteThreshold,
+        relativeRegression,
+        reason: `Semantic error rate too high: ${(evaluation.semanticErrorRate * 100).toFixed(1)}% > ${(semanticErrorThreshold * 100).toFixed(1)}% (likely benchmark gaming — patches pass tests but are functionally wrong).`,
+        evaluation,
+      };
+      this.log?.warn('Regression gate BLOCKED (semantic error rate)', { ...result });
+      return result;
+    }
 
     // 1. Check absolute floor
     if (currentRate < this.absoluteThreshold) {
@@ -149,17 +175,32 @@ export class RegressionGate {
   /**
    * Run a pre-release check (full 500-instance benchmark).
    *
+   * The previous implementation constructed a NEW RegressionGate
+   * with the stricter opts, but the new gate's `baselineSet` flag
+   * was derived from `opts.baselineRate !== undefined`. Since
+   * `this.baselineRate` was 0 (the default) when no baseline had
+   * been set, the new gate's `baselineSet` was `false` even if the
+   * PARENT gate had an explicit baseline — the relative-regression
+   * check was silently skipped on pre-release. We now propagate
+   * the parent's `baselineSet` flag.
+   *
    * @param evaluation - The full benchmark evaluation.
    * @returns The gate result.
    */
   checkPreRelease(evaluation: BenchmarkEvaluation): RegressionGateResult {
-    // Pre-release uses stricter thresholds
-    const stricterOpts: RegressionGateOptions = {
+    // Pre-release uses stricter thresholds.
+    const stricterGate = new RegressionGate({
       logger: this.log,
       absoluteThreshold: this.absoluteThreshold,
       relativeRegression: this.relativeRegression / 2, // Half the CI threshold
-      baselineRate: this.baselineRate,
-    };
-    return new RegressionGate(stricterOpts).check(evaluation);
+      baselineRate: this.baselineSet ? this.baselineRate : undefined,
+    });
+    // If the parent had a baseline set, propagate the flag (the
+    // constructor only sets baselineSet=true when baselineRate is
+    // passed; we mirror the parent's state here).
+    if (this.baselineSet) {
+      stricterGate.baselineSet = true;
+    }
+    return stricterGate.check(evaluation);
   }
 }

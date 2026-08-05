@@ -31,6 +31,9 @@ import { render } from 'ink';
 import { App, type LaunchMode } from './App.js';
 import { AppStateStore } from './state/AppStateStore.js';
 import { parseArgs, toLaunchMode } from './args.js';
+// P3-30 fix: import APP_VERSION / APP_NAME from constants.ts so the TUI
+// shows the same version as `goli --version` and `goli --about`.
+import { APP_VERSION, APP_NAME } from '../constants.js';
 import { detectCapabilities } from './lib/capabilities.js';
 import { installSyncOutput } from './lib/syncOutput.js';
 import {
@@ -44,8 +47,10 @@ import { recordLifecycle } from './lib/parentLog.js';
 import { resetTerminalModes } from './lib/terminalModes.js';
 import { startMemoryMonitor, isHeapMonitorEnabled } from './lib/memoryMonitor.js';
 
-const VERSION = '1.0.0';
-const NAME = 'goli-tui';
+// P3-30 fix: use APP_VERSION from constants.ts
+const VERSION = APP_VERSION;
+// P3-30 fix: use APP_NAME from constants.ts
+const NAME = APP_NAME;
 const startTime = Date.now();
 
 function printHelp(): void {

@@ -1,7 +1,7 @@
 /**
  * LLM-based safety overseer (Module 5, part 4).
  *
- * A separate GLM-5.2 instance that reviews every SICA proposal. It has
+ * A separate LLM instance that reviews every SICA proposal. It has
  * veto power — if it detects any of the following, the proposal is
  * automatically rejected:
  *
@@ -17,7 +17,7 @@
  *
  * ## Why a separate LLM?
  *
- * The overseer is a different GLM-5.2 instance from the one that
+ * The overseer is a different LLM instance from the one that
  * proposed the change. This prevents the proposing model from
  * "approving its own hacks." The overseer uses a different system
  * prompt focused solely on safety review.
@@ -59,8 +59,8 @@ Categories: safety_check_disabled, sandbox_boundary_expanded, logging_removed, a
 export interface SafetyOverseerOptions {
   /** The immutable safety registry. */
   registry: ImmutableSafetyRegistry;
-  /** Optional GLM client for AI-assisted review. */
-  glmClient?: {
+  /** Optional LLM client for AI-assisted review. */
+  llmClient?: {
     call: (params: {
       messages: Array<{ role: string; content: string; timestamp: string }>;
       effort?: string;
@@ -73,12 +73,12 @@ export interface SafetyOverseerOptions {
 /** The Safety Overseer — reviews and vetoes dangerous SICA proposals. */
 export class SafetyOverseer {
   private readonly registry: ImmutableSafetyRegistry;
-  private readonly glmClient?: SafetyOverseerOptions['glmClient'];
+  private readonly llmClient?: SafetyOverseerOptions['llmClient'];
   private readonly log?: Logger;
 
   constructor(opts: SafetyOverseerOptions) {
     this.registry = opts.registry;
-    this.glmClient = opts.glmClient;
+    this.llmClient = opts.llmClient;
     this.log = opts.logger;
   }
 
@@ -111,8 +111,8 @@ export class SafetyOverseer {
       return this.vetoFromConcern(criticalConcern);
     }
 
-    // ─── 3. LLM-based review (if GLM client available) ─────────
-    if (this.glmClient) {
+    // ─── 3. LLM-based review (if LLM client available) ─────────
+    if (this.llmClient) {
       try {
         const llmVerdict = await this.llmReview(proposal);
         if (!llmVerdict.approved) {
@@ -265,11 +265,23 @@ export class SafetyOverseer {
 
   /**
    * Detect weakening of approval policy.
+   *
+   * The previous implementation checked for the literal strings
+   * `'ask'` and `'allow'` (single-quoted) — it missed double-quoted
+   * versions (`"ask"` → `"allow"`) and template-literal versions
+   * (`` `ask` `` → `` `allow` ``). We now check for any quote
+   * style by stripping quotes before comparing.
+   *
    * @param oldLower
    * @param newLower
    */
   private detectsApprovalWeakening(oldLower: string, newLower: string): boolean {
-    if (oldLower.includes("'ask'") && newLower.includes("'allow'")) return true;
+    // Match `'ask'`, `"ask"`, `` `ask` ``, or unquoted `ask`.
+    // We strip quotes from the haystack and check for the bare
+    // word with a word boundary so `asked` doesn't match.
+    const hasAsk = (s: string) => /(^|[^a-z])ask([^a-z]|$)/.test(s.replace(/['"`]/g, ''));
+    const hasAllow = (s: string) => /(^|[^a-z])allow([^a-z]|$)/.test(s.replace(/['"`]/g, ''));
+    if (hasAsk(oldLower) && hasAllow(newLower)) return true;
     if (oldLower.includes('on-request') && newLower.includes('never')) return true;
     if (oldLower.includes('protected: true') && newLower.includes('protected: false')) return true;
     return false;
@@ -289,13 +301,13 @@ export class SafetyOverseer {
   }
 
   /**
-   * LLM-based review using a separate GLM-5.2 instance.
+   * LLM-based review using a separate LLM instance.
    * @param proposal
    */
   private async llmReview(proposal: SicaProposal): Promise<OverseerVerdict> {
     const reviewPrompt = this.buildReviewPrompt(proposal);
 
-    const response = await this.glmClient!.call({
+    const response = await this.llmClient!.call({
       messages: [
         { role: 'system', content: OVERSEER_PROMPT, timestamp: new Date().toISOString() },
         { role: 'user', content: reviewPrompt, timestamp: new Date().toISOString() },
@@ -341,35 +353,76 @@ export class SafetyOverseer {
 
   /**
    * Parse the overseer LLM response.
+   *
+   * The previous implementation used `content.match(/\{[\s\S]*\}/)`
+   * — a greedy regex that matches from the FIRST `{` to the LAST
+   * `}` in the entire response. If the LLM output contains any `}`
+   * after the intended JSON object (e.g., a code example, or a
+   * second JSON object), the match includes everything between,
+   * producing invalid JSON that `JSON.parse` then fails on. We
+   * now use a brace-balanced extractor that finds the first
+   * balanced `{...}` block.
+   *
+   * We also validate `category` and `severity` against their
+   * union types — the previous implementation cast
+   * `c.category as OverseerConcernCategory` without validation,
+   * so an LLM returning `category: "benign"` produced an
+   * invalid `OverseerConcern` that violated the type contract.
+   * We now coerce unknown values to a safe default.
    * @param content
    */
   private parseOverseerResponse(content: string): OverseerVerdict {
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
+      // Extract the first balanced `{...}` block. This handles
+      // the case where the LLM includes a `}` after the JSON
+      // (e.g., a code example) — the greedy regex would have
+      // included it.
+      const jsonStr = extractFirstBalancedBraces(content);
+      if (!jsonStr) {
         // Fail-safe: if we can't parse, veto
         return this.veto('other', 'Overseer response could not be parsed as JSON. Failing safe (veto).');
       }
 
-      const parsed = JSON.parse(jsonMatch[0]) as {
+      const parsed = JSON.parse(jsonStr) as {
         approved?: boolean;
         reasoning?: string;
         concerns?: Array<{ category: string; severity: string; description: string }>;
         maxSeverity?: string;
       };
 
+      // Validate category and severity against their union types.
+      // The previous implementation cast without validation, so an
+      // LLM returning `category: "benign"` produced an invalid
+      // `OverseerConcern` that violated the type contract.
+      const VALID_CATEGORIES: ReadonlySet<OverseerConcernCategory> = new Set([
+        'safety_check_disabled', 'benchmark_overfitting', 'sandbox_boundary_expanded',
+        'logging_removed', 'approval_weakened', 'immutable_registry_modified',
+        'hardcoded_answer', 'other',
+      ]);
+      const VALID_SEVERITIES: ReadonlySet<'info' | 'warning' | 'critical'> = new Set([
+        'info', 'warning', 'critical',
+      ]);
       const concerns: OverseerConcern[] = (parsed.concerns ?? []).map((c) => ({
-        category: c.category as OverseerConcernCategory,
-        severity: c.severity as 'info' | 'warning' | 'critical',
+        category: VALID_CATEGORIES.has(c.category as OverseerConcernCategory)
+          ? (c.category as OverseerConcernCategory)
+          : 'other',
+        severity: VALID_SEVERITIES.has(c.severity as 'info' | 'warning' | 'critical')
+          ? (c.severity as 'info' | 'warning' | 'critical')
+          : 'warning',
         description: c.description,
       }));
+
+      const maxSev = parsed.maxSeverity;
+      const validatedMaxSeverity: 'info' | 'warning' | 'critical' =
+        maxSev && VALID_SEVERITIES.has(maxSev as 'info' | 'warning' | 'critical')
+          ? (maxSev as 'info' | 'warning' | 'critical')
+          : this.maxSeverity(concerns);
 
       return {
         approved: parsed.approved ?? false,
         reasoning: parsed.reasoning ?? 'No reasoning provided.',
         concerns,
-        maxSeverity: (parsed.maxSeverity as 'info' | 'warning' | 'critical') ?? this.maxSeverity(concerns),
+        maxSeverity: validatedMaxSeverity,
       };
     } catch {
       return this.veto('other', 'Overseer response parsing failed. Failing safe (veto).');
@@ -417,4 +470,55 @@ export class SafetyOverseer {
     if (concerns.some((c) => c.severity === 'warning')) return 'warning';
     return 'info';
   }
+}
+
+/**
+ * Extract the first balanced `{...}` block from a string, respecting
+ * nested braces and string literals (so a `}` inside a string doesn't
+ * prematurely close the block).
+ *
+ * Returns the matched substring (including the outer braces), or null
+ * if no balanced block was found.
+ *
+ * Used by `parseOverseerResponse` to extract JSON from LLM output that
+ * may include code examples or second JSON objects after the intended
+ * JSON. The previous implementation used `content.match(/\{[\s\S]*\}/)`
+ * (greedy) which matched from the first `{` to the last `}` —
+ * including everything in between, often producing invalid JSON.
+ */
+function extractFirstBalancedBraces(s: string): string | null {
+  let depth = 0;
+  let inString = false;
+  let stringChar = '';
+  let start = -1;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]!;
+    if (inString) {
+      if (ch === '\\') {
+        // Skip the next char (escape sequence).
+        i++;
+        continue;
+      }
+      if (ch === stringChar) {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      inString = true;
+      stringChar = ch;
+      continue;
+    }
+    if (ch === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (ch === '}') {
+      if (depth === 0) continue;
+      depth--;
+      if (depth === 0 && start >= 0) {
+        return s.slice(start, i + 1);
+      }
+    }
+  }
+  return null;
 }

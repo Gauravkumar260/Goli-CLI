@@ -61,14 +61,14 @@ describe('T-059: ApprovalModeIndicator — keybind hint', () => {
   it('shows keybind hint on wide terminals (>=60 cols)', () => {
     const { lastFrame } = render(<ApprovalModeIndicator mode="default" cols={80} />);
     const frame = lastFrame() ?? '';
-    expect(frame).toContain('Ctrl+P');
+    expect(frame).toContain('Shift+Tab');
     expect(frame).toMatch(/cycle/i);
   });
 
   it('hides keybind hint on narrow terminals (<60 cols)', () => {
     const { lastFrame } = render(<ApprovalModeIndicator mode="default" cols={40} />);
     const frame = lastFrame() ?? '';
-    expect(frame).not.toContain('Ctrl+P');
+    expect(frame).not.toContain('Shift+Tab');
   });
 
   it('showHint=true overrides narrow terminal', () => {
@@ -76,7 +76,7 @@ describe('T-059: ApprovalModeIndicator — keybind hint', () => {
       <ApprovalModeIndicator mode="default" cols={40} showHint={true} />,
     );
     const frame = lastFrame() ?? '';
-    expect(frame).toContain('Ctrl+P');
+    expect(frame).toContain('Shift+Tab');
   });
 
   it('showHint=false overrides wide terminal', () => {
@@ -84,7 +84,7 @@ describe('T-059: ApprovalModeIndicator — keybind hint', () => {
       <ApprovalModeIndicator mode="default" cols={80} showHint={false} />,
     );
     const frame = lastFrame() ?? '';
-    expect(frame).not.toContain('Ctrl+P');
+    expect(frame).not.toContain('Shift+Tab');
   });
 });
 

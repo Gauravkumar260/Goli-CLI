@@ -1,223 +1,209 @@
-# Goli-CLI Agents — The 11-Agent Swarm
+# Goli-CLI — 11-Agent Swarm Reference
 
-> Detailed reference for each agent in the Scout → Documenter pipeline. For the high-level architecture, see [Architecture](architecture.md).
+> The 11-agent swarm pipeline (Scout → Documenter) is the orchestration
+> layer that decomposes complex, autonomous software-engineering tasks
+> into a parallel-friendly DAG of specialized agents. Each agent owns a
+> single responsibility and runs in its own worktree with an independent
+> budget, tool whitelist, and approval tier.
 
-## Overview
+This document is the canonical reference for the 11 agents: their roles,
+budgets, toolsets, parallel-execution rules, and how they compose into
+the swarm pipeline. The runtime definitions live in
+`packages/core/src/orchestration/{types.ts,swarm-pipeline.ts}`.
 
-Goli-CLI decomposes complex software-engineering tasks into 11 specialized agent roles. Each agent is a role-specialized instance of the same `AgentLoop` class, with:
-- A **role-specific system prompt** (assembled by `SystemPromptAssembler`)
-- A **subset of the tool registry** (e.g., the Security Auditor has `read_file` + `grep` but not `write_file`)
-- A **budget allocation** (tokens + cost + iterations)
-- A **handoff contract** (what it produces for the next agent)
+---
 
-The pipeline is sequential by default, but the Orchestrator can spawn parallel subagents via `spawn_subagent` for independent subtasks.
+## Agent roster
 
-## The Pipeline
+The 11 agents form a linear pipeline with parallel fan-out at the
+research, implementation, and review stages. Each agent produces a
+typed artifact that feeds the next stage.
 
-```
-Scout → Researcher → Architect → Planner → Implementer →
-Debugger → QA/Tester → Security Auditor → Reviewer →
-Orchestrator → Documenter
-```
+| # | Agent           | Phase        | Tier | Budget (tokens) | Tools (key)                                                   | Parallel? |
+|---|-----------------|--------------|------|-----------------|---------------------------------------------------------------|-----------|
+| 1 | Scout           | Discovery    | T0   | 8 000           | `read_file`, `list_directory`, `grep`, `glob`                 | yes (×3)  |
+| 2 | Researcher      | Discovery    | T0   | 12 000          | `web_search`, `web_fetch`, `read_file`, `lsp_hover`           | yes (×3)  |
+| 3 | Architect       | Design       | T0   | 16 000          | `read_file`, `grep`, `lsp_references`, `lsp_diagnostics`      | no        |
+| 4 | Planner         | Design       | T0   | 10 000          | `todo_write`, `read_file`                                     | no        |
+| 5 | Implementer     | Build        | T1/T2| 32 000          | `edit_file`, `write_file`, `bash`, `notebook_edit`            | yes (×4)  |
+| 6 | Debugger        | Build        | T1/T2| 24 000          | `bash`, `read_file`, `edit_file`, `lsp_diagnostics`           | yes (×2)  |
+| 7 | QA/Tester       | Verify       | T1   | 20 000          | `bash`, `edit_file`, `read_file`                              | yes (×2)  |
+| 8 | Security Auditor| Verify       | T0/T1| 18 000          | `read_file`, `grep`, `bash` (read-only)                       | yes (×2)  |
+| 9 | Reviewer        | Verify       | T0   | 16 000          | `read_file`, `grep`, `lsp_references`, `ask_user`             | no        |
+| 10| Orchestrator    | Coordination | T0   | 24 000          | `spawn_subagent`, `todo_write`, `ask_user`                    | no        |
+| 11| Documenter      | Closure      | T1   | 14 000          | `write_file`, `edit_file`, `read_file`                        | no        |
 
-| # | Agent | Role | Key Tools | Handoff |
-|---|---|---|---|---|
-| 1 | Scout | Explore the repo, identify relevant files | `read_file`, `list_directory`, `grep`, `lsp_references` | File list + relevance map |
-| 2 | Researcher | Gather external context | `web_search`, `web_fetch`, `read_file` | Context brief |
-| 3 | Architect | Design the solution approach | `read_file`, `lsp_hover`, `spawn_subagent` | Design doc |
-| 4 | Planner | Break the design into atomic steps | `todo_write`, `read_file` | TODO list |
-| 5 | Implementer | Write the code changes | `write_file`, `edit_file`, `bash` | Diff + file changes |
-| 6 | Debugger | Run tests, fix failures | `bash`, `read_file`, `edit_file` | Test results + fixes |
-| 7 | QA/Tester | Write new tests, verify edge cases | `write_file`, `bash`, `read_file` | Test suite + coverage |
-| 8 | Security Auditor | Check for vulns, secrets, unsafe patterns | `read_file`, `grep`, `bash` (read-only) | Security report |
-| 9 | Reviewer | Review the diff for quality | `read_file`, `bash` (`git diff`) | Review comments |
-| 10 | Orchestrator | Coordinate handoffs, manage budget | `spawn_subagent`, `todo_write` | Pipeline state |
-| 11 | Documenter | Update README, CHANGELOG, inline docs | `write_file`, `edit_file`, `read_file` | Updated docs |
+---
 
-## Agent Details
+## Per-agent reference
 
 ### 1. Scout
-
-**Role:** Repository reconnaissance. The Scout explores the codebase to identify which files are relevant to the user's task, without making any changes.
-
-**System prompt focus:** "You are a Scout. Your job is to explore the repository and identify the minimal set of files needed to accomplish the task. Do NOT modify any files. Report file paths with a one-line relevance explanation."
-
-**Tools:** `read_file`, `list_directory`, `grep`, `lsp_references`, `lsp_goto_definition`
-
-**Budget:** 10% of total tokens, max 5 iterations
-
-**Handoff:** A structured file list:
-```json
-{
-  "relevant_files": [
-    {"path": "src/auth/login.ts", "reason": "Contains the login function to refactor"},
-    {"path": "src/auth/session.ts", "reason": "Session management — will be replaced by JWT"},
-    {"path": "tests/auth/login.test.ts", "reason": "Existing tests that must still pass"}
-  ],
-  "irrelevant_dirs": ["node_modules", "dist", "coverage"]
-}
-```
+The Scout agent performs fast reconnaissance of the repository: file
+inventory, dependency graph, hot-spots by churn, and entry-point
+identification. It produces a `ScoutReport` artifact consumed by the
+Architect and Planner. Scouts run in parallel (up to 3 concurrent)
+when the workspace spans multiple top-level packages — each Scout
+owns one package.
 
 ### 2. Researcher
-
-**Role:** Gather external context. The Researcher uses web search and doc fetching to supplement the codebase context with external knowledge (library docs, API references, prior art).
-
-**System prompt focus:** "You are a Researcher. Your job is to gather external context that will help the Architect design the solution. Use web search for current best practices, library docs, and known pitfalls. Cite your sources."
-
-**Tools:** `web_search`, `web_fetch`, `read_file`
-
-**Budget:** 10% of total tokens, max 5 iterations
-
-**Handoff:** A context brief with citations.
+The Researcher agent gathers external context: library docs, API
+references, RFCs, and prior art. It uses `web_search` and `web_fetch`
+and produces a `ResearchBrief` with cited URLs and a distilled summary.
+Multiple Researchers run in parallel when the task touches several
+unfamiliar libraries.
 
 ### 3. Architect
-
-**Role:** Design the solution approach. The Architect takes the Scout's file list + the Researcher's context brief and produces a design document.
-
-**System prompt focus:** "You are an Architect. Your job is to design the solution approach. Consider alternatives, trade-offs, and edge cases. Do NOT write implementation code — produce a design doc that the Planner can break into steps."
-
-**Tools:** `read_file`, `lsp_hover`, `spawn_subagent` (for parallel design exploration)
-
-**Budget:** 15% of total tokens, max 8 iterations
-
-**Handoff:** A design document with:
-- Problem statement
-- Proposed approach (with alternatives considered)
-- Affected files + expected changes
-- Risks + mitigations
+The Architect agent owns the high-level design: module boundaries,
+data flow, public API contracts, and ADR-level decisions. It consumes
+the `ScoutReport` and `ResearchBrief` and produces an `ArchitecturePlan`
+that the Planner decomposes into tasks. There is exactly one Architect
+per pipeline run (the design must be singular and coherent).
 
 ### 4. Planner
-
-**Role:** Break the design into atomic, testable steps. The Planner produces a TODO list that the Implementer executes.
-
-**System prompt focus:** "You are a Planner. Break the design into atomic steps. Each step must be independently verifiable. Use the `todo_write` tool to create the TODO list."
-
-**Tools:** `todo_write`, `read_file`
-
-**Budget:** 5% of total tokens, max 3 iterations
-
-**Handoff:** A TODO list via `todo_write` tool.
+The Planner agent decomposes the `ArchitecturePlan` into a DAG of
+concrete tasks with explicit dependencies, budgets, and tool
+whitelists. It uses `todo_write` to emit the task list and produces a
+`TaskGraph` artifact. The Planner is the single source of truth for
+what work needs to be done and in what order.
 
 ### 5. Implementer
-
-**Role:** Write the code changes. The Implementer executes the Planner's TODO list, making file edits and running commands.
-
-**System prompt focus:** "You are an Implementer. Execute the TODO list step by step. After each step, verify the change works before moving to the next. Use `edit_file` for surgical changes, `write_file` for new files."
-
-**Tools:** `write_file`, `edit_file`, `bash` (sandboxed), `read_file`
-
-**Budget:** 30% of total tokens, max 20 iterations
-
-**Handoff:** A diff of all file changes.
+The Implementer agent does the bulk of the code changes. Each
+Implementer owns one task from the `TaskGraph` and runs in its own
+git worktree (see `orchestration/worktree/isolation.ts`). Up to 4
+Implementers run in parallel on independent tasks. Each Implementer
+has a per-task budget cap and must request approval for T1/T2 tools
+unless the task is in `autoMode`.
 
 ### 6. Debugger
-
-**Role:** Run tests and fix failures. The Debugger executes the test suite, identifies failures, and fixes them.
-
-**System prompt focus:** "You are a Debugger. Run the test suite. For each failure, identify the root cause and fix it. Do NOT weaken tests — if a test is wrong, fix the test; if the code is wrong, fix the code."
-
-**Tools:** `bash` (sandboxed), `read_file`, `edit_file`
-
-**Budget:** 15% of total tokens, max 10 iterations
-
-**Handoff:** Green test suite + list of fixes applied.
+The Debugger agent fixes failing tests and runtime errors uncovered
+by the QA/Tester. It consumes error output (stack traces, assertion
+messages) and uses `bash` to reproduce, then `edit_file` to fix. Up to
+2 Debuggers run in parallel when multiple failures are independent.
 
 ### 7. QA/Tester
-
-**Role:** Write new tests and verify edge cases. The QA/Tester adds test coverage for the changes.
-
-**System prompt focus:** "You are a QA/Tester. Write tests for the new functionality. Cover happy path, edge cases, and error conditions. Run the full suite to verify no regressions."
-
-**Tools:** `write_file`, `bash` (sandboxed), `read_file`
-
-**Budget:** 10% of total tokens, max 5 iterations
-
-**Handoff:** New test files + updated coverage report.
+The QA/Tester agent runs the test suite, linter, and type-checker
+against each Implementer's branch and reports pass/fail per task. It
+does not modify source files except to write or update tests that
+cover the new behavior. Up to 2 QA/Testers run in parallel.
 
 ### 8. Security Auditor
-
-**Role:** Check for security vulnerabilities, secrets, and unsafe patterns. Read-only — no file modifications.
-
-**System prompt focus:** "You are a Security Auditor. Review the diff for: hardcoded secrets, SQL injection, path traversal, unsafe deserialization, missing input validation, and OWASP Top 10 issues. Report findings by severity."
-
-**Tools:** `read_file`, `grep`, `bash` (read-only: `git diff`, `git log`)
-
-**Budget:** 5% of total tokens, max 3 iterations
-
-**Handoff:** A security report with severity ratings.
+The Security Auditor agent reviews diffs for vulnerabilities: secret
+leakage, path-traversal, command injection, unsafe deserialization,
+and overly-broad permissions. It runs `bash` in read-only sandbox mode
+and produces a `SecurityReport` with severity-tagged findings.
 
 ### 9. Reviewer
-
-**Role:** Review the diff for code quality. The Reviewer checks style, naming, error handling, and adherence to project conventions.
-
-**System prompt focus:** "You are a Reviewer. Review the diff for: code quality, naming conventions, error handling, test coverage, and adherence to project conventions. Be specific — cite line numbers."
-
-**Tools:** `read_file`, `bash` (`git diff`, `git log`)
-
-**Budget:** 5% of total tokens, max 3 iterations
-
-**Handoff:** Review comments with line references.
+The Reviewer agent performs the final code review: style, clarity,
+ADR compliance, and architectural coherence. It consumes the diff and
+the `ArchitecturePlan` and produces a `ReviewReport` with actionable
+feedback. The Reviewer may block the merge by returning `block: true`
+on critical findings.
 
 ### 10. Orchestrator
-
-**Role:** Coordinate the pipeline. The Orchestrator manages handoffs, tracks budget, and can spawn parallel subagents for independent subtasks.
-
-**System prompt focus:** "You are the Orchestrator. Coordinate the agent pipeline. Track budget and halt if exceeded. Spawn parallel subagents for independent subtasks via `spawn_subagent`."
-
-**Tools:** `spawn_subagent`, `todo_write`, `read_file`
-
-**Budget:** 5% of total tokens (overhead), max 3 iterations
-
-**Handoff:** Final pipeline state + summary.
+The Orchestrator agent coordinates the swarm: it spawns sub-agents
+via `spawn_subagent`, tracks their progress, redistributes work on
+failure, and aggregates results. The Orchestrator is the only agent
+that can spawn other agents (depth limit 3 — see `loop.ts:361`).
 
 ### 11. Documenter
+The Documenter agent writes the changelog, updates the README and
+API docs, and produces a `ChangeSummary` artifact. It runs last in
+the pipeline and consumes the merged diff plus the `ReviewReport`.
 
-**Role:** Update documentation. The Documenter updates README, CHANGELOG, and inline docs to reflect the changes.
+---
 
-**System prompt focus:** "You are a Documenter. Update the README, CHANGELOG, and inline JSDoc/TSDoc comments to reflect the changes. Do NOT modify implementation code — only docs."
+## Budget allocation
 
-**Tools:** `write_file`, `edit_file`, `read_file`
+The swarm has a total token budget that is allocated across agents
+according to their expected workload. The default allocation (sums to
+100% of the per-run budget, configurable via `--swarm-budget`):
 
-**Budget:** 5% of total tokens, max 3 iterations
+| Agent           | Token Budget | % of Total | Notes                                              |
+|-----------------|--------------|------------|----------------------------------------------------|
+| Scout           | 8 000        | 4%         | ×3 parallel = 24 000 max                           |
+| Researcher      | 12 000       | 6%         | ×3 parallel = 36 000 max                           |
+| Architect       | 16 000       | 8%         | singular                                           |
+| Planner         | 10 000       | 5%         | singular                                           |
+| Implementer     | 32 000       | 16%        | ×4 parallel = 128 000 max                          |
+| Debugger        | 24 000       | 12%        | ×2 parallel = 48 000 max                           |
+| QA/Tester       | 20 000       | 10%        | ×2 parallel = 40 000 max                           |
+| Security Auditor| 18 000       | 9%         | ×2 parallel = 36 000 max                           |
+| Reviewer        | 16 000       | 8%         | singular                                           |
+| Orchestrator    | 24 000       | 12%        | singular — includes subagent spawn overhead        |
+| Documenter      | 14 000       | 7%         | singular                                           |
+| **Total**       | **194 000**  | **100%**   | (parallel agents share a pool, not additive)       |
 
-**Handoff:** Updated documentation files.
+When the per-run budget is exceeded, the Orchestrator is notified and
+may downgrade high-effort agents (e.g., reduce Implementer parallelism
+from 4 to 2) or skip optional stages (Security Auditor, Documenter).
 
-## Parallel Execution
+---
 
-The Orchestrator can spawn parallel subagents for independent subtasks. Example: if the Implementer needs to refactor 3 independent modules, the Orchestrator can spawn 3 Implementer subagents in parallel.
+## Parallel execution
+
+Parallel execution is orchestrated by the Orchestrator via
+`spawn_subagent`. Each subagent:
+
+- Gets its own `ConversationState` (independent message history)
+- Gets its own `BudgetTracker` (per-task token cap)
+- Runs with `godMode: false` regardless of the parent's mode — every
+  T1/T2 tool call inside a subagent goes through the approval gate
+- Inherits the parent's `requestApproval` callback (so approvals
+  surface in the same TUI)
+- Has a depth limit of 3 (a subagent may spawn sub-subagents, but
+  only up to 3 levels deep — see `loop.ts:361`, `maxSubagentDepth`)
+
+Parallel agents that touch overlapping file paths are serialized by
+the `parallel-execution.ts` `PATH_SCOPED_TOOLS` classifier to prevent
+write-write conflicts. Read-only tools (T0) always parallelize.
+
+The `spawn_subagent` tool itself is T2 (state-modifying — it spawns a
+new process and consumes budget) and requires approval in `build`
+mode. In `autoMode`, subagent spawns are auto-approved (along with
+other T1 and T2 tools).
+
+---
+
+## Pipeline flow
 
 ```
-Orchestrator
-    ├── spawn_subagent(Implementer, "refactor auth/")
-    ├── spawn_subagent(Implementer, "refactor user/")
-    └── spawn_subagent(Implementer, "refactor api/")
+            ┌──── Scout (×3) ────┐
+            │                     │
+            └── Researcher (×3) ──┤
+                                  ▼
+                            Architect (×1)
+                                  │
+                                  ▼
+                            Planner (×1)
+                                  │
+                  ┌───────────────┼───────────────┐
+                  ▼               ▼               ▼
+            Implementer(×4)  Debugger(×2)   QA/Tester(×2)
+                  │               │               │
+                  └───────────────┼───────────────┘
+                                  ▼
+                          Security Auditor (×2)
+                                  │
+                                  ▼
+                            Reviewer (×1)
+                                  │
+                                  ▼
+                            Orchestrator (×1)
+                                  │
+                                  ▼
+                            Documenter (×1)
 ```
 
-Each subagent has its own budget and tool subset. Results are merged by the Orchestrator.
+The Orchestrator sits at the coordination layer but is listed last
+because it is the *aggregation* point: it spawns the others, tracks
+their completion, and hands the final artifact set to the Documenter.
 
-## Budget Allocation
+---
 
-The default budget split (configurable in `config/default.toml`):
+## See also
 
-| Agent | Token Budget | Max Iterations |
-|---|---|---|
-| Scout | 10% | 5 |
-| Researcher | 10% | 5 |
-| Architect | 15% | 8 |
-| Planner | 5% | 3 |
-| Implementer | 30% | 20 |
-| Debugger | 15% | 10 |
-| QA/Tester | 10% | 5 |
-| Security Auditor | 5% | 3 |
-| Reviewer | 5% | 3 |
-| Orchestrator | 5% | 3 |
-| Documenter | 5% | 3 |
-
-Total: 100% of the configured `budgetTokens` (default: 2M tokens).
-
-## See Also
-
-- [Architecture](architecture.md) — module map + agent loop internals
-- [API Reference](api/_generated/index.html) — `AgentLoop`, `SystemPromptAssembler`, `ToolRegistry`
-- `packages/core/src/orchestration/swarm-pipeline.ts` — pipeline implementation
-- `packages/core/src/orchestration/types.ts` — agent role types
+- [docs/architecture.md](architecture.md) — module map and pipeline overview
+- [docs/decisions/0039-parallel-subagents.md](decisions/0039-parallel-subagents.md) — ADR for parallel subagent execution
+- [docs/decisions/0036-worktree-concurrency-not-security.md](decisions/0036-worktree-concurrency-not-security.md) — worktree isolation rationale
+- [packages/core/src/orchestration/types.ts](../packages/core/src/orchestration/types.ts) — runtime type definitions
+- [packages/core/src/orchestration/swarm-pipeline.ts](../packages/core/src/orchestration/swarm-pipeline.ts) — pipeline implementation

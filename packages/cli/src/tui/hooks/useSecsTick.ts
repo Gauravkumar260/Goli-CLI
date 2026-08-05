@@ -18,6 +18,14 @@ import { subscribeSpin, getCurrentSpinIndex } from '../state/spinTicker.js';
 let epochStart = Date.now();
 const secsListeners = new Set<(s: number) => void>();
 
+// P1-12 fix: Track the unsubscribe function returned by `subscribeSpin`
+// so we can release it when the last listener leaves. Previously `emit`
+// was permanently subscribed to the spinner ticker — even after all
+// consumers unmounted, `emit` was still called 10×/second iterating an
+// empty Set, and the spinner ticker could never shut down (it refcounts
+// subscribers and `emit` was always one).
+let spinUnsub: (() => void) | null = null;
+
 function emit(): void {
   const now = Date.now();
   for (const fn of secsListeners) fn((now - epochStart) / 1000);
@@ -25,15 +33,21 @@ function emit(): void {
 
 function ensureRunning(): void {
   // Reuse the spinner ticker — it's already running at 10fps.
-  if (secsListeners.size === 0) {
+  if (secsListeners.size === 0 && spinUnsub === null) {
     epochStart = Date.now();
-    subscribeSpin(emit);
+    spinUnsub = subscribeSpin(emit);
   }
 }
 
 function maybeStop(): void {
-  // We don't stop the underlying spinner ticker here; it has its
-  // own refcount. secsListeners just gets cleared on cleanup.
+  // P1-12 fix: When the last listener leaves, unsubscribe `emit` from
+  // the spinner ticker so the ticker can refcount down to zero and
+  // shut down. Previously this was a no-op, leaking the subscription
+  // forever.
+  if (secsListeners.size === 0 && spinUnsub !== null) {
+    spinUnsub();
+    spinUnsub = null;
+  }
 }
 
 /**

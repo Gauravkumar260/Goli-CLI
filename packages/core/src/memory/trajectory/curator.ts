@@ -100,17 +100,28 @@ export class TrajectoryCurator {
       const rollouts = trajectories.slice(0, this.maxRollouts);
       sourceCount += rollouts.length;
 
-      // Compute rewards and filter
-      const kept: Array<{ trajectory: typeof rollouts[0]; reward: ReturnType<typeof computeReward> }> = [];
+      // Compute rewards and filter. Cache fullTraj by trajectoryId
+      // so the conversion loop below doesn't re-scan the JSONL.
+      // The previous implementation called `getById` once here to
+      // compute the reward, and then AGAIN in the conversion loop
+      // below — each call scans the entire JSONL file. For 1,000
+      // successful trajectories, this was 2,000 full JSONL scans.
+      const fullTrajCache = new Map<string, Trajectory | null>();
+
+      const kept: Array<{ trajectory: typeof rollouts[0]; reward: ReturnType<typeof computeReward>; fullTraj: Trajectory }> = [];
 
       for (const traj of rollouts) {
-        // Load full trajectory from JSONL
-        const fullTraj = this.store.getById(traj.trajectoryId ?? '');
+        const tid = traj.trajectoryId ?? '';
+        let fullTraj = fullTrajCache.get(tid) ?? null;
+        if (!fullTrajCache.has(tid)) {
+          fullTraj = this.store.getById(tid);
+          fullTrajCache.set(tid, fullTraj);
+        }
         if (!fullTraj) continue;
 
         const reward = computeReward(fullTraj);
         if (shouldKeepForTraining(fullTraj, reward, rewardThreshold)) {
-          kept.push({ trajectory: traj, reward });
+          kept.push({ trajectory: traj, reward, fullTraj });
         }
       }
 
@@ -123,11 +134,9 @@ export class TrajectoryCurator {
       const topN = strategy === 'best_of_n' ? 3 : strategy === 'all_successes' ? kept.length : 1;
       const selected = kept.slice(0, topN);
 
-      // Convert to training examples
-      for (const { trajectory, reward } of selected) {
-        const fullTraj = this.store.getById(trajectory.trajectoryId ?? '');
-        if (!fullTraj) continue;
-
+      // Convert to training examples. Reuse the cached fullTraj
+      // from the reward loop — no second JSONL scan needed.
+      for (const { reward, fullTraj } of selected) {
         examples.push(this.toTrainingExample(fullTraj, reward.total));
       }
     }

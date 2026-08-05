@@ -238,7 +238,7 @@ describe('OtelTracer', () => {
   it('creates spans with parent-child relationships', () => {
     const tracer = new OtelTracer();
     const parent = tracer.startSpan('agent.iteration', 'INTERNAL', { iter: 1 });
-    const child = tracer.startSpan('chat glm-5.2', 'CLIENT');
+    const child = tracer.startSpan('chat llm', 'CLIENT');
 
     expect(child.parentSpanId).toBe(parent.spanId);
     expect(child.traceId).toBe(parent.traceId);
@@ -340,7 +340,10 @@ describe('AlertManager', () => {
     const manager = new AlertManager({ thresholds: { wallclockThresholdS: 1800 } });
     const alert = manager.checkLatency(2000);
     expect(alert).not.toBeNull();
-    expect(alert!.type).toBe('latency_p99');
+    // The alert type is `wallclock_exceeded` (not `latency_p99`) because
+    // `checkLatency` checks a single session's wall-clock duration, not
+    // a statistical P99 percentile. The previous name was misleading.
+    expect(alert!.type).toBe('wallclock_exceeded');
   });
 
   it('calls onAlert callback when triggered', () => {

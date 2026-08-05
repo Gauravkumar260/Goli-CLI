@@ -1,6 +1,6 @@
 # Phase 5 — Sandboxing & Execution (Module 4)
 
-**Status:** Pending
+**Status:** Substantially Complete
 **Modules touched:** M4 (sandbox, approval policy, audit log)
 **Compliance gates:** G3 (self-hosted GLM-5.2 path documented)
 
@@ -11,6 +11,14 @@ Linux), the network egress filter (SOCKS5 proxy + allowlist), the
 cgroups v2 resource limits, the 3-mode × 3-policy approval engine, the
 path-validation layer, and the audit log. End of Phase 5: every `bash`
 tool call runs inside the sandbox with kernel-level enforcement.
+
+## Current Implementation Status
+
+Sandbox implementation shipped: cgroups v2 (resource limits), Landlock (Linux filesystem), bubblewrap (Linux namespaces), seatbelt (macOS sandbox-exec), network egress filter with default allowlist (github/pypi/npm/crates), path-validation (O_NOFOLLOW + realpath + symlink detection), audit-log (tamper-evident hash chain), executor. Approval engine + blast-radius guard + enhanced-approval engine all shipped at packages/core/src/approval/. Production hardening + Firecracker cloud sandbox on the roadmap.
+
+See the per-module sections in [docs/architecture.md](../architecture.md)
+for the current code locations and `AGENTS.md` for accumulated
+implementation patterns and gotchas.
 
 ## Definition of Done
 
@@ -30,9 +38,9 @@ tool call runs inside the sandbox with kernel-level enforcement.
 - [ ] `src/sandbox/worktree.ts` — git worktree isolation (Phase 13 extends)
 - [ ] Red-team test suite: symlink attacks, TOCTOU races, null-byte injection, path traversal, namespace escapes, fork bombs, network exfil attempts
 - [ ] Wire `bash` tool (Phase 4 stub) to delegate to sandbox
-- [ ] ADR-0015 (sandbox as trust boundary, kernel over prompt)
-- [ ] ADR-0016 (Firecracker over Docker for cloud sandbox)
-- [ ] ADR-0017 (network + filesystem isolation both mandatory)
+- [ ] ADR-0001 (sandbox as trust boundary) + ADR-0016 (kernel-enforced sandbox over prompt-level guidance)
+- [ ] No ADR for Firecracker vs Docker — E2B Firecracker chosen by implementation in packages/core/src/orchestration/cloud/e2b.ts
+- [ ] No ADR-0017 (number reserved); network + filesystem isolation is enforced by packages/core/src/sandbox/network.ts + packages/core/src/sandbox/path-validation.ts
 
 ## Steps (P5.x)
 

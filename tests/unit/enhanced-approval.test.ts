@@ -194,7 +194,7 @@ describe('EnhancedApprovalEngine', () => {
     };
     const engineWithLLM = new EnhancedApprovalEngine({
       allowlistPath: join(testDir, 'allowlist.json'),
-      glmClient: mockClient,
+      llmClient: mockClient,
     });
 
     // Find a medium-severity pattern to test
@@ -216,7 +216,7 @@ describe('EnhancedApprovalEngine', () => {
     };
     const engineWithLLM = new EnhancedApprovalEngine({
       allowlistPath: join(testDir, 'allowlist.json'),
-      glmClient: mockClient,
+      llmClient: mockClient,
     });
 
     // Should not crash — should fall through to 'ask'

@@ -24,7 +24,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 import { T } from '../theme/tokens.js';
-import { Spinner } from './Spinner.js';
+import { Spinner, type SpinnerStyle } from './Spinner.js';
 import { useIsScreenReaderEnabled } from '../hooks/useIsScreenReaderEnabled.js';
 import {
   LOADING_PHRASES,
@@ -42,8 +42,8 @@ interface Props {
   onCancel?: () => void;
   /** Optional subject of the agent's current thought (e.g. "analyzing auth"). */
   thought?: string;
-  /** Spinner style. Defaults to 'dots'. */
-  spinnerStyle?: 'dots' | 'line' | 'arrow' | 'bounce' | 'triangle';
+  /** Spinner style. Defaults to 'dots'. Includes T-088 kawaii styles. */
+  spinnerStyle?: SpinnerStyle;
   /** Use gradient spinner (5-color brand cycling). Defaults to false. */
   gradient?: boolean;
   /** Show witty phrases (cycled occasionally). Defaults to true on wide terminals. */

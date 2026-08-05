@@ -25,14 +25,21 @@ import { AgentStateBar } from '../../packages/cli/src/tui/components/AgentStateB
 import type { TierId } from '../../packages/cli/src/tui/theme/agents.js';
 
 describe('T-041: Spinner — frame definitions (AC #1, #4)', () => {
-  it('exports 5 spinner styles', () => {
+  it('exports 10 spinner styles (5 classic + 5 kawaii)', () => {
     const styles = getSpinnerStyles();
-    expect(styles.length).toBe(5);
+    expect(styles.length).toBe(10);
+    // Classic styles (T-041).
     expect(styles).toContain('dots');
     expect(styles).toContain('line');
     expect(styles).toContain('arrow');
     expect(styles).toContain('bounce');
     expect(styles).toContain('triangle');
+    // T-088 kawaii styles.
+    expect(styles).toContain('kawaii');
+    expect(styles).toContain('moon');
+    expect(styles).toContain('pulse');
+    expect(styles).toContain('star');
+    expect(styles).toContain('orbit');
   });
 
   it.each([
@@ -156,7 +163,9 @@ describe('T-041: AgentStateBar uses Spinner when busy (AC #3)', () => {
 
   it('shows "thinking" label when busy', () => {
     const { lastFrame } = render(<AgentStateBar {...baseProps} busy={true} />);
-    expect(lastFrame() ?? '').toContain('thinking');
+    // P1-10 fix: the bar now shows the phase-specific label ('generating'
+    // when only `busy` is set) instead of the legacy 'thinking' label.
+    expect(lastFrame() ?? '').toContain('generating');
   });
 
   it('shows "idle" label when not busy', () => {
@@ -175,6 +184,7 @@ describe('T-041: AgentStateBar uses Spinner when busy (AC #3)', () => {
     const { lastFrame } = render(
       <AgentStateBar {...baseProps} cols={40} busy={true} />,
     );
-    expect(lastFrame() ?? '').toContain('thinking');
+    // P1-10 fix: phase-specific label, not legacy 'thinking'.
+    expect(lastFrame() ?? '').toContain('generating');
   });
 });

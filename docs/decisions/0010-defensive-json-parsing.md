@@ -14,7 +14,7 @@ produce malformed JSON:
 - Trailing commas (`{"a": 1, "b": 2,}`)
 - Unescaped newlines inside strings (`{"path": "foo\nbar"}`)
 - Mid-stream truncation (streaming chunks split mid-JSON)
-- Markdown code fences around JSON (```` ```json\n{...}\n``` ````)
+- Markdown code fences around JSON (` ```json\n{...}\n``` `)
 - Prose wrapper (`"Here are the arguments: {...}"`)
 
 A bare `JSON.parse` would throw on any of these, crashing the agent
@@ -43,6 +43,7 @@ model so the model can re-emit a valid tool call.
 ## Consequences
 
 **Positive:**
+
 - The agent loop never crashes on malformed JSON.
 - The model gets feedback ("failed to parse — re-emit valid JSON")
   and can self-correct.
@@ -50,6 +51,7 @@ model so the model can re-emit a valid tool call.
   cases in testing).
 
 **Negative:**
+
 - Repair heuristics can occasionally produce unexpected results (e.g.
   extracting the wrong JSON object from prose). Mitigation: the
   repairs are conservative and return `undefined` if uncertain.

@@ -6,14 +6,18 @@
  * hint to cycle modes. We implement a focused version for Goli-CLI's
  * permission modes (default / plan / safe / god).
  *
- * Modes:
- *   - default  → "BUILD"  (green)   — full permissions per tier
- *   - plan     → "PLAN"   (yellow)  — read-only, no edits
- *   - safe     → "SAFE"   (blue)    — restricted autonomy
- *   - god      → "GOD"    (red)     — maximum autonomy (godmode)
+ * Modes (mapped from the canonical AppMode in App.tsx via APPMODE_TO_INDICATOR):
+ *   - default  → "BUILD"  (green)   — full permissions per tier      (AppMode='build')
+ *   - plan     → "PLAN"   (yellow)  — read-only, no edits             (AppMode='plan')
+ *   - safe     → "SAFE"   (blue)    — read-only, no writes, no exec   (AppMode='read-only')
+ *   - god      → "GOD"    (red)     — maximum autonomy, all gates off (AppMode='god')
+ *
+ * "SAFE" is an alias for the read-only AppMode — same tool filtering,
+ * same system prompt, same tier (T0). The label difference is purely
+ * cosmetic so users have a familiar "safe mode" affordance.
  *
  * The indicator shows the mode label + a keybind hint to cycle:
- *   "BUILD (Ctrl+P to cycle)"
+ *   "BUILD (Shift+Tab to cycle)"
  *
  * @module tui/components/ApprovalModeIndicator
  */
@@ -39,8 +43,8 @@ interface Props {
 const MODE_CONFIG: Record<PermissionMode, { label: string; color: string; description: string }> = {
   default: { label: 'BUILD', color: T.green,  description: 'full permissions per tier' },
   plan:    { label: 'PLAN',  color: T.yellow, description: 'read-only, no edits' },
-  safe:    { label: 'SAFE',  color: T.blue,   description: 'restricted autonomy' },
-  god:     { label: 'GOD',   color: T.red,    description: 'maximum autonomy' },
+  safe:    { label: 'SAFE',  color: T.blue,   description: 'read-only, no writes, no exec' },
+  god:     { label: 'GOD',   color: T.red,    description: 'maximum autonomy, all gates off' },
 };
 
 /**
@@ -68,7 +72,7 @@ export function ApprovalModeIndicator({
       {hintEnabled && (
         <Text color={T.gray} dimColor>
           {' '}
-          (Ctrl+P to cycle)
+          (Shift+Tab to cycle)
         </Text>
       )}
     </Box>

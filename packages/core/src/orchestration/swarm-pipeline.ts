@@ -15,7 +15,7 @@
  *
  * - 15× lower token cost than default-multi-agent
  * - 37% fewer coordination failures
- * - GLM-5.2's 1M context raises the bar for "too big for one agent"
+ * - 1M context raises the bar for "too big for one agent"
  * - Parallel subagents are opt-in (fan-out/fan-in) for genuinely
  *   independent subtasks
  *
@@ -41,8 +41,20 @@ export interface SwarmPipelineOptions {
   workspaceRoot: string;
   /** Whether to use worktree isolation (default: false — single-threaded). */
   useWorktrees?: boolean;
-  /** A function to run a single agent. */
-  runAgent?: (role: AgentRole, prompt: string) => Promise<{ ok: boolean; output: string; durationMs: number }>;
+  /**
+   * A function to run a single agent. The optional `workspaceRoot`
+   * parameter is the worktree path to operate in — when worktree
+   * isolation is enabled, this MUST be passed to the agent runner so
+   * parallel agents write to their own worktree, not the shared main
+   * workspace. The previous signature omitted this parameter, so
+   * `subtask.workspaceRoot` was silently discarded and all parallel
+   * agents clobbered each other in the main workspace.
+   */
+  runAgent?: (
+    role: AgentRole,
+    prompt: string,
+    workspaceRoot?: string,
+  ) => Promise<{ ok: boolean; output: string; durationMs: number }>;
 }
 
 /** The 11-agent swarm pipeline. */
@@ -70,7 +82,12 @@ export class SwarmPipeline {
       logger: this.log,
       runSubagent: this.runAgent
         ? async (subtask) => {
-            return this.runAgent!(subtask.role, subtask.description);
+            // Forward subtask.workspaceRoot to the agent runner so
+            // parallel agents operate in their own worktree. Without
+            // this, worktree isolation is silently broken — every
+            // parallel agent writes to the main workspaceRoot and
+            // they clobber each other.
+            return this.runAgent!(subtask.role, subtask.description, subtask.workspaceRoot);
           }
         : undefined,
     });
@@ -143,45 +160,73 @@ export class SwarmPipeline {
       }
     }
 
-    // 5. Run the orchestration pattern
-    const result = await this.patterns.run(decomposition);
-
-    // 6. Merge worktree branches back and clean up.
-    if (this.worktreeIsolation && worktreeMap.size > 0) {
-      for (const [subtaskId] of worktreeMap) {
-        const subtaskResult = result.subtaskResults.find((r) => r.subtaskId === subtaskId);
-        if (subtaskResult?.ok) {
-          // Merge the subtask's branch back into the main workspace.
-          this.worktreeIsolation.merge(subtaskId);
+    // 5. Run the orchestration pattern.
+    // 6/8. Cleanup is in a `finally` block so a throwing subagent
+    // does not leak orphaned worktrees on disk. The previous
+    // implementation ran `this.patterns.run` outside any
+    // try/finally, so any throw skipped merge + remove + cleanup,
+    // leaving `git worktree` entries that accumulated across
+    // sessions.
+    let result: OrchestrationResult | undefined;
+    try {
+      result = await this.patterns.run(decomposition);
+      if (!result) {
+        // Should never happen — patterns.run always returns a result.
+        // But TS can't prove it across the `finally` boundary.
+        throw new Error('Orchestration patterns.run returned no result');
+      }
+    } finally {
+      if (this.worktreeIsolation && worktreeMap.size > 0) {
+        for (const [subtaskId] of worktreeMap) {
+          const subtaskResult = result?.subtaskResults.find((r) => r.subtaskId === subtaskId);
+          if (subtaskResult?.ok) {
+            // Merge the subtask's branch back into the main workspace.
+            // If the merge fails (e.g., conflict), PRESERVE the
+            // worktree so a human can recover the work — the
+            // previous implementation removed the worktree
+            // unconditionally, force-discarding all uncommitted
+            // work on merge failure.
+            const merged = this.worktreeIsolation.merge(subtaskId);
+            if (!merged) {
+              this.log?.error(
+                'Worktree merge failed — preserving worktree for manual recovery',
+                { subtaskId },
+              );
+              continue; // Do NOT remove — let the user resolve the conflict.
+            }
+          }
+          this.worktreeIsolation.remove(subtaskId);
         }
-        this.worktreeIsolation.remove(subtaskId);
+      }
+      // 8. Cleanup any remaining worktrees if used.
+      if (this.worktreeIsolation) {
+        this.worktreeIsolation.cleanup();
       }
     }
+    // After try/finally, `result` is guaranteed defined — if
+    // `patterns.run` had thrown, the try/finally would have
+    // re-thrown after cleanup.
+    const orchestrationResult = result as OrchestrationResult;
 
     // 7. Build the pipeline stages report
     const pipelineStages = SWARM_PIPELINE.map((stage) => ({
       ...stage,
-      completed: result.subtaskResults.some((r) => r.role === stage.role && r.ok),
+      completed: orchestrationResult.subtaskResults.some((r) => r.role === stage.role && r.ok),
     }));
 
-    // 8. Cleanup any remaining worktrees if used
-    if (this.worktreeIsolation) {
-      this.worktreeIsolation.cleanup();
-    }
-
     this.log?.info('Swarm complete', {
-      ok: result.ok,
-      pattern: result.pattern,
-      durationMs: result.totalDurationMs,
+      ok: orchestrationResult.ok,
+      pattern: orchestrationResult.pattern,
+      durationMs: orchestrationResult.totalDurationMs,
       stages: pipelineStages.filter((s) => s.completed).length,
     });
 
     return {
-      ok: result.ok,
-      pattern: result.pattern,
+      ok: orchestrationResult.ok,
+      pattern: orchestrationResult.pattern,
       routingDecision,
       pipelineStages,
-      result,
+      result: orchestrationResult,
       decomposition,
     };
   }
