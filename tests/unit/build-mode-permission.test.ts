@@ -14,7 +14,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CliAgentLoop } from '../../packages/cli/src/services/CliAgentLoop.js';
+import { CliAgentLoop } from '../../apps/cli/src/services/CliAgentLoop.js';
 
 describe('Build mode permission gate', () => {
   let loop: CliAgentLoop;

@@ -20,9 +20,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { DenseToolMessage, isCompactTool, COMPACT_TOOL_ALLOWLIST } from '../../packages/cli/src/tui/components/messages/DenseToolMessage.js';
-import { AgentMessage } from '../../packages/cli/src/tui/components/messages/AgentMessage.js';
-import type { ToolCall, Message } from '../../packages/cli/src/tui/state/types.js';
+import { DenseToolMessage, isCompactTool, COMPACT_TOOL_ALLOWLIST } from '../../apps/cli/src/tui/components/messages/DenseToolMessage.js';
+import { AgentMessage } from '../../apps/cli/src/tui/components/messages/AgentMessage.js';
+import type { ToolCall, Message } from '../../apps/cli/src/tui/state/types.js';
 
 function makeToolCall(overrides: Partial<ToolCall> = {}): ToolCall {
   return {

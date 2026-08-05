@@ -17,9 +17,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { AppStateStore } from '../../packages/cli/src/tui/state/AppStateStore.js';
-import type { PendingPermission } from '../../packages/cli/src/tui/state/types.js';
-import { PermissionDialog } from '../../packages/cli/src/tui/components/PermissionDialog.js';
+import { AppStateStore } from '../../apps/cli/src/tui/state/AppStateStore.js';
+import type { PendingPermission } from '../../apps/cli/src/tui/state/types.js';
+import { PermissionDialog } from '../../apps/cli/src/tui/components/PermissionDialog.js';
 
 function makePermission(overrides: Partial<PendingPermission> = {}): PendingPermission {
   return {

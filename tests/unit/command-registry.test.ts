@@ -8,7 +8,7 @@ import {
   CommandRegistry,
   globalCommands,
   registerDefaultCommands,
-} from '../../packages/cli/src/tui/lib/CommandRegistry.js';
+} from '../../apps/cli/src/tui/lib/CommandRegistry.js';
 
 describe('CommandRegistry', () => {
   let registry: CommandRegistry;

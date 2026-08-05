@@ -11,7 +11,7 @@
  *   - typecheck_time_seconds     (single run)
  *   - lint_time_seconds          (single run)
  *   - test_suite_time_seconds    (single run)
- *   - bundle_size_kb             (size of packages/cli/dist/index.js)
+ *   - bundle_size_kb             (size of apps/cli/dist/index.js)
  *
  * Usage:
  *   node scripts/bench.ts                # run all benchmarks
@@ -27,7 +27,7 @@ import { resolve } from 'node:path';
 import { timeMs, median } from './bench-utils.js';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..');
-const CLI_BIN = resolve(REPO_ROOT, 'packages/cli/dist/index.js');
+const CLI_BIN = resolve(REPO_ROOT, 'apps/cli/dist/index.js');
 const BENCH_FILE = resolve(REPO_ROOT, 'bench/baseline.json');
 const RUNS = 5;
 
@@ -122,7 +122,7 @@ function main(): void {
     samples: helpMs.samples,
   };
 
-  console.log(`▶ bundle size: ${bundleSizeKb()} KB (packages/cli/dist/index.js)`);
+  console.log(`▶ bundle size: ${bundleSizeKb()} KB (apps/cli/dist/index.js)`);
   result.metrics.bundle_size_kb = {
     value: bundleSizeKb(),
     unit: 'kb',

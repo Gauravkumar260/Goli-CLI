@@ -17,11 +17,11 @@ import { render } from 'ink-testing-library';
 import {
   ApprovalModeIndicator,
   __testing as amiTesting,
-} from '../../packages/cli/src/tui/components/ApprovalModeIndicator.js';
+} from '../../apps/cli/src/tui/components/ApprovalModeIndicator.js';
 import {
   ContextSummaryDisplay,
-} from '../../packages/cli/src/tui/components/ContextSummaryDisplay.js';
-import { resetCapabilitiesCache } from '../../packages/cli/src/tui/lib/capabilities.js';
+} from '../../apps/cli/src/tui/components/ContextSummaryDisplay.js';
+import { resetCapabilitiesCache } from '../../apps/cli/src/tui/lib/capabilities.js';
 
 describe('T-059: ApprovalModeIndicator — mode labels', () => {
   it('renders BUILD for default mode', () => {

@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { AppStateStore } from '../../packages/cli/src/tui/state/AppStateStore.js';
+import { AppStateStore } from '../../apps/cli/src/tui/state/AppStateStore.js';
 
 describe('AppStateStore', () => {
   it('starts with default state', () => {

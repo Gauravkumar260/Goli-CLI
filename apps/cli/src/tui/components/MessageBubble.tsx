@@ -14,7 +14,7 @@
  * The previous monolithic MessageBubble rendered all types inline.
  * Splitting into specialized renderers makes each one simpler to test,
  * extend, and reason about — and matches gemini-cli's structure (15
- * specialized message renderers under packages/cli/src/ui/components/messages/).
+ * specialized message renderers under apps/cli/src/ui/components/messages/).
  *
  * Performance: React.memo on each renderer means completed messages
  * NEVER re-render when new messages stream in. The dispatcher itself is

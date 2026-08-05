@@ -29,7 +29,7 @@ import {
   useProfile,
   deleteProfile,
   runProfile,
-} from '../../packages/cli/src/commands/profile.js';
+} from '../../apps/cli/src/commands/profile.js';
 
 let tmpHome: string;
 let originalHome: string | undefined;

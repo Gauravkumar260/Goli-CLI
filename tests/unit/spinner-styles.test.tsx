@@ -2,7 +2,7 @@
  * Unit tests for T-041 — Spinner animation upgrade.
  *
  * Verifies the four acceptance criteria from tasks.json:
- *  1. New module packages/cli/src/tui/components/Spinner.tsx with 5+ styles.
+ *  1. New module apps/cli/src/tui/components/Spinner.tsx with 5+ styles.
  *  2. Spinner style is configurable (dots, line, arrow, bounce, triangle).
  *  3. AgentStateBar uses Spinner when busy.
  *  4. Tests verify each spinner style produces valid frames.
@@ -20,9 +20,9 @@ import {
   DEFAULT_SPINNER_STYLE,
   SPINNER_INTERVAL_MS,
   type SpinnerStyle,
-} from '../../packages/cli/src/tui/components/Spinner.js';
-import { AgentStateBar } from '../../packages/cli/src/tui/components/AgentStateBar.js';
-import type { TierId } from '../../packages/cli/src/tui/theme/agents.js';
+} from '../../apps/cli/src/tui/components/Spinner.js';
+import { AgentStateBar } from '../../apps/cli/src/tui/components/AgentStateBar.js';
+import type { TierId } from '../../apps/cli/src/tui/theme/agents.js';
 
 describe('T-041: Spinner — frame definitions (AC #1, #4)', () => {
   it('exports 10 spinner styles (5 classic + 5 kawaii)', () => {

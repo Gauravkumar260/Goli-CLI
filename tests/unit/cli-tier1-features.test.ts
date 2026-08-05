@@ -16,9 +16,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { computeDiff } from '../../packages/cli/src/tui/components/DiffReviewDialog.js';
-import { globalCommands, registerDefaultCommands } from '../../packages/cli/src/tui/lib/CommandRegistry.js';
-import { AppStateStore } from '../../packages/cli/src/tui/state/AppStateStore.js';
+import { computeDiff } from '../../apps/cli/src/tui/components/DiffReviewDialog.js';
+import { globalCommands, registerDefaultCommands } from '../../apps/cli/src/tui/lib/CommandRegistry.js';
+import { AppStateStore } from '../../apps/cli/src/tui/state/AppStateStore.js';
 
 beforeEach(() => {
   registerDefaultCommands(true); // force re-register

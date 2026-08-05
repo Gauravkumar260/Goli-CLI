@@ -27,15 +27,15 @@ import { SystemPromptAssembler } from '../../packages/core/src/agent/system-prom
 import type { SystemPromptContext } from '../../packages/core/src/agent/system-prompt.js';
 import { AgentLoop, loadConfig, createLogger, EffortRoutingClient, ProvenanceTracker, ReflexionEngine } from '@goli/core';
 import type { AgentLoopResult } from '@goli/core';
-import { CliAgentLoop } from '../../packages/cli/src/services/CliAgentLoop.js';
-import { globalCommands, registerDefaultCommands } from '../../packages/cli/src/tui/lib/CommandRegistry.js';
+import { CliAgentLoop } from '../../apps/cli/src/services/CliAgentLoop.js';
+import { globalCommands, registerDefaultCommands } from '../../apps/cli/src/tui/lib/CommandRegistry.js';
 
 const CORE_LOOP_SRC = resolve(__dirname, '../../packages/core/src/agent/loop.ts');
 const CORE_TYPES_SRC = resolve(__dirname, '../../packages/core/src/agent/types.ts');
-const CLI_INDEX_SRC = resolve(__dirname, '../../packages/cli/src/index.ts');
-const CLI_AGENT_LOOP_SRC = resolve(__dirname, '../../packages/cli/src/services/CliAgentLoop.ts');
-const CLI_COMMAND_REGISTRY_SRC = resolve(__dirname, '../../packages/cli/src/tui/lib/CommandRegistry.ts');
-const CLI_LAUNCHER_SRC = resolve(__dirname, '../../packages/cli/src/tui/launcher.ts');
+const CLI_INDEX_SRC = resolve(__dirname, '../../apps/cli/src/index.ts');
+const CLI_AGENT_LOOP_SRC = resolve(__dirname, '../../apps/cli/src/services/CliAgentLoop.ts');
+const CLI_COMMAND_REGISTRY_SRC = resolve(__dirname, '../../apps/cli/src/tui/lib/CommandRegistry.ts');
+const CLI_LAUNCHER_SRC = resolve(__dirname, '../../apps/cli/src/tui/launcher.ts');
 
 // ─── N1: agent/index.ts exports + AgentLoop consumes them ──────────────
 

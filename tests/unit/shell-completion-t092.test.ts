@@ -14,7 +14,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { getShellCompletions, MAX_SHELL_COMPLETIONS } from '../../packages/cli/src/tui/lib/shellCompletion.js';
+import { getShellCompletions, MAX_SHELL_COMPLETIONS } from '../../apps/cli/src/tui/lib/shellCompletion.js';
 
 // ─── Binary completion ──────────────────────────────────────────────
 

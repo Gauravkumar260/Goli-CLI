@@ -18,11 +18,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { ThemeDialog, ALL_THEMES } from '../../packages/cli/src/tui/components/dialogs/ThemeDialog.js';
-import { AboutDialog, ABOUT_VERSION } from '../../packages/cli/src/tui/components/dialogs/AboutDialog.js';
-import { DialogManager } from '../../packages/cli/src/tui/components/DialogManager.js';
-import type { DialogEntry } from '../../packages/cli/src/tui/components/DialogManager.js';
-import { BUILTIN_SKIN_NAMES, loadSkin, getActiveSkin } from '../../packages/cli/src/tui/theme/skin-engine.js';
+import { ThemeDialog, ALL_THEMES } from '../../apps/cli/src/tui/components/dialogs/ThemeDialog.js';
+import { AboutDialog, ABOUT_VERSION } from '../../apps/cli/src/tui/components/dialogs/AboutDialog.js';
+import { DialogManager } from '../../apps/cli/src/tui/components/DialogManager.js';
+import type { DialogEntry } from '../../apps/cli/src/tui/components/DialogManager.js';
+import { BUILTIN_SKIN_NAMES, loadSkin, getActiveSkin } from '../../apps/cli/src/tui/theme/skin-engine.js';
 
 // ─── ThemeDialog rendering ──────────────────────────────────────────
 

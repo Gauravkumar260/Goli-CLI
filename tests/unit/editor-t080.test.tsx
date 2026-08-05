@@ -18,8 +18,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { getPreferredEditor, openInEditor } from '../../packages/cli/src/tui/lib/editor.js';
-import { PromptInput } from '../../packages/cli/src/tui/components/PromptInput.js';
+import { getPreferredEditor, openInEditor } from '../../apps/cli/src/tui/lib/editor.js';
+import { PromptInput } from '../../apps/cli/src/tui/components/PromptInput.js';
 
 // Save/restore env vars around each test.
 const origEditor = process.env['EDITOR'];

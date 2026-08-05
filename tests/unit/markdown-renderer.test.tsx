@@ -2,7 +2,7 @@
  * Unit tests for T-040 — Basic Markdown rendering in agent messages.
  *
  * Verifies the four acceptance criteria from tasks.json:
- *  1. New module packages/cli/src/tui/lib/markdown.tsx with renderMarkdown.
+ *  1. New module apps/cli/src/tui/lib/markdown.tsx with renderMarkdown.
  *  2. Supports: **bold**, *italic*, `inline code`, ```code blocks```,
  *     - bullet lists, 1. numbered lists, # headings.
  *  3. Code blocks get a distinct background color (border color).
@@ -15,9 +15,9 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 
-import { renderMarkdown } from '../../packages/cli/src/tui/lib/markdown.js';
-import { AgentMessage } from '../../packages/cli/src/tui/components/messages/AgentMessage.js';
-import type { Message } from '../../packages/cli/src/tui/state/types.js';
+import { renderMarkdown } from '../../apps/cli/src/tui/lib/markdown.js';
+import { AgentMessage } from '../../apps/cli/src/tui/components/messages/AgentMessage.js';
+import type { Message } from '../../apps/cli/src/tui/state/types.js';
 
 describe('T-040: renderMarkdown — headings (AC #2)', () => {
   it('renders # H1 heading', () => {

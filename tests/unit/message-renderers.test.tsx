@@ -10,7 +10,7 @@
  *  6. MessageBubble becomes a dispatcher.
  *  7. All existing MessageBubble tests still pass.
  *
- * Comparison reference: gemini-cli packages/cli/src/ui/components/messages/
+ * Comparison reference: gemini-cli apps/cli/src/ui/components/messages/
  * — 15 specialized message renderers (UserMessage, GeminiMessage, ToolMessage,
  * ErrorMessage, WarningMessage, ThinkingMessage, InfoMessage, HintMessage,
  * CompressionMessage, DiffRenderer, etc.).
@@ -19,12 +19,12 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 
-import { UserMessage } from '../../packages/cli/src/tui/components/messages/UserMessage.js';
-import { AgentMessage } from '../../packages/cli/src/tui/components/messages/AgentMessage.js';
-import { SystemMessage } from '../../packages/cli/src/tui/components/messages/SystemMessage.js';
-import { ToolMessage } from '../../packages/cli/src/tui/components/messages/ToolMessage.js';
-import { MessageBubble } from '../../packages/cli/src/tui/components/MessageBubble.js';
-import type { Message, ToolCall } from '../../packages/cli/src/tui/state/types.js';
+import { UserMessage } from '../../apps/cli/src/tui/components/messages/UserMessage.js';
+import { AgentMessage } from '../../apps/cli/src/tui/components/messages/AgentMessage.js';
+import { SystemMessage } from '../../apps/cli/src/tui/components/messages/SystemMessage.js';
+import { ToolMessage } from '../../apps/cli/src/tui/components/messages/ToolMessage.js';
+import { MessageBubble } from '../../apps/cli/src/tui/components/MessageBubble.js';
+import type { Message, ToolCall } from '../../apps/cli/src/tui/state/types.js';
 
 // ─── Test fixtures ─────────────────────────────────────────────────
 

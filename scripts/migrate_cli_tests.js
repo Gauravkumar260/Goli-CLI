@@ -10,9 +10,9 @@ for (const f of testFiles) {
   const srcPath = path.join(testsDir, f);
   const content = fs.readFileSync(srcPath, 'utf8');
 
-  // Rewrite any old import paths that still point to packages/cli  
+  // Rewrite any old import paths that still point to apps/cli  
   let newContent = content
-    // packages/cli -> apps/cli
+    // apps/cli -> apps/cli
     .replace(/from '(\.\.\/)+packages\/cli\/(.*?)'/g, "from '../../apps/cli/$2'")
     .replace(/from '\.\.\/\.\.\/packages\/cli\/(.*?)'/g, "from '../../apps/cli/$1'")
     // packages/core -> via new packages

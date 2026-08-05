@@ -18,7 +18,7 @@ import {
   TIPS,
   getTipsByCategory,
   getTipCount,
-} from '../../packages/cli/src/tui/lib/tips.js';
+} from '../../apps/cli/src/tui/lib/tips.js';
 
 describe('T-102: expanded tips library', () => {
   it('has at least 100 tips', () => {

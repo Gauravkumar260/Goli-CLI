@@ -23,7 +23,7 @@ import {
   BUILTIN_SKIN_NAMES,
   type Skin,
   type ColorTokenName,
-} from '../../packages/cli/src/tui/theme/skin-engine.js';
+} from '../../apps/cli/src/tui/theme/skin-engine.js';
 
 // ─── Contrast ratio utility (copied from tui-smoke-a11y.test.tsx) ──
 

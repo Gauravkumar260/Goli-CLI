@@ -24,9 +24,9 @@ import {
   formatTokens,
   formatCost,
   formatRate,
-} from '../../packages/cli/src/tui/components/CostBreakdownPanel.js';
-import { globalCommands, registerDefaultCommands } from '../../packages/cli/src/tui/lib/CommandRegistry.js';
-import { AppStateStore } from '../../packages/cli/src/tui/state/AppStateStore.js';
+} from '../../apps/cli/src/tui/components/CostBreakdownPanel.js';
+import { globalCommands, registerDefaultCommands } from '../../apps/cli/src/tui/lib/CommandRegistry.js';
+import { AppStateStore } from '../../apps/cli/src/tui/state/AppStateStore.js';
 
 beforeEach(() => {
   registerDefaultCommands();

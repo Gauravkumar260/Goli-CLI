@@ -39,7 +39,7 @@ function normalizeSeparators(p: string): string {
  *   2. ~/.goli/current symlink → ~/.goli/current/history
  *   3. ~/.goli-cli/history (legacy default)
  *
- * This mirrors the getGoliHome() resolution from packages/cli/src/commands/profile.ts.
+ * This mirrors the getGoliHome() resolution from apps/cli/src/commands/profile.ts.
  */
 export function getHistoryFilePath(): string {
   // os.homedir() does NOT read $HOME on Windows (it uses the profile dir);

@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 
-import { renderMarkdown } from '../../packages/cli/src/tui/lib/markdown.js';
+import { renderMarkdown } from '../../apps/cli/src/tui/lib/markdown.js';
 
 describe('T-048: Markdown tables (AC #1)', () => {
   it('renders a simple 2-column table', () => {

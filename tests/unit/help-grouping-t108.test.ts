@@ -16,8 +16,8 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-import { globalCommands, registerDefaultCommands } from '../../packages/cli/src/tui/lib/CommandRegistry.js';
-import { AppStateStore } from '../../packages/cli/src/tui/state/AppStateStore.js';
+import { globalCommands, registerDefaultCommands } from '../../apps/cli/src/tui/lib/CommandRegistry.js';
+import { AppStateStore } from '../../apps/cli/src/tui/state/AppStateStore.js';
 
 beforeEach(() => {
   registerDefaultCommands();

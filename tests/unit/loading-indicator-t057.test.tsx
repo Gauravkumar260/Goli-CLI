@@ -15,10 +15,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 
-import { LoadingIndicator, __testing } from '../../packages/cli/src/tui/components/LoadingIndicator.js';
-import { useLoadingIndicator } from '../../packages/cli/src/tui/hooks/useLoadingIndicator.js';
-import type { StreamingState } from '../../packages/cli/src/tui/hooks/useLoadingIndicator.js';
-import { resetCapabilitiesCache } from '../../packages/cli/src/tui/lib/capabilities.js';
+import { LoadingIndicator, __testing } from '../../apps/cli/src/tui/components/LoadingIndicator.js';
+import { useLoadingIndicator } from '../../apps/cli/src/tui/hooks/useLoadingIndicator.js';
+import type { StreamingState } from '../../apps/cli/src/tui/hooks/useLoadingIndicator.js';
+import { resetCapabilitiesCache } from '../../apps/cli/src/tui/lib/capabilities.js';
 
 // Test harness for the hook.
 function useTestHook(state: StreamingState, thought?: string) {

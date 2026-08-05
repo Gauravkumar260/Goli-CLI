@@ -7,8 +7,8 @@ import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { globalKeyMap, DEFAULT_BINDINGS } from '../../packages/cli/src/tui/lib/keymap.js';
-import { PromptInput } from '../../packages/cli/src/tui/components/PromptInput.js';
+import { globalKeyMap, DEFAULT_BINDINGS } from '../../apps/cli/src/tui/lib/keymap.js';
+import { PromptInput } from '../../apps/cli/src/tui/components/PromptInput.js';
 
 // Helper: find a binding by action name from the tuple array.
 function findBinding(action: string): { keys: string[]; category: string } | undefined {

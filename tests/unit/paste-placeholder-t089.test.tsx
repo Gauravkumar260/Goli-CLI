@@ -15,7 +15,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { PromptInput } from '../../packages/cli/src/tui/components/PromptInput.js';
+import { PromptInput } from '../../apps/cli/src/tui/components/PromptInput.js';
 
 // ─── Paste placeholder format ───────────────────────────────────────
 
@@ -113,7 +113,7 @@ describe('T-089: placeholder display format', () => {
     // without modifying the module, so we check the rendered behavior).
     const fs = await import('node:fs');
     const source = fs.readFileSync(
-      new URL('../../packages/cli/src/tui/components/PromptInput.tsx', import.meta.url),
+      new URL('../../apps/cli/src/tui/components/PromptInput.tsx', import.meta.url),
       'utf-8',
     );
     expect(source).toContain('PASTE_LINE_THRESHOLD = 10');
@@ -123,7 +123,7 @@ describe('T-089: placeholder display format', () => {
   it('source contains [Pasted Text: format string', async () => {
     const fs = await import('node:fs');
     const source = fs.readFileSync(
-      new URL('../../packages/cli/src/tui/components/PromptInput.tsx', import.meta.url),
+      new URL('../../apps/cli/src/tui/components/PromptInput.tsx', import.meta.url),
       'utf-8',
     );
     // Verify the improved format is present (not the old [pasted: N chars] format).
@@ -136,7 +136,7 @@ describe('T-089: placeholder display format', () => {
   it('source contains pasteExpanded state for Ctrl+O toggle', async () => {
     const fs = await import('node:fs');
     const source = fs.readFileSync(
-      new URL('../../packages/cli/src/tui/components/PromptInput.tsx', import.meta.url),
+      new URL('../../apps/cli/src/tui/components/PromptInput.tsx', import.meta.url),
       'utf-8',
     );
     expect(source).toContain('pasteExpanded');

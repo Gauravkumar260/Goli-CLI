@@ -33,7 +33,7 @@ import {
   isWideChar,
   cpMoveLeft,
   cpMoveRight,
-} from '../../packages/cli/src/tui/lib/unicode.js';
+} from '../../apps/cli/src/tui/lib/unicode.js';
 
 // ─── toCodePoints() ─────────────────────────────────────────────────
 

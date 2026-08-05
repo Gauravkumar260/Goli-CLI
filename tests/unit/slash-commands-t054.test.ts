@@ -18,7 +18,7 @@ import {
   globalCommands,
   registerDefaultCommands,
   type Command,
-} from '../../packages/cli/src/tui/lib/CommandRegistry.js';
+} from '../../apps/cli/src/tui/lib/CommandRegistry.js';
 
 describe('T-054: registerDefaultCommands — new commands registered', () => {
   beforeEach(() => {

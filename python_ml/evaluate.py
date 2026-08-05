@@ -88,7 +88,7 @@ def run_agent_on_instance(
     """Run the GOLI-CLI agent on a single benchmark instance.
 
     In production, this invokes the TypeScript agent via a subprocess:
-        node packages/cli/dist/index.js wakeup "<problem>" --model <model>
+        node apps/cli/dist/index.js wakeup "<problem>" --model <model>
 
     Returns the agent's result (patch, tests passed, tokens, etc.).
     """

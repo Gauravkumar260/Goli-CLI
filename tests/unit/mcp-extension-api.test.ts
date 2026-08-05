@@ -26,7 +26,7 @@ import {
   listMcpServers,
   scanMcpServers,
   defaultMcpConfigPath,
-} from '../../packages/cli/src/commands/mcp-config.js';
+} from '../../apps/cli/src/commands/mcp-config.js';
 import { REFERENCE_MCP_SERVERS } from '../../packages/core/src/tools/mcp/index.js';
 
 const EXAMPLE_SERVER = resolve(process.cwd(), 'examples/mcp-hello-world/server.js');

@@ -2,7 +2,7 @@
  * Unit tests for T-047 — Vim mode in PromptInput.
  *
  * Verifies the four acceptance criteria from tasks.json:
- *  1. New module packages/cli/src/tui/lib/vimMode.ts with mode state machine.
+ *  1. New module apps/cli/src/tui/lib/vimMode.ts with mode state machine.
  *  2. Insert mode (default): normal typing.
  *  3. Normal mode (Esc): h/j/k/l navigation, i to insert, dd to delete line.
  *  4. Visual mode (v): selection with motion.
@@ -20,7 +20,7 @@ import {
   vimModeLabel,
   type VimState,
   type VimMode,
-} from '../../packages/cli/src/tui/lib/vimMode.js';
+} from '../../apps/cli/src/tui/lib/vimMode.js';
 
 describe('T-047: vimMode — initial state (AC #1, #2)', () => {
   it('initial state is INSERT mode', () => {

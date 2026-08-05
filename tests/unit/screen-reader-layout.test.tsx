@@ -2,7 +2,7 @@
  * Unit tests for T-033 — ScreenReaderAppLayout + useIsScreenReaderEnabled.
  *
  * Verifies the five acceptance criteria from tasks.json:
- *  1. packages/cli/src/tui/components/ScreenReaderAppLayout.tsx exists.
+ *  1. apps/cli/src/tui/components/ScreenReaderAppLayout.tsx exists.
  *  2. --screen-reader CLI flag activates the layout.
  *  3. Layout disables animations, scrolling regions, and live regions.
  *  4. All TUI components check useIsScreenReaderEnabled() and adapt.
@@ -18,13 +18,13 @@ import { render } from 'ink-testing-library';
 import {
   useIsScreenReaderEnabled,
   isScreenReaderEnabled,
-} from '../../packages/cli/src/tui/hooks/useIsScreenReaderEnabled.js';
-import { ScreenReaderAppLayout } from '../../packages/cli/src/tui/components/ScreenReaderAppLayout.js';
+} from '../../apps/cli/src/tui/hooks/useIsScreenReaderEnabled.js';
+import { ScreenReaderAppLayout } from '../../apps/cli/src/tui/components/ScreenReaderAppLayout.js';
 import {
   detectCapabilities,
   resetCapabilitiesCache,
   type TerminalCapabilities,
-} from '../../packages/cli/src/tui/lib/capabilities.js';
+} from '../../apps/cli/src/tui/lib/capabilities.js';
 
 // Reset the capabilities cache between tests.
 beforeEach(() => {
@@ -251,7 +251,7 @@ describe('T-033: useIsScreenReaderEnabled hook (acceptance #4)', () => {
   it('shouldUseSyncOutput() returns false when accessibility is enabled', async () => {
     process.env['GOLI_CLI_ACCESSIBILITY'] = '1';
     const { shouldUseSyncOutput } = await import(
-      '../../packages/cli/src/tui/lib/capabilities.js'
+      '../../apps/cli/src/tui/lib/capabilities.js'
     );
     // Even if syncOutput is detected, accessibility disables it.
     expect(shouldUseSyncOutput()).toBe(false);
@@ -260,7 +260,7 @@ describe('T-033: useIsScreenReaderEnabled hook (acceptance #4)', () => {
   it('shouldThrottleAnimations() returns true when accessibility is enabled', async () => {
     process.env['GOLI_CLI_ACCESSIBILITY'] = '1';
     const { shouldThrottleAnimations } = await import(
-      '../../packages/cli/src/tui/lib/capabilities.js'
+      '../../apps/cli/src/tui/lib/capabilities.js'
     );
     expect(shouldThrottleAnimations()).toBe(true);
   });
@@ -314,7 +314,7 @@ describe('T-033: App.tsx wires ScreenReaderAppLayout (verifier fix)', () => {
     const { readFile } = await import('node:fs/promises');
     const { resolve } = await import('node:path');
     const appSrc = await readFile(
-      resolve(process.cwd(), 'packages/cli/src/tui/App.tsx'),
+      resolve(process.cwd(), 'apps/cli/src/tui/App.tsx'),
       'utf-8',
     );
     expect(appSrc).toMatch(/useIsScreenReaderEnabled/);
@@ -324,7 +324,7 @@ describe('T-033: App.tsx wires ScreenReaderAppLayout (verifier fix)', () => {
     const { readFile } = await import('node:fs/promises');
     const { resolve } = await import('node:path');
     const appSrc = await readFile(
-      resolve(process.cwd(), 'packages/cli/src/tui/App.tsx'),
+      resolve(process.cwd(), 'apps/cli/src/tui/App.tsx'),
       'utf-8',
     );
     expect(appSrc).toMatch(/ScreenReaderAppLayout/);
@@ -334,7 +334,7 @@ describe('T-033: App.tsx wires ScreenReaderAppLayout (verifier fix)', () => {
     const { readFile } = await import('node:fs/promises');
     const { resolve } = await import('node:path');
     const appSrc = await readFile(
-      resolve(process.cwd(), 'packages/cli/src/tui/App.tsx'),
+      resolve(process.cwd(), 'apps/cli/src/tui/App.tsx'),
       'utf-8',
     );
     // There must be a conditional that checks the hook and returns the

@@ -17,8 +17,8 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { globalCommands, registerDefaultCommands } from '../../packages/cli/src/tui/lib/CommandRegistry.js';
-import { loadCustomCommands, getCustomCommandSearchDirs } from '../../packages/cli/src/tui/lib/customCommands.js';
+import { globalCommands, registerDefaultCommands } from '../../apps/cli/src/tui/lib/CommandRegistry.js';
+import { loadCustomCommands, getCustomCommandSearchDirs } from '../../apps/cli/src/tui/lib/customCommands.js';
 
 describe('H17 custom slash commands', () => {
   let workspace: string;

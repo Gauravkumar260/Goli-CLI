@@ -37,19 +37,19 @@ describe('T-060: flickerStore', () => {
   });
 
   it('isFlickerEnabled returns true when GOLI_TUI_DEBUG=1', async () => {
-    const { isFlickerEnabled } = await import('../../packages/cli/src/tui/lib/flickerStore.js');
+    const { isFlickerEnabled } = await import('../../apps/cli/src/tui/lib/flickerStore.js');
     expect(isFlickerEnabled()).toBe(true);
   });
 
   it('isFlickerEnabled returns false when GOLI_TUI_DEBUG unset', async () => {
     delete process.env['GOLI_TUI_DEBUG'];
     vi.resetModules();
-    const { isFlickerEnabled } = await import('../../packages/cli/src/tui/lib/flickerStore.js');
+    const { isFlickerEnabled } = await import('../../apps/cli/src/tui/lib/flickerStore.js');
     expect(isFlickerEnabled()).toBe(false);
   });
 
   it('recordFlickerFrame increments totalFlickerFrames and updates lastFlickerAt', async () => {
-    const { recordFlickerFrame, getFlickerSnapshot } = await import('../../packages/cli/src/tui/lib/flickerStore.js');
+    const { recordFlickerFrame, getFlickerSnapshot } = await import('../../apps/cli/src/tui/lib/flickerStore.js');
     const before = getFlickerSnapshot();
     recordFlickerFrame();
     const after = getFlickerSnapshot();
@@ -58,7 +58,7 @@ describe('T-060: flickerStore', () => {
   });
 
   it('subscribeFlicker receives state updates via microtask', async () => {
-    const { recordFlickerFrame, subscribeFlicker } = await import('../../packages/cli/src/tui/lib/flickerStore.js');
+    const { recordFlickerFrame, subscribeFlicker } = await import('../../apps/cli/src/tui/lib/flickerStore.js');
     const events: number[] = [];
     const unsub = subscribeFlicker((s) => events.push(s.totalFlickerFrames));
     recordFlickerFrame();
@@ -69,7 +69,7 @@ describe('T-060: flickerStore', () => {
   });
 
   it('onFlicker fires callback synchronously on each flicker', async () => {
-    const { recordFlickerFrame, onFlicker } = await import('../../packages/cli/src/tui/lib/flickerStore.js');
+    const { recordFlickerFrame, onFlicker } = await import('../../apps/cli/src/tui/lib/flickerStore.js');
     let calls = 0;
     const unsub = onFlicker(() => {
       calls++;
@@ -82,7 +82,7 @@ describe('T-060: flickerStore', () => {
   });
 
   it('onFlicker callback errors do not crash the recorder', async () => {
-    const { recordFlickerFrame, onFlicker } = await import('../../packages/cli/src/tui/lib/flickerStore.js');
+    const { recordFlickerFrame, onFlicker } = await import('../../apps/cli/src/tui/lib/flickerStore.js');
     const unsub = onFlicker(() => {
       throw new Error('boom');
     });
@@ -91,7 +91,7 @@ describe('T-060: flickerStore', () => {
   });
 
   it('resetFlickerState zeroes the counters', async () => {
-    const { recordFlickerFrame, resetFlickerState, getFlickerSnapshot } = await import('../../packages/cli/src/tui/lib/flickerStore.js');
+    const { recordFlickerFrame, resetFlickerState, getFlickerSnapshot } = await import('../../apps/cli/src/tui/lib/flickerStore.js');
     recordFlickerFrame();
     recordFlickerFrame();
     resetFlickerState();
@@ -103,7 +103,7 @@ describe('T-060: flickerStore', () => {
   it('subscribeFlicker is a no-op when disabled', async () => {
     delete process.env['GOLI_TUI_DEBUG'];
     vi.resetModules();
-    const { subscribeFlicker, recordFlickerFrame } = await import('../../packages/cli/src/tui/lib/flickerStore.js');
+    const { subscribeFlicker, recordFlickerFrame } = await import('../../apps/cli/src/tui/lib/flickerStore.js');
     const events: number[] = [];
     const unsub = subscribeFlicker((s) => events.push(s.totalFlickerFrames));
     recordFlickerFrame();
@@ -131,7 +131,7 @@ describe('T-060: debugProfiler', () => {
   });
 
   it('reportAction pushes to actionTimestamps (debounced at 16ms)', async () => {
-    const { profiler } = await import('../../packages/cli/src/tui/lib/debugProfiler.js');
+    const { profiler } = await import('../../apps/cli/src/tui/lib/debugProfiler.js');
     profiler.reset();
     profiler.reportAction();
     // Wait >16ms so the debounce allows the second push.
@@ -141,7 +141,7 @@ describe('T-060: debugProfiler', () => {
   });
 
   it('reportAction deduplicates calls within 16ms', async () => {
-    const { profiler } = await import('../../packages/cli/src/tui/lib/debugProfiler.js');
+    const { profiler } = await import('../../apps/cli/src/tui/lib/debugProfiler.js');
     profiler.reset();
     profiler.reportAction();
     profiler.reportAction();
@@ -153,21 +153,21 @@ describe('T-060: debugProfiler', () => {
   it('reportAction is a no-op when disabled', async () => {
     delete process.env['GOLI_TUI_DEBUG'];
     vi.resetModules();
-    const { profiler } = await import('../../packages/cli/src/tui/lib/debugProfiler.js');
+    const { profiler } = await import('../../apps/cli/src/tui/lib/debugProfiler.js');
     profiler.reset();
     profiler.reportAction();
     expect(profiler.actionTimestamps.size()).toBe(0);
   });
 
   it('reportFrameRendered is a no-op when no profiler is active', async () => {
-    const { profiler } = await import('../../packages/cli/src/tui/lib/debugProfiler.js');
+    const { profiler } = await import('../../apps/cli/src/tui/lib/debugProfiler.js');
     profiler.reset();
     profiler.reportFrameRendered();
     expect(profiler.numFrames).toBe(0);
   });
 
   it('reportFrameRendered increments numFrames when a profiler is active', async () => {
-    const { profiler } = await import('../../packages/cli/src/tui/lib/debugProfiler.js');
+    const { profiler } = await import('../../apps/cli/src/tui/lib/debugProfiler.js');
     profiler.reset();
     profiler.profilersActive = 1;
     profiler.reportFrameRendered();
@@ -177,7 +177,7 @@ describe('T-060: debugProfiler', () => {
   });
 
   it('snapshot returns the current state', async () => {
-    const { profiler } = await import('../../packages/cli/src/tui/lib/debugProfiler.js');
+    const { profiler } = await import('../../apps/cli/src/tui/lib/debugProfiler.js');
     profiler.reset();
     profiler.profilersActive = 1;
     profiler.reportAction();
@@ -189,7 +189,7 @@ describe('T-060: debugProfiler', () => {
   });
 
   it('checkForIdleFrames classifies old frames without actions as idle', async () => {
-    const { profiler } = await import('../../packages/cli/src/tui/lib/debugProfiler.js');
+    const { profiler } = await import('../../apps/cli/src/tui/lib/debugProfiler.js');
     profiler.reset();
     // Simulate a frame rendered 1 second ago with NO recent action.
     const oneSecondAgo = Date.now() - 1000;
@@ -199,7 +199,7 @@ describe('T-060: debugProfiler', () => {
   });
 
   it('checkForIdleFrames does NOT classify frames with nearby actions as idle', async () => {
-    const { profiler } = await import('../../packages/cli/src/tui/lib/debugProfiler.js');
+    const { profiler } = await import('../../apps/cli/src/tui/lib/debugProfiler.js');
     profiler.reset();
     const oneSecondAgo = Date.now() - 1000;
     // Action right at the frame time — should NOT be idle.
@@ -210,7 +210,7 @@ describe('T-060: debugProfiler', () => {
   });
 
   it('reportFlicker increments totalFlickerFrames', async () => {
-    const { profiler } = await import('../../packages/cli/src/tui/lib/debugProfiler.js');
+    const { profiler } = await import('../../apps/cli/src/tui/lib/debugProfiler.js');
     profiler.reset();
     profiler.reportFlicker();
     profiler.reportFlicker();
@@ -219,7 +219,7 @@ describe('T-060: debugProfiler', () => {
   });
 
   it('reset zeroes all counters and clears buffers', async () => {
-    const { profiler } = await import('../../packages/cli/src/tui/lib/debugProfiler.js');
+    const { profiler } = await import('../../apps/cli/src/tui/lib/debugProfiler.js');
     profiler.profilersActive = 2;
     profiler.numFrames = 100;
     profiler.totalIdleFrames = 5;
@@ -236,8 +236,8 @@ describe('T-060: debugProfiler', () => {
   });
 
   it('wireFlickerToProfiler connects flickerStore to profiler.reportFlicker', async () => {
-    const flicker = await import('../../packages/cli/src/tui/lib/flickerStore.js');
-    const { profiler, wireFlickerToProfiler } = await import('../../packages/cli/src/tui/lib/debugProfiler.js');
+    const flicker = await import('../../apps/cli/src/tui/lib/flickerStore.js');
+    const { profiler, wireFlickerToProfiler } = await import('../../apps/cli/src/tui/lib/debugProfiler.js');
     profiler.reset();
     const unwire = wireFlickerToProfiler();
     flicker.recordFlickerFrame();
@@ -266,7 +266,7 @@ describe('T-060: DebugProfiler component', () => {
   });
 
   it('MaybeDebugProfiler renders nothing visible when when=false', async () => {
-    const { MaybeDebugProfiler } = await import('../../packages/cli/src/tui/components/DebugProfiler.js');
+    const { MaybeDebugProfiler } = await import('../../apps/cli/src/tui/components/DebugProfiler.js');
     const { lastFrame } = render(<MaybeDebugProfiler when={false} />);
     const frame = lastFrame() ?? '';
     expect(frame).toBe('');
@@ -275,15 +275,15 @@ describe('T-060: DebugProfiler component', () => {
   it('MaybeDebugProfiler renders nothing visible when GOLI_TUI_DEBUG unset', async () => {
     delete process.env['GOLI_TUI_DEBUG'];
     vi.resetModules();
-    const { MaybeDebugProfiler } = await import('../../packages/cli/src/tui/components/DebugProfiler.js');
+    const { MaybeDebugProfiler } = await import('../../apps/cli/src/tui/components/DebugProfiler.js');
     const { lastFrame } = render(<MaybeDebugProfiler />);
     const frame = lastFrame() ?? '';
     expect(frame).toBe('');
   });
 
   it('DebugProfiler renders stats when enabled', async () => {
-    const { DebugProfiler } = await import('../../packages/cli/src/tui/components/DebugProfiler.js');
-    const { profiler } = await import('../../packages/cli/src/tui/lib/debugProfiler.js');
+    const { DebugProfiler } = await import('../../apps/cli/src/tui/components/DebugProfiler.js');
+    const { profiler } = await import('../../apps/cli/src/tui/lib/debugProfiler.js');
     profiler.reset();
     profiler.profilersActive = 1;
     profiler.numFrames = 42;
@@ -299,8 +299,8 @@ describe('T-060: DebugProfiler component', () => {
   });
 
   it('DebugProfiler increments profilersActive on mount, decrements on unmount', async () => {
-    const { DebugProfiler } = await import('../../packages/cli/src/tui/components/DebugProfiler.js');
-    const { profiler } = await import('../../packages/cli/src/tui/lib/debugProfiler.js');
+    const { DebugProfiler } = await import('../../apps/cli/src/tui/components/DebugProfiler.js');
+    const { profiler } = await import('../../apps/cli/src/tui/lib/debugProfiler.js');
     profiler.reset();
     expect(profiler.profilersActive).toBe(0);
     const { unmount } = render(<DebugProfiler refreshIntervalMs={100} />);
@@ -331,13 +331,13 @@ describe('T-060: batchedScroll', () => {
   });
 
   it('scheduleScrollTop is a no-op when no setter is registered', async () => {
-    const { scheduleScrollTop, resetBatchedScroll } = await import('../../packages/cli/src/tui/lib/batchedScroll.js');
+    const { scheduleScrollTop, resetBatchedScroll } = await import('../../apps/cli/src/tui/lib/batchedScroll.js');
     resetBatchedScroll();
     expect(() => scheduleScrollTop(100)).not.toThrow();
   });
 
   it('scheduleScrollTop coalesces multiple calls into one setter call', async () => {
-    const { scheduleScrollTop, registerScrollSetter, resetBatchedScroll } = await import('../../packages/cli/src/tui/lib/batchedScroll.js');
+    const { scheduleScrollTop, registerScrollSetter, resetBatchedScroll } = await import('../../apps/cli/src/tui/lib/batchedScroll.js');
     resetBatchedScroll();
     const calls: number[] = [];
     const unsub = registerScrollSetter((v) => calls.push(v));
@@ -351,7 +351,7 @@ describe('T-060: batchedScroll', () => {
   });
 
   it('flushPendingScroll applies the pending value immediately', async () => {
-    const { scheduleScrollTop, flushPendingScroll, registerScrollSetter, resetBatchedScroll } = await import('../../packages/cli/src/tui/lib/batchedScroll.js');
+    const { scheduleScrollTop, flushPendingScroll, registerScrollSetter, resetBatchedScroll } = await import('../../apps/cli/src/tui/lib/batchedScroll.js');
     resetBatchedScroll();
     const calls: number[] = [];
     const unsub = registerScrollSetter((v) => calls.push(v));
@@ -362,7 +362,7 @@ describe('T-060: batchedScroll', () => {
   });
 
   it('getPendingScrollTop returns the latest scheduled value', async () => {
-    const { scheduleScrollTop, getPendingScrollTop, registerScrollSetter, resetBatchedScroll } = await import('../../packages/cli/src/tui/lib/batchedScroll.js');
+    const { scheduleScrollTop, getPendingScrollTop, registerScrollSetter, resetBatchedScroll } = await import('../../apps/cli/src/tui/lib/batchedScroll.js');
     resetBatchedScroll();
     const unsub = registerScrollSetter(() => undefined);
     scheduleScrollTop(7);
@@ -371,7 +371,7 @@ describe('T-060: batchedScroll', () => {
   });
 
   it('unregister stops the setter from receiving updates', async () => {
-    const { scheduleScrollTop, registerScrollSetter, resetBatchedScroll } = await import('../../packages/cli/src/tui/lib/batchedScroll.js');
+    const { scheduleScrollTop, registerScrollSetter, resetBatchedScroll } = await import('../../apps/cli/src/tui/lib/batchedScroll.js');
     resetBatchedScroll();
     const calls: number[] = [];
     const unsub = registerScrollSetter((v) => calls.push(v));
@@ -382,7 +382,7 @@ describe('T-060: batchedScroll', () => {
   });
 
   it('registering a new setter replaces the previous one', async () => {
-    const { scheduleScrollTop, registerScrollSetter, resetBatchedScroll } = await import('../../packages/cli/src/tui/lib/batchedScroll.js');
+    const { scheduleScrollTop, registerScrollSetter, resetBatchedScroll } = await import('../../apps/cli/src/tui/lib/batchedScroll.js');
     resetBatchedScroll();
     const calls1: number[] = [];
     const calls2: number[] = [];
@@ -415,12 +415,12 @@ describe('T-060: useFlickerDetector hook', () => {
   });
 
   it('useFlickerDetector is importable and callable', async () => {
-    const mod = await import('../../packages/cli/src/tui/hooks/useFlickerDetector.js');
+    const mod = await import('../../apps/cli/src/tui/hooks/useFlickerDetector.js');
     expect(typeof mod.useFlickerDetector).toBe('function');
   });
 
   it('a component using the hook renders without crashing', async () => {
-    const { useFlickerDetector } = await import('../../packages/cli/src/tui/hooks/useFlickerDetector.js');
+    const { useFlickerDetector } = await import('../../apps/cli/src/tui/hooks/useFlickerDetector.js');
     const { Box, Text } = await import('ink');
     function TestApp(): React.ReactElement {
       const ref = React.useRef(null);

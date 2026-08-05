@@ -18,8 +18,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { CommandPalette, filterCommandsByQuery } from '../../packages/cli/src/tui/components/CommandPalette.js';
-import { CommandRegistry, globalCommands, type Command } from '../../packages/cli/src/tui/lib/CommandRegistry.js';
+import { CommandPalette, filterCommandsByQuery } from '../../apps/cli/src/tui/components/CommandPalette.js';
+import { CommandRegistry, globalCommands, type Command } from '../../apps/cli/src/tui/lib/CommandRegistry.js';
 
 function makeCommand(overrides: Partial<Command> = {}): Command {
   return {

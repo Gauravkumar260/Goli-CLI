@@ -1,7 +1,7 @@
 /**
  * @goli/cli — GOLI-CLI binary entry point.
  *
- * This is the file invoked by `packages/cli/dist/index.js` (the compiled
+ * This is the file invoked by `apps/cli/dist/index.js` (the compiled
  * binary). It uses Commander.js to parse subcommands and dispatches to
  * the appropriate command handler.
  *

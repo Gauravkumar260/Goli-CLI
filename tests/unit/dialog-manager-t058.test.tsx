@@ -14,11 +14,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 
-import { DialogManager, __testing } from '../../packages/cli/src/tui/components/DialogManager.js';
-import { AboutDialog, ABOUT_VERSION } from '../../packages/cli/src/tui/components/dialogs/AboutDialog.js';
-import { ThemeDialog, ALL_THEMES } from '../../packages/cli/src/tui/components/dialogs/ThemeDialog.js';
-import { HelpDialog } from '../../packages/cli/src/tui/components/dialogs/HelpDialog.js';
-import { registerDefaultCommands } from '../../packages/cli/src/tui/lib/CommandRegistry.js';
+import { DialogManager, __testing } from '../../apps/cli/src/tui/components/DialogManager.js';
+import { AboutDialog, ABOUT_VERSION } from '../../apps/cli/src/tui/components/dialogs/AboutDialog.js';
+import { ThemeDialog, ALL_THEMES } from '../../apps/cli/src/tui/components/dialogs/ThemeDialog.js';
+import { HelpDialog } from '../../apps/cli/src/tui/components/dialogs/HelpDialog.js';
+import { registerDefaultCommands } from '../../apps/cli/src/tui/lib/CommandRegistry.js';
 
 describe('T-058: DialogManager — empty queue', () => {
   it('renders null when queue is empty', () => {

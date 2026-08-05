@@ -23,8 +23,8 @@ import {
   applyBorderStyle,
   getBorderStyle,
   getThemeVersion,
-} from '../../packages/cli/src/tui/theme/tokens.js';
-import { BUILTIN_SKIN_NAMES, loadSkin, type Skin } from '../../packages/cli/src/tui/theme/skin-engine.js';
+} from '../../apps/cli/src/tui/theme/tokens.js';
+import { BUILTIN_SKIN_NAMES, loadSkin, type Skin } from '../../apps/cli/src/tui/theme/skin-engine.js';
 
 beforeEach(() => {
   Object.assign(T, DEFAULT_PALETTE);

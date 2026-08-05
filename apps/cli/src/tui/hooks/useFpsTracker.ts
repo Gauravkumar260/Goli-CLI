@@ -9,7 +9,7 @@
  *
  * Why setImmediate instead of `requestAnimationFrame`?
  *   goli-cli ships against `lib: ["ESNext"]` + `types: ["node"]`
- *   (see `packages/cli/tsconfig.json`) — there is no DOM ambient,
+ *   (see `apps/cli/tsconfig.json`) — there is no DOM ambient,
  *   so `requestAnimationFrame` doesn't exist. Hermes's equivalent
  *   file used rAF only because `@hermes/ink` ships a rAF shim. The
  *   semantically important property is "measure the gap between two

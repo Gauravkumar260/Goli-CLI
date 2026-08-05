@@ -7,7 +7,7 @@
  *  3. Items drop in priority order when terminal is narrow.
  *  4. Tests verify each item renders, narrowing behavior, and tildeification.
  *
- * Comparison reference: gemini-cli packages/cli/src/ui/components/Footer.tsx
+ * Comparison reference: gemini-cli apps/cli/src/ui/components/Footer.tsx
  * (543 lines) — cwd + git + model + quota + memory + debug profiler.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -22,8 +22,8 @@ import {
   shortenPath,
   displayPath,
   truncatePath,
-} from '../../packages/cli/src/tui/lib/pathUtils.js';
-import { StatusBar } from '../../packages/cli/src/tui/components/StatusBar.js';
+} from '../../apps/cli/src/tui/lib/pathUtils.js';
+import { StatusBar } from '../../apps/cli/src/tui/components/StatusBar.js';
 
 let tmpHome: string;
 let originalHome: string | undefined;

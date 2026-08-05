@@ -9,7 +9,7 @@ import {
   tokBar,
   formatTokenLimit,
   tokColor,
-} from '../../packages/cli/src/tui/components/TokenBar.js';
+} from '../../apps/cli/src/tui/components/TokenBar.js';
 
 describe('TokenBar utilities', () => {
   describe('tokPct', () => {

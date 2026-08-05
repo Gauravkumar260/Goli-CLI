@@ -33,9 +33,9 @@ import { HookEngine } from '../../packages/core/src/tools/hooks/engine.js';
 import type { PostToolUseHookResult, HookContext } from '../../packages/core/src/tools/hooks/types.js';
 import { CompactionEngine } from '../../packages/core/src/context/compaction/engine.js';
 
-import { MODE_SKILLS, MODE_TOOLS, isToolAllowed } from '../../packages/cli/src/tui/lib/mode-config.js';
-import { CliAgentLoop } from '../../packages/cli/src/services/CliAgentLoop.js';
-import { COMPACT_TOOL_ALLOWLIST, isCompactTool } from '../../packages/cli/src/tui/components/messages/DenseToolMessage.js';
+import { MODE_SKILLS, MODE_TOOLS, isToolAllowed } from '../../apps/cli/src/tui/lib/mode-config.js';
+import { CliAgentLoop } from '../../apps/cli/src/services/CliAgentLoop.js';
+import { COMPACT_TOOL_ALLOWLIST, isCompactTool } from '../../apps/cli/src/tui/components/messages/DenseToolMessage.js';
 
 // ─── W1: SkillLoader wired in production ──────────────────────────
 

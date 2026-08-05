@@ -15,12 +15,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 
-import { HelpPanel } from '../../packages/cli/src/tui/components/HelpPanel.js';
+import { HelpPanel } from '../../apps/cli/src/tui/components/HelpPanel.js';
 import {
   ShortcutsHelp,
   DEFAULT_SHORTCUTS,
-} from '../../packages/cli/src/tui/components/ShortcutsHelp.js';
-import { registerDefaultCommands } from '../../packages/cli/src/tui/lib/CommandRegistry.js';
+} from '../../apps/cli/src/tui/components/ShortcutsHelp.js';
+import { registerDefaultCommands } from '../../apps/cli/src/tui/lib/CommandRegistry.js';
 
 describe('T-056: HelpPanel — Basics section', () => {
   beforeEach(() => {

@@ -17,7 +17,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { getFileCompletions, MAX_FILE_COMPLETIONS, type FileCompletion } from '../../packages/cli/src/tui/lib/fileCompletion.js';
+import { getFileCompletions, MAX_FILE_COMPLETIONS, type FileCompletion } from '../../apps/cli/src/tui/lib/fileCompletion.js';
 
 let testDir: string;
 

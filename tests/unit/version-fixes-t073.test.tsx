@@ -13,12 +13,12 @@ import { render } from 'ink-testing-library';
 import React from 'react';
 import { readFileSync } from 'node:fs';
 
-import { SplashBox } from '../../packages/cli/src/tui/components/SplashBox.js';
-import { APP_VERSION } from '../../packages/cli/src/constants.js';
+import { SplashBox } from '../../apps/cli/src/tui/components/SplashBox.js';
+import { APP_VERSION } from '../../apps/cli/src/constants.js';
 
 // Read version from package.json for cross-validation.
 const pkgJson = JSON.parse(
-  readFileSync(new URL('../../packages/cli/package.json', import.meta.url), 'utf-8'),
+  readFileSync(new URL('../../apps/cli/package.json', import.meta.url), 'utf-8'),
 );
 const PKG_VERSION = pkgJson.version;
 

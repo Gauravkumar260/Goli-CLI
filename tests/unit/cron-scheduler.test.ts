@@ -20,7 +20,7 @@ import {
   validateCronExpression,
   shouldFire,
   defaultCronConfigPath,
-} from '../../packages/cli/src/commands/cron.js';
+} from '../../apps/cli/src/commands/cron.js';
 
 describe('T-015: cron scheduler (Hermes parity)', () => {
   let configDir: string;

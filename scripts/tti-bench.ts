@@ -37,7 +37,7 @@ import { resolve } from 'node:path';
 import { timeMs, median } from './bench-utils.js';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..');
-const CLI_BIN = resolve(REPO_ROOT, 'packages/cli/dist/index.js');
+const CLI_BIN = resolve(REPO_ROOT, 'apps/cli/dist/index.js');
 const BENCH_FILE = resolve(REPO_ROOT, 'bench/baseline.json');
 const REPO_10K = resolve(REPO_ROOT, 'bench/fixtures/repo-10k');
 const RUNS = 5;

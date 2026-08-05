@@ -17,7 +17,7 @@ import {
   formatUsageSummary,
   parseOutputFormat,
   type HeadlessJsonOutput,
-} from '../../packages/cli/src/commands/headless-output.js';
+} from '../../apps/cli/src/commands/headless-output.js';
 
 import type { AgentLoopResult, ToolCall, Todo } from '../../packages/core/src/index.js';
 

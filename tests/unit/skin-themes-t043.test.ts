@@ -27,7 +27,7 @@ import {
   getActiveSkin,
   type Skin,
   type ColorTokenName,
-} from '../../packages/cli/src/tui/theme/skin-engine.js';
+} from '../../apps/cli/src/tui/theme/skin-engine.js';
 
 const NEW_SKIN_NAMES_T043 = [
   'ayu-dark',

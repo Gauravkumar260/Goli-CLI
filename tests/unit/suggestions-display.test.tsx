@@ -2,13 +2,13 @@
  * Unit tests for T-035 — Slash-command autocomplete suggestions.
  *
  * Verifies the five acceptance criteria from tasks.json:
- *  1. New component packages/cli/src/tui/components/SuggestionsDisplay.tsx.
+ *  1. New component apps/cli/src/tui/components/SuggestionsDisplay.tsx.
  *  2. Typing / in PromptInput shows filtered list of matching commands.
  *  3. Arrow keys navigate; Enter selects; Esc dismisses.
  *  4. Each suggestion shows command name + description (from CommandRegistry).
  *  5. Active suggestion highlighted.
  *
- * Comparison reference: gemini-cli packages/cli/src/ui/components/SuggestionsDisplay.tsx.
+ * Comparison reference: gemini-cli apps/cli/src/ui/components/SuggestionsDisplay.tsx.
  *
  * Note: These tests cover the pure logic (filterCommands) and the
  * SuggestionsDisplay component's rendering logic. End-to-end keyboard
@@ -24,12 +24,12 @@ import {
   SuggestionsDisplay,
   filterCommands,
   MAX_SUGGESTIONS_TO_SHOW,
-} from '../../packages/cli/src/tui/components/SuggestionsDisplay.js';
+} from '../../apps/cli/src/tui/components/SuggestionsDisplay.js';
 import {
   globalCommands,
   registerDefaultCommands,
   type Command,
-} from '../../packages/cli/src/tui/lib/CommandRegistry.js';
+} from '../../apps/cli/src/tui/lib/CommandRegistry.js';
 
 // Force registration of default commands before each test.
 beforeEach(() => {

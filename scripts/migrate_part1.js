@@ -24,7 +24,7 @@ fs.writeFileSync('packages/test-utils/package.json', JSON.stringify({
 }, null, 2));
 
 // 2. Move cli, studio, vscode-ext
-move('packages/cli', 'apps/cli');
+move('apps/cli', 'apps/cli');
 move('packages/studio', 'apps/studio');
 move('packages/vscode-ext', 'apps/vscode-ext');
 

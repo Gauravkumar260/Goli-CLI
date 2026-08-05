@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { CircularBuffer } from '../../packages/cli/src/tui/lib/circularBuffer.js';
+import { CircularBuffer } from '../../apps/cli/src/tui/lib/circularBuffer.js';
 
 describe('CircularBuffer', () => {
   it('pushes and tails items within capacity', () => {

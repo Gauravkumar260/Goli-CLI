@@ -24,9 +24,9 @@ import {
   applySkinToTokens,
   getThemeVersion,
   subscribeToThemeVersion,
-} from '../../packages/cli/src/tui/theme/tokens.js';
-import { useThemeVersion } from '../../packages/cli/src/tui/hooks/useThemeVersion.js';
-import { BUILTIN_SKIN_NAMES, loadSkin } from '../../packages/cli/src/tui/theme/skin-engine.js';
+} from '../../apps/cli/src/tui/theme/tokens.js';
+import { useThemeVersion } from '../../apps/cli/src/tui/hooks/useThemeVersion.js';
+import { BUILTIN_SKIN_NAMES, loadSkin } from '../../apps/cli/src/tui/theme/skin-engine.js';
 
 // Save/restore the palette around each test so mutations don't leak.
 beforeEach(() => {

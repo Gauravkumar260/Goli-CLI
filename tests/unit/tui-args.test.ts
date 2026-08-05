@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { parseArgs, toLaunchMode } from '../../packages/cli/src/tui/args.js';
+import { parseArgs, toLaunchMode } from '../../apps/cli/src/tui/args.js';
 
 describe('parseArgs', () => {
   it('parses --help', () => {

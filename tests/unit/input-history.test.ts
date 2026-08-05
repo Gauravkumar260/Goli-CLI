@@ -7,7 +7,7 @@
  *  3. History persists across sessions in ~/.goli/history.
  *  4. Ctrl+L clears the input.
  *
- * Comparison reference: gemini-cli packages/cli/src/ui/components/InputPrompt.tsx
+ * Comparison reference: gemini-cli apps/cli/src/ui/components/InputPrompt.tsx
  * (1933 lines) — full multi-line editor with vim mode, history navigation,
  * suggestions, auto-indent.
  */
@@ -20,7 +20,7 @@ import {
   InputHistory,
   MAX_HISTORY_ENTRIES,
   getHistoryFilePath,
-} from '../../packages/cli/src/tui/lib/InputHistory.js';
+} from '../../apps/cli/src/tui/lib/InputHistory.js';
 
 let tmpHome: string;
 let originalGoliHome: string | undefined;

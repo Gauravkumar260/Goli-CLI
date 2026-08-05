@@ -23,9 +23,9 @@ import {
   toggleLastToolExpand,
   clearExpandedTools,
   subscribeToExpandedTools,
-} from '../../packages/cli/src/tui/lib/expandedTools.js';
-import { useExpandedTools } from '../../packages/cli/src/tui/hooks/useExpandedTools.js';
-import { globalCommands, registerDefaultCommands } from '../../packages/cli/src/tui/lib/CommandRegistry.js';
+} from '../../apps/cli/src/tui/lib/expandedTools.js';
+import { useExpandedTools } from '../../apps/cli/src/tui/hooks/useExpandedTools.js';
+import { globalCommands, registerDefaultCommands } from '../../apps/cli/src/tui/lib/CommandRegistry.js';
 
 beforeEach(() => {
   clearExpandedTools();

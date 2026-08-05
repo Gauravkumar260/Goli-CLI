@@ -15,7 +15,7 @@ import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { PromptInput } from '../../packages/cli/src/tui/components/PromptInput.js';
+import { PromptInput } from '../../apps/cli/src/tui/components/PromptInput.js';
 
 // ─── PromptInput rendering ──────────────────────────────────────────
 
@@ -109,7 +109,7 @@ describe('T-104: Ctrl+A / Ctrl+E are no-ops (not inserted as chars)', () => {
   it('source code acknowledges Ctrl+A as a no-op', async () => {
     const fs = await import('node:fs');
     const source = fs.readFileSync(
-      new URL('../../packages/cli/src/tui/components/PromptInput.tsx', import.meta.url),
+      new URL('../../apps/cli/src/tui/components/PromptInput.tsx', import.meta.url),
       'utf-8',
     );
     expect(source).toContain("key.ctrl && input === 'a'");
@@ -119,7 +119,7 @@ describe('T-104: Ctrl+A / Ctrl+E are no-ops (not inserted as chars)', () => {
   it('source code acknowledges Ctrl+E as a no-op', async () => {
     const fs = await import('node:fs');
     const source = fs.readFileSync(
-      new URL('../../packages/cli/src/tui/components/PromptInput.tsx', import.meta.url),
+      new URL('../../apps/cli/src/tui/components/PromptInput.tsx', import.meta.url),
       'utf-8',
     );
     expect(source).toContain("key.ctrl && input === 'e'");

@@ -32,9 +32,9 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..');
-const OUTPUT_DIR = resolve(REPO_ROOT, 'completions');
+const OUTPUT_DIR = resolve(REPO_ROOT, 'apps/cli/completions');
 
-// ─── Command/flag spec (mirrors packages/cli/src/index.ts createProgram) ─
+// ─── Command/flag spec (mirrors apps/cli/src/index.ts createProgram) ─
 
 interface FlagSpec {
   short?: string;

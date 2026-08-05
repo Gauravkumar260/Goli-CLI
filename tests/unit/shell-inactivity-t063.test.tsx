@@ -18,19 +18,19 @@ import { render } from 'ink-testing-library';
 import React from 'react';
 import { Text } from 'ink';
 
-import { useInactivityTimer } from '../../packages/cli/src/tui/hooks/useInactivityTimer.js';
+import { useInactivityTimer } from '../../apps/cli/src/tui/hooks/useInactivityTimer.js';
 import {
   hasRedirection,
   useTurnActivityMonitor,
   type MinimalTrackedToolCall,
   type StreamingState,
-} from '../../packages/cli/src/tui/hooks/useTurnActivityMonitor.js';
+} from '../../apps/cli/src/tui/hooks/useTurnActivityMonitor.js';
 import {
   useShellInactivityStatus,
   SHELL_FOCUS_HINT_DELAY_MS,
   SHELL_ACTION_REQUIRED_TITLE_DELAY_MS,
   SHELL_SILENT_WORKING_TITLE_DELAY_MS,
-} from '../../packages/cli/src/tui/hooks/useShellInactivityStatus.js';
+} from '../../apps/cli/src/tui/hooks/useShellInactivityStatus.js';
 
 // ─── useInactivityTimer ───────────────────────────────────────────────────
 

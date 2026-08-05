@@ -13,12 +13,12 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 
-import { ThinkingMessage } from '../../packages/cli/src/tui/components/messages/ThinkingMessage.js';
-import { ErrorMessage } from '../../packages/cli/src/tui/components/messages/ErrorMessage.js';
-import { WarningMessage } from '../../packages/cli/src/tui/components/messages/WarningMessage.js';
-import { HintMessage } from '../../packages/cli/src/tui/components/messages/HintMessage.js';
-import { MessageBubble } from '../../packages/cli/src/tui/components/MessageBubble.js';
-import type { Message } from '../../packages/cli/src/tui/state/types.js';
+import { ThinkingMessage } from '../../apps/cli/src/tui/components/messages/ThinkingMessage.js';
+import { ErrorMessage } from '../../apps/cli/src/tui/components/messages/ErrorMessage.js';
+import { WarningMessage } from '../../apps/cli/src/tui/components/messages/WarningMessage.js';
+import { HintMessage } from '../../apps/cli/src/tui/components/messages/HintMessage.js';
+import { MessageBubble } from '../../apps/cli/src/tui/components/MessageBubble.js';
+import type { Message } from '../../apps/cli/src/tui/state/types.js';
 
 // ─── Test fixtures ─────────────────────────────────────────────────
 

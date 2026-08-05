@@ -26,7 +26,7 @@ import {
   listMcpServers,
   scanMcpServers,
   defaultMcpConfigPath,
-} from '../../packages/cli/src/commands/mcp-config.js';
+} from '../../apps/cli/src/commands/mcp-config.js';
 
 describe('H20 MCP config management', () => {
   let configDir: string;

@@ -5,9 +5,9 @@
 // for producing a single distributable bundle of the CLI workspace when a
 // consumer explicitly runs `tsup` against the CLI package.
 //
-// Entry points (both inside `packages/cli/src/`):
-//   - packages/cli/src/index.ts  → dist/index.js (the `goli` CLI binary entry)
-//   - packages/cli/src/tui/cli.tsx → dist/tui/cli.js (TUI launcher, used by `goli wakeup`)
+// Entry points (both inside `apps/cli/src/`):
+//   - apps/cli/src/index.ts  → dist/index.js (the `goli` CLI binary entry)
+//   - apps/cli/src/tui/cli.tsx → dist/tui/cli.js (TUI launcher, used by `goli wakeup`)
 //
 // The TUI requires React/Ink JSX transpilation; tsup handles this via the
 // `loader: { '.tsx': 'tsx' }` option.
@@ -16,13 +16,13 @@ import { defineConfig } from 'tsup';
 
 export default defineConfig({
   entry: {
-    'index': 'packages/cli/src/index.ts',
-    'tui/cli': 'packages/cli/src/tui/cli.tsx',
+    'index': 'apps/cli/src/index.ts',
+    'tui/cli': 'apps/cli/src/tui/cli.tsx',
   },
   format: ['esm'],
   target: 'node20',
   platform: 'node',
-  outDir: 'packages/cli/dist',
+  outDir: 'apps/cli/dist',
   splitting: false,
   sourcemap: true,
   clean: true,

@@ -14,8 +14,8 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 
-import { ToolMessage } from '../../packages/cli/src/tui/components/messages/ToolMessage.js';
-import type { ToolCall } from '../../packages/cli/src/tui/state/types.js';
+import { ToolMessage } from '../../apps/cli/src/tui/components/messages/ToolMessage.js';
+import type { ToolCall } from '../../apps/cli/src/tui/state/types.js';
 
 const successTool: ToolCall = {
   id: 'tc-ok',

@@ -17,27 +17,27 @@ import { describe, it, expect } from 'vitest';
 // Static imports — Vitest/rollup doesn't support fully dynamic imports
 // with template strings. Each component is imported as a namespace so
 // we can iterate over them in the test body.
-import * as AgentStateBar from '../../packages/cli/src/tui/components/AgentStateBar.js';
-import * as DiffReviewDialog from '../../packages/cli/src/tui/components/DiffReviewDialog.js';
-import * as FpsOverlay from '../../packages/cli/src/tui/components/FpsOverlay.js';
-import * as HeaderBar from '../../packages/cli/src/tui/components/HeaderBar.js';
-import * as HelpPanel from '../../packages/cli/src/tui/components/HelpPanel.js';
-import * as HistoryScroll from '../../packages/cli/src/tui/components/HistoryScroll.js';
-import * as MessageBubble from '../../packages/cli/src/tui/components/MessageBubble.js';
-import * as PermissionDialog from '../../packages/cli/src/tui/components/PermissionDialog.js';
-import * as PipelineTrace from '../../packages/cli/src/tui/components/PipelineTrace.js';
-import * as PromptInput from '../../packages/cli/src/tui/components/PromptInput.js';
+import * as AgentStateBar from '../../apps/cli/src/tui/components/AgentStateBar.js';
+import * as DiffReviewDialog from '../../apps/cli/src/tui/components/DiffReviewDialog.js';
+import * as FpsOverlay from '../../apps/cli/src/tui/components/FpsOverlay.js';
+import * as HeaderBar from '../../apps/cli/src/tui/components/HeaderBar.js';
+import * as HelpPanel from '../../apps/cli/src/tui/components/HelpPanel.js';
+import * as HistoryScroll from '../../apps/cli/src/tui/components/HistoryScroll.js';
+import * as MessageBubble from '../../apps/cli/src/tui/components/MessageBubble.js';
+import * as PermissionDialog from '../../apps/cli/src/tui/components/PermissionDialog.js';
+import * as PipelineTrace from '../../apps/cli/src/tui/components/PipelineTrace.js';
+import * as PromptInput from '../../apps/cli/src/tui/components/PromptInput.js';
 // The 4 newly-integrated components from the TUI design reference:
-import * as SplashBox from '../../packages/cli/src/tui/components/SplashBox.js';
-import * as StatusBar from '../../packages/cli/src/tui/components/StatusBar.js';
-import * as TokenBar from '../../packages/cli/src/tui/components/TokenBar.js';
-import * as WelcomeTip from '../../packages/cli/src/tui/components/WelcomeTip.js';
-import * as useAgentLoop from '../../packages/cli/src/tui/hooks/useAgentLoop.js';
-import * as useFpsTracker from '../../packages/cli/src/tui/hooks/useFpsTracker.js';
-import * as useSecsTick from '../../packages/cli/src/tui/hooks/useSecsTick.js';
-import * as useSpinIndex from '../../packages/cli/src/tui/hooks/useSpinIndex.js';
-import * as agents from '../../packages/cli/src/tui/theme/agents.js';
-import * as tokens from '../../packages/cli/src/tui/theme/tokens.js';
+import * as SplashBox from '../../apps/cli/src/tui/components/SplashBox.js';
+import * as StatusBar from '../../apps/cli/src/tui/components/StatusBar.js';
+import * as TokenBar from '../../apps/cli/src/tui/components/TokenBar.js';
+import * as WelcomeTip from '../../apps/cli/src/tui/components/WelcomeTip.js';
+import * as useAgentLoop from '../../apps/cli/src/tui/hooks/useAgentLoop.js';
+import * as useFpsTracker from '../../apps/cli/src/tui/hooks/useFpsTracker.js';
+import * as useSecsTick from '../../apps/cli/src/tui/hooks/useSecsTick.js';
+import * as useSpinIndex from '../../apps/cli/src/tui/hooks/useSpinIndex.js';
+import * as agents from '../../apps/cli/src/tui/theme/agents.js';
+import * as tokens from '../../apps/cli/src/tui/theme/tokens.js';
 
 const COMPONENTS = {
   AgentStateBar,

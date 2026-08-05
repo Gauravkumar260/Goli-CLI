@@ -12,7 +12,7 @@ import {
   detectCapabilities,
   shouldUseSyncOutput,
   shouldThrottleAnimations,
-} from '../../packages/cli/src/tui/lib/capabilities.js';
+} from '../../apps/cli/src/tui/lib/capabilities.js';
 
 describe('capabilities', () => {
   it('detectCapabilities returns an object with all expected fields', () => {

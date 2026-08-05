@@ -32,10 +32,10 @@ import { globalCommands, registerDefaultCommands } from '@goli/cli/tui/lib/Comma
 
 const CORE_LOOP_SRC = resolve(__dirname, '../../agent-core/src/loop.ts');
 const CORE_TYPES_SRC = resolve(__dirname, '../../agent-core/src/types.ts');
-const CLI_INDEX_SRC = resolve(__dirname, '../../cli/src/index.ts');
-const CLI_AGENT_LOOP_SRC = resolve(__dirname, '../../cli/src/services/CliAgentLoop.ts');
-const CLI_COMMAND_REGISTRY_SRC = resolve(__dirname, '../../cli/src/tui/lib/CommandRegistry.ts');
-const CLI_LAUNCHER_SRC = resolve(__dirname, '../../cli/src/tui/launcher.ts');
+const CLI_INDEX_SRC = resolve(__dirname, '../../../apps/cli/src/index.ts');
+const CLI_AGENT_LOOP_SRC = resolve(__dirname, '../../../apps/cli/src/services/CliAgentLoop.ts');
+const CLI_COMMAND_REGISTRY_SRC = resolve(__dirname, '../../../apps/cli/src/tui/lib/CommandRegistry.ts');
+const CLI_LAUNCHER_SRC = resolve(__dirname, '../../../apps/cli/src/tui/launcher.ts');
 
 // ─── N1: agent/index.ts exports + AgentLoop consumes them ──────────────
 

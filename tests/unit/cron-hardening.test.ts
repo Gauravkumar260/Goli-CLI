@@ -28,9 +28,9 @@ import {
   shouldFireOneShot,
   defaultLockPath,
   type CronTickRunnerOptions,
-} from '../../packages/cli/src/commands/cron-tick-runner.js';
+} from '../../apps/cli/src/commands/cron-tick-runner.js';
 
-import type { CronEntry } from '../../packages/cli/src/commands/cron.js';
+import type { CronEntry } from '../../apps/cli/src/commands/cron.js';
 
 function makeEntry(overrides: Partial<CronEntry> = {}): CronEntry {
   return {

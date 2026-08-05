@@ -15,7 +15,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-import { CommandRegistry } from '../../packages/cli/src/tui/lib/CommandRegistry.js';
+import { CommandRegistry } from '../../apps/cli/src/tui/lib/CommandRegistry.js';
 import {
   CommandService,
   builtinLoader,
@@ -24,7 +24,7 @@ import {
   registerSlashCommandTelemetry,
   type SlashCommandEvent,
   type CommandSource,
-} from '../../packages/cli/src/tui/lib/CommandService.js';
+} from '../../apps/cli/src/tui/lib/CommandService.js';
 
 // ─── CommandService basics ────────────────────────────────────────────────
 

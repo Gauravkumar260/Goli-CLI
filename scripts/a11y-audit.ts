@@ -6,7 +6,7 @@
  *
  * This script audits:
  *   1. Theme color contrast — every (foreground, background) pair from
- *      packages/cli/src/tui/theme/tokens.ts must meet WCAG 2.1 AA
+ *      apps/cli/src/tui/theme/tokens.ts must meet WCAG 2.1 AA
  *      (>= 4.5:1 for normal text, >= 3:1 for large text).
  *   2. Ink component props — every component should pass accessible
  *      labels where applicable. For Ink, this means using <Text> with
@@ -23,8 +23,8 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..');
-const TOKENS_FILE = resolve(REPO_ROOT, 'packages/cli/src/tui/theme/tokens.ts');
-const COMPONENTS_DIR = resolve(REPO_ROOT, 'packages/cli/src/tui/components');
+const TOKENS_FILE = resolve(REPO_ROOT, 'apps/cli/src/tui/theme/tokens.ts');
+const COMPONENTS_DIR = resolve(REPO_ROOT, 'apps/cli/src/tui/components');
 const REPORT_FILE = resolve(REPO_ROOT, 'docs/a11y-report.md');
 
 interface ColorToken {

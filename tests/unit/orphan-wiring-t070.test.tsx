@@ -13,10 +13,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { ApprovalModeIndicator } from '../../packages/cli/src/tui/components/ApprovalModeIndicator.js';
-import { ContextSummaryDisplay } from '../../packages/cli/src/tui/components/ContextSummaryDisplay.js';
-import { ShortcutsHelp, DEFAULT_SHORTCUTS } from '../../packages/cli/src/tui/components/ShortcutsHelp.js';
-import { LoadingIndicator } from '../../packages/cli/src/tui/components/LoadingIndicator.js';
+import { ApprovalModeIndicator } from '../../apps/cli/src/tui/components/ApprovalModeIndicator.js';
+import { ContextSummaryDisplay } from '../../apps/cli/src/tui/components/ContextSummaryDisplay.js';
+import { ShortcutsHelp, DEFAULT_SHORTCUTS } from '../../apps/cli/src/tui/components/ShortcutsHelp.js';
+import { LoadingIndicator } from '../../apps/cli/src/tui/components/LoadingIndicator.js';
 
 // ─── ApprovalModeIndicator ──────────────────────────────────────────
 

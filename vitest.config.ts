@@ -61,8 +61,8 @@ export default defineConfig({
       // Legacy — Phase 7 strangler-fig; deleted when @goli/core shim retires.
       { find: /^@goli\/core$/, replacement: resolve(__dirname, 'packages/core/src/index.ts') },
       { find: /^@goli\/core\/(.+)$/, replacement: resolve(__dirname, 'packages/core/src/$1') },
-      { find: /^@goli\/cli$/, replacement: resolve(__dirname, 'packages/cli/src/index.ts') },
-      { find: /^@goli\/cli\/(.+)$/, replacement: resolve(__dirname, 'packages/cli/src/$1') },
+      { find: /^@goli\/cli$/, replacement: resolve(__dirname, 'apps/cli/src/index.ts') },
+      { find: /^@goli\/cli\/(.+)$/, replacement: resolve(__dirname, 'apps/cli/src/$1') },
       { find: /^@goli\/evals$/, replacement: resolve(__dirname, 'packages/evals/src/index.ts') },
       { find: /^@goli\/evals\/(.+)$/, replacement: resolve(__dirname, 'packages/evals/src/$1') },
       // New monorepo convention — sibling packages under @goli-cli/*.

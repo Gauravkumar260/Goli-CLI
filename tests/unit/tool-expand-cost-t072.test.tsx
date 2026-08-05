@@ -16,9 +16,9 @@ import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { ToolMessage } from '../../packages/cli/src/tui/components/messages/ToolMessage.js';
-import { AgentMessage } from '../../packages/cli/src/tui/components/messages/AgentMessage.js';
-import type { ToolCall, Message } from '../../packages/cli/src/tui/state/types.js';
+import { ToolMessage } from '../../apps/cli/src/tui/components/messages/ToolMessage.js';
+import { AgentMessage } from '../../apps/cli/src/tui/components/messages/AgentMessage.js';
+import type { ToolCall, Message } from '../../apps/cli/src/tui/state/types.js';
 
 function makeToolCall(overrides: Partial<ToolCall> = {}): ToolCall {
   return {

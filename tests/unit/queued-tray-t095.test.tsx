@@ -18,10 +18,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { QueuedMessagesTray } from '../../packages/cli/src/tui/components/QueuedMessagesTray.js';
-import { globalCommands, registerDefaultCommands } from '../../packages/cli/src/tui/lib/CommandRegistry.js';
-import { AppStateStore } from '../../packages/cli/src/tui/state/AppStateStore.js';
-import type { QueuedMessage } from '../../packages/cli/src/tui/state/types.js';
+import { QueuedMessagesTray } from '../../apps/cli/src/tui/components/QueuedMessagesTray.js';
+import { globalCommands, registerDefaultCommands } from '../../apps/cli/src/tui/lib/CommandRegistry.js';
+import { AppStateStore } from '../../apps/cli/src/tui/state/AppStateStore.js';
+import type { QueuedMessage } from '../../apps/cli/src/tui/state/types.js';
 
 beforeEach(() => {
   AppStateStore.clearQueue();

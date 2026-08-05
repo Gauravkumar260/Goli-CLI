@@ -3,8 +3,8 @@
  *
  * Verifies the architectural decision documented in
  * docs/decisions/0017-vscode-ext-isolation.md:
- *   - packages/vscode-ext IS in the root workspaces array
- *   - packages/vscode-ext/package.json is a valid standalone package
+ *   - apps/vscode-ext IS in the root workspaces array
+ *   - apps/vscode-ext/package.json is a valid standalone package
  *   - The decision doc exists
  */
 
@@ -15,12 +15,12 @@ import { describe, it, expect } from 'vitest';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..', '..');
 const ROOT_PKG = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
-const VSCODE_PKG_PATH = resolve(REPO_ROOT, 'packages/vscode-ext/package.json');
+const VSCODE_PKG_PATH = resolve(REPO_ROOT, 'apps/vscode-ext/package.json');
 const DECISION_DOC = resolve(REPO_ROOT, 'docs/decisions/0017-vscode-ext-isolation.md');
 
 describe('T-010: VS Code extension isolation', () => {
   describe('workspace membership', () => {
-    it('packages/vscode-ext IS matched by the root workspaces globs', () => {
+    it('apps/vscode-ext IS matched by the root workspaces globs', () => {
       const workspaces = ROOT_PKG.workspaces ?? [];
       expect(workspaces.length).toBeGreaterThan(0);
       // Phase 0 switched the workspaces array to globs (["apps/*","packages/*"]).
@@ -30,16 +30,16 @@ describe('T-010: VS Code extension isolation', () => {
           globSync(w, { cwd: REPO_ROOT }).map((p: string) => p.replace(/\\/g, '/')),
         );
       const names = matched();
-      expect(names).toContain('packages/vscode-ext');
+      expect(names).toContain('apps/vscode-ext');
       // The core workspace packages should also be matched by the globs.
       expect(names).toEqual(
-        expect.arrayContaining(['packages/core', 'packages/cli', 'packages/evals']),
+        expect.arrayContaining(['packages/core', 'apps/cli', 'packages/evals']),
       );
     });
   });
 
   describe('standalone package.json', () => {
-    it('packages/vscode-ext/package.json exists', () => {
+    it('apps/vscode-ext/package.json exists', () => {
       expect(existsSync(VSCODE_PKG_PATH)).toBe(true);
     });
 

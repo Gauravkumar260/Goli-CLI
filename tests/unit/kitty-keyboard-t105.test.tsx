@@ -17,7 +17,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { useKittyKeyboardProtocol, isKittyCapable } from '../../packages/cli/src/tui/hooks/useKittyKeyboardProtocol.js';
+import { useKittyKeyboardProtocol, isKittyCapable } from '../../apps/cli/src/tui/hooks/useKittyKeyboardProtocol.js';
 
 // Save/restore env vars.
 const origTermProgram = process.env['TERM_PROGRAM'];

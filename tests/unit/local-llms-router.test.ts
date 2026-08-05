@@ -625,7 +625,7 @@ describe('LocalLlmsRouter end-to-end', () => {
 
 describe('Mode config: local-llms is registered', () => {
   it('MODE_AGENTS includes local-llms', async () => {
-    const { MODE_AGENTS, MODE_PRIMARY_AGENT, MODE_TOOLS } = await import('../../packages/cli/src/tui/lib/mode-config.js');
+    const { MODE_AGENTS, MODE_PRIMARY_AGENT, MODE_TOOLS } = await import('../../apps/cli/src/tui/lib/mode-config.js');
     expect(MODE_AGENTS['local-llms']).toBeDefined();
     expect(MODE_PRIMARY_AGENT['local-llms']).toBeDefined();
     expect(MODE_TOOLS['local-llms']).toEqual(['*']);

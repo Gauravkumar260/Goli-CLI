@@ -19,12 +19,12 @@ import {
   filterCommands,
   getFullLabel,
   MAX_SUGGESTIONS_TO_SHOW,
-} from '../../packages/cli/src/tui/components/SuggestionsDisplay.js';
+} from '../../apps/cli/src/tui/components/SuggestionsDisplay.js';
 import {
   globalCommands,
   registerDefaultCommands,
   type Command,
-} from '../../packages/cli/src/tui/lib/CommandRegistry.js';
+} from '../../apps/cli/src/tui/lib/CommandRegistry.js';
 
 beforeEach(() => {
   registerDefaultCommands(true);

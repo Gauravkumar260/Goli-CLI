@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { partitionMessages } from '../../packages/cli/src/tui/components/HistoryScroll.js';
-import type { Message } from '../../packages/cli/src/tui/state/types.js';
+import { partitionMessages } from '../../apps/cli/src/tui/components/HistoryScroll.js';
+import type { Message } from '../../apps/cli/src/tui/state/types.js';
 
 function mkMsg(id: string, overrides: Partial<Message> = {}): Message {
   return { id, type: 'user', content: id, streaming: false, ...overrides } as Message;

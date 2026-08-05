@@ -22,8 +22,8 @@ import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..', '..');
-const CLI_BIN = resolve(REPO_ROOT, 'packages/cli/dist/index.js');
-const COMPLETIONS_DIR = resolve(REPO_ROOT, 'completions');
+const CLI_BIN = resolve(REPO_ROOT, 'apps/cli/dist/index.js');
+const COMPLETIONS_DIR = resolve(REPO_ROOT, 'apps/cli/completions');
 
 function getHelpOutput(): string {
   return execSync(`node "${CLI_BIN}" --help`, { encoding: 'utf-8' });

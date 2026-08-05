@@ -4,7 +4,7 @@
  * Exercises the full event flow:
  *   spawn agent -> plan -> tool call -> observe -> respond
  *
- * Uses the existing MockAgentLoop (packages/cli/src/services/MockAgentLoop.ts)
+ * Uses the existing MockAgentLoop (apps/cli/src/services/MockAgentLoop.ts)
  * which yields a scripted event sequence: INIT -> PLAN -> TOOL (read_file)
  * -> GEN -> DONE. This lets us verify the agent loop's event contract
  * without a real LLM API key.
@@ -22,9 +22,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { MockAgentLoop } from '../../packages/cli/src/services/MockAgentLoop.js';
+import { MockAgentLoop } from '../../apps/cli/src/services/MockAgentLoop.js';
 
-import type { AgentEvent } from '../../packages/cli/src/services/IAgentLoop.js';
+import type { AgentEvent } from '../../apps/cli/src/services/IAgentLoop.js';
 
 describe('T-007: end-to-end agent loop with mock provider', () => {
   let agent: MockAgentLoop;

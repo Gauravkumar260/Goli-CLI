@@ -12,7 +12,7 @@ import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..', '..');
-const CLI_BIN = resolve(REPO_ROOT, 'packages/cli/dist/index.js');
+const CLI_BIN = resolve(REPO_ROOT, 'apps/cli/dist/index.js');
 
 function runDemo(): { stdout: string; stderr: string; exitCode: number } {
   const result = spawnSync('node', [CLI_BIN, '--demo'], {

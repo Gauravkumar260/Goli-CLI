@@ -23,13 +23,13 @@ import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { PromptInput } from '../../packages/cli/src/tui/components/PromptInput.js';
+import { PromptInput } from '../../apps/cli/src/tui/components/PromptInput.js';
 import {
   vimHandleKey,
   initialVimState,
   vimModeLabel,
   type VimState,
-} from '../../packages/cli/src/tui/lib/vimMode.js';
+} from '../../apps/cli/src/tui/lib/vimMode.js';
 
 // ─── PromptInput vim indicator ──────────────────────────────────────
 

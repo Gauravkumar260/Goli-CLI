@@ -43,7 +43,7 @@ import {
   isSkillAvailable,
   isToolAllowed,
   getModeDescription,
-} from '../../packages/cli/src/tui/lib/mode-config.js';
+} from '../../apps/cli/src/tui/lib/mode-config.js';
 
 // ─── Mode→Agent mapping ─────────────────────────────────────────────
 

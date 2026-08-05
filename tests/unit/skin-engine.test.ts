@@ -35,7 +35,7 @@ import {
   runSkin,
   type Skin,
   type ColorTokenName,
-} from '../../packages/cli/src/tui/theme/skin-engine.js';
+} from '../../apps/cli/src/tui/theme/skin-engine.js';
 
 let tmpHome: string;
 let originalHome: string | undefined;

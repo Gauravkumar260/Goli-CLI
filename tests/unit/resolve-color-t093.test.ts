@@ -16,12 +16,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock the capabilities module so we can control terminal type per test.
-vi.mock('../../packages/cli/src/tui/lib/capabilities.js', () => ({
+vi.mock('../../apps/cli/src/tui/lib/capabilities.js', () => ({
   detectCapabilities: vi.fn(() => ({ trueColor: true, colors256: false, colors16: false })),
 }));
 
-import { resolveColor, __testing, resetCapabilitiesCache } from '../../packages/cli/src/tui/theme/tokens.js';
-import { detectCapabilities } from '../../packages/cli/src/tui/lib/capabilities.js';
+import { resolveColor, __testing, resetCapabilitiesCache } from '../../apps/cli/src/tui/theme/tokens.js';
+import { detectCapabilities } from '../../apps/cli/src/tui/lib/capabilities.js';
 
 const mockedDetect = detectCapabilities as ReturnType<typeof vi.fn>;
 

@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import {
   extractGlobalOptions,
   buildCommandContext,
-} from '../../packages/cli/src/commands/types.js';
+} from '../../apps/cli/src/commands/types.js';
 import { DEFAULT_CONFIG } from '../../packages/core/src/config/schema.js';
 
 describe('extractGlobalOptions', () => {

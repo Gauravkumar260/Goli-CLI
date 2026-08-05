@@ -18,8 +18,8 @@ import {
   loadSkin,
   getActiveSkin,
   BUILTIN_SKIN_NAMES,
-} from '../../packages/cli/src/tui/theme/skin-engine.js';
-import { Spinner, GRADIENT_PALETTE, getSpinnerFrames } from '../../packages/cli/src/tui/components/Spinner.js';
+} from '../../apps/cli/src/tui/theme/skin-engine.js';
+import { Spinner, GRADIENT_PALETTE, getSpinnerFrames } from '../../apps/cli/src/tui/components/Spinner.js';
 import {
   STATUS,
   SCREEN_READER_STATUS,
@@ -36,7 +36,7 @@ import {
   SCREEN_READER_ERROR_PREFIX,
   getStatusText,
   getLoadingText,
-} from '../../packages/cli/src/tui/lib/textConstants.js';
+} from '../../apps/cli/src/tui/lib/textConstants.js';
 
 // Save env so we can restore individual keys after each test.
 const SAVED_NO_COLOR = process.env['NO_COLOR'];
@@ -139,12 +139,12 @@ describe('T-055: Spinner — screen-reader fallback (altText)', () => {
   });
 
   it('renders altText in screen-reader mode (no animation, no frame chars)', () => {
-    vi.doMock('../../packages/cli/src/tui/hooks/useIsScreenReaderEnabled.js', () => ({
+    vi.doMock('../../apps/cli/src/tui/hooks/useIsScreenReaderEnabled.js', () => ({
       useIsScreenReaderEnabled: () => true,
       isScreenReaderEnabled: () => true,
     }));
     // Re-import Spinner with the mock applied.
-    return import('../../packages/cli/src/tui/components/Spinner.js?sr=1').then((mod) => {
+    return import('../../apps/cli/src/tui/components/Spinner.js?sr=1').then((mod) => {
       const { lastFrame } = render(<mod.Spinner altText="Loading (please wait)" label="Working" />);
       const frame = lastFrame() ?? '';
       expect(frame).toContain('Loading (please wait)');
@@ -155,11 +155,11 @@ describe('T-055: Spinner — screen-reader fallback (altText)', () => {
   });
 
   it('renders just label in SR mode when altText is omitted', () => {
-    vi.doMock('../../packages/cli/src/tui/hooks/useIsScreenReaderEnabled.js', () => ({
+    vi.doMock('../../apps/cli/src/tui/hooks/useIsScreenReaderEnabled.js', () => ({
       useIsScreenReaderEnabled: () => true,
       isScreenReaderEnabled: () => true,
     }));
-    return import('../../packages/cli/src/tui/components/Spinner.js?sr=2').then((mod) => {
+    return import('../../apps/cli/src/tui/components/Spinner.js?sr=2').then((mod) => {
       const { lastFrame } = render(<mod.Spinner label="Working" />);
       const frame = lastFrame() ?? '';
       expect(frame).toContain('Working');
@@ -167,11 +167,11 @@ describe('T-055: Spinner — screen-reader fallback (altText)', () => {
   });
 
   it('renders animated frame in visual mode (default)', () => {
-    vi.doMock('../../packages/cli/src/tui/hooks/useIsScreenReaderEnabled.js', () => ({
+    vi.doMock('../../apps/cli/src/tui/hooks/useIsScreenReaderEnabled.js', () => ({
       useIsScreenReaderEnabled: () => false,
       isScreenReaderEnabled: () => false,
     }));
-    return import('../../packages/cli/src/tui/components/Spinner.js?sr=3').then((mod) => {
+    return import('../../apps/cli/src/tui/components/Spinner.js?sr=3').then((mod) => {
       const { lastFrame } = render(<mod.Spinner label="Working" />);
       const frame = lastFrame() ?? '';
       expect(frame).toContain('Working');
@@ -193,11 +193,11 @@ describe('T-055: Spinner — gradient prop', () => {
   });
 
   it('Spinner accepts gradient prop without crashing', () => {
-    vi.doMock('../../packages/cli/src/tui/hooks/useIsScreenReaderEnabled.js', () => ({
+    vi.doMock('../../apps/cli/src/tui/hooks/useIsScreenReaderEnabled.js', () => ({
       useIsScreenReaderEnabled: () => false,
       isScreenReaderEnabled: () => false,
     }));
-    return import('../../packages/cli/src/tui/components/Spinner.js?sr=4').then((mod) => {
+    return import('../../apps/cli/src/tui/components/Spinner.js?sr=4').then((mod) => {
       const { lastFrame } = render(<mod.Spinner gradient label="Working" />);
       const frame = lastFrame() ?? '';
       expect(frame).toContain('Working');

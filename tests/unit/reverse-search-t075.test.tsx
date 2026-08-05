@@ -19,8 +19,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { InputHistory } from '../../packages/cli/src/tui/lib/InputHistory.js';
-import { PromptInput } from '../../packages/cli/src/tui/components/PromptInput.js';
+import { InputHistory } from '../../apps/cli/src/tui/lib/InputHistory.js';
+import { PromptInput } from '../../apps/cli/src/tui/components/PromptInput.js';
 
 // Helper: create an InputHistory with in-memory storage (no disk).
 function makeHistory(entries: string[]): InputHistory {

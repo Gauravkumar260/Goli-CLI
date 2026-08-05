@@ -62,6 +62,10 @@ export default [
       'packages/*/src/**/*.tsx',
       'packages/*/__tests__/**/*.ts',
       'packages/*/__tests__/**/*.tsx',
+      'apps/*/src/**/*.ts',
+      'apps/*/src/**/*.tsx',
+      'apps/*/__tests__/**/*.ts',
+      'apps/*/__tests__/**/*.tsx',
       'tests/**/*.ts',
       'tests/**/*.tsx',
       'scripts/**/*.ts',
@@ -224,7 +228,7 @@ export default [
   // package.json requires 0 warnings). Correctness rules that DO matter
   // (no-unsafe-*, eqeqeq) are inherited from the parent block.
   {
-    files: ['packages/cli/src/tui/**/*.ts', 'packages/cli/src/tui/**/*.tsx'],
+    files: ['apps/cli/src/tui/**/*.ts', 'apps/cli/src/tui/**/*.tsx'],
     rules: {
       'import/order': 'off', // design uses its own import grouping
       '@typescript-eslint/no-unused-vars': 'off', // design has unused-import side effects
@@ -245,16 +249,16 @@ export default [
   // where process.exit is correct.
   {
     files: [
-      'packages/cli/src/index.ts',
-      'packages/cli/src/commands/**/*.ts',
-      'packages/cli/src/tui/cli.tsx',
-      'packages/cli/src/tui/launcher.ts',
-      'packages/cli/src/tui/lib/gracefulExit.ts',
-      'packages/cli/src/tui/lib/sessionState.ts',
+      'apps/cli/src/index.ts',
+      'apps/cli/src/commands/**/*.ts',
+      'apps/cli/src/tui/cli.tsx',
+      'apps/cli/src/tui/launcher.ts',
+      'apps/cli/src/tui/lib/gracefulExit.ts',
+      'apps/cli/src/tui/lib/sessionState.ts',
       // T-054: /quit command exits the process via setTimeout(() => process.exit(0), 50).
-      'packages/cli/src/tui/lib/CommandRegistry.ts',
-      'bin/**/*.js',
-      'bin/**/*.ts',
+      'apps/cli/src/tui/lib/CommandRegistry.ts',
+      'apps/cli/bin/**/*.js',
+      'apps/cli/bin/**/*.ts',
     ],
     rules: {
       'n/no-process-exit': 'off', // CLI entry points exit with status codes
@@ -269,7 +273,7 @@ export default [
   // OutputChannel which is the standard pattern. VS Code extension files
   // conventionally use snake_case (matching the VS Code API convention).
   {
-    files: ['packages/vscode-ext/**/*.ts'],
+    files: ['apps/vscode-ext/**/*.ts'],
     rules: {
       'no-console': 'off',
       'unicorn/filename-case': 'off',
@@ -309,6 +313,9 @@ export default [
       'packages/*/__tests__/**/*.js',
       'packages/*/__tests__/**/*.ts',
       'packages/*/__tests__/**/*.tsx',
+      'apps/*/__tests__/**/*.js',
+      'apps/*/__tests__/**/*.ts',
+      'apps/*/__tests__/**/*.tsx',
       'packages/test-utils/src/**/*.ts',
     ],
     rules: {

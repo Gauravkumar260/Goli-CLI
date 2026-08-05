@@ -45,7 +45,7 @@ echo
 
 # ─── Step 4: First successful command — goli --version ───────────────────
 echo "▶ Step 4: goli --version (first successful command)"
-VERSION_OUTPUT="$(node packages/cli/dist/index.js --version 2>&1)" || {
+VERSION_OUTPUT="$(node apps/cli/dist/index.js --version 2>&1)" || {
   echo "  ✗ goli --version failed"
   echo "  output: $VERSION_OUTPUT"
   exit 1
@@ -60,7 +60,7 @@ echo
 # ─── Step 5: goli --help (complete grouped help, A1) ─────────────────────
 echo "▶ Step 5: goli --help (A1: complete grouped help < 200ms)"
 START_NS=$(date +%s%N)
-HELP_OUTPUT="$(node packages/cli/dist/index.js --help 2>&1)" || {
+HELP_OUTPUT="$(node apps/cli/dist/index.js --help 2>&1)" || {
   echo "  ✗ goli --help failed"
   exit 1
 }
@@ -83,7 +83,7 @@ echo
 
 # ─── Step 6: goli doctor (basic health check) ────────────────────────────
 echo "▶ Step 6: goli doctor (basic environment health check)"
-DOCTOR_OUTPUT="$(node packages/cli/dist/index.js doctor 2>&1)" || {
+DOCTOR_OUTPUT="$(node apps/cli/dist/index.js doctor 2>&1)" || {
   echo "  ⚠ goli doctor exited non-zero (may be expected in clean container without ripgrep/etc)"
   echo "  output (first 5 lines): $(echo "$DOCTOR_OUTPUT" | head -5)"
   # doctor may fail in minimal containers — that's OK for A2

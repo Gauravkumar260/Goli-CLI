@@ -19,7 +19,7 @@
  *
  * ## Reference
  *
- * Matches the gemini-cli pattern (`packages/cli/src/ui/layouts/ScreenReaderAppLayout.tsx`):
+ * Matches the gemini-cli pattern (`apps/cli/src/ui/layouts/ScreenReaderAppLayout.tsx`):
  * a separate layout component that renders the same content but in a
  * screen-reader-friendly order and without visual decorations.
  *

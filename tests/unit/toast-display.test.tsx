@@ -2,13 +2,13 @@
  * Unit tests for T-036 — Toast notifications component.
  *
  * Verifies the four acceptance criteria from tasks.json:
- *  1. New component packages/cli/src/tui/components/ToastDisplay.tsx.
+ *  1. New component apps/cli/src/tui/components/ToastDisplay.tsx.
  *  2. Shows "Press Ctrl+C again to exit" on first Ctrl+C when idle.
  *  3. Shows "Press Esc again to clear prompt" on first Esc when prompt has text.
  *  4. Auto-dismisses after second keypress or after 3s timeout.
  *  5. Toast types: warning (yellow), hint (gray), error (red).
  *
- * Comparison reference: gemini-cli packages/cli/src/ui/components/ToastDisplay.tsx.
+ * Comparison reference: gemini-cli apps/cli/src/ui/components/ToastDisplay.tsx.
  */
 import { describe, it, expect } from 'vitest';
 import React from 'react';
@@ -20,7 +20,7 @@ import {
   TOAST_TIMEOUT_MS,
   type ToastMessage,
   type ToastSeverity,
-} from '../../packages/cli/src/tui/components/ToastDisplay.js';
+} from '../../apps/cli/src/tui/components/ToastDisplay.js';
 
 describe('T-036: ToastDisplay component (AC #1, #5)', () => {
   it('renders null when no toast is active', () => {

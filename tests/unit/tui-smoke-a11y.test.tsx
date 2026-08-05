@@ -21,17 +21,17 @@ import React from 'react';
 import { render } from 'ink-testing-library';
 
 // New TUI components from loop run 4.
-import { SuggestionsDisplay, filterCommands } from '../../packages/cli/src/tui/components/SuggestionsDisplay.js';
-import { ToastDisplay, pickToast } from '../../packages/cli/src/tui/components/ToastDisplay.js';
-import { Spinner, getSpinnerFrames, getSpinnerStyles } from '../../packages/cli/src/tui/components/Spinner.js';
-import { UserMessage } from '../../packages/cli/src/tui/components/messages/UserMessage.js';
-import { AgentMessage } from '../../packages/cli/src/tui/components/messages/AgentMessage.js';
-import { SystemMessage } from '../../packages/cli/src/tui/components/messages/SystemMessage.js';
-import { ToolMessage } from '../../packages/cli/src/tui/components/messages/ToolMessage.js';
-import { MessageBubble } from '../../packages/cli/src/tui/components/MessageBubble.js';
-import { renderMarkdown } from '../../packages/cli/src/tui/lib/markdown.js';
-import { InputHistory } from '../../packages/cli/src/tui/lib/InputHistory.js';
-import { tildeify, shortenPath, displayPath, truncatePath } from '../../packages/cli/src/tui/lib/pathUtils.js';
+import { SuggestionsDisplay, filterCommands } from '../../apps/cli/src/tui/components/SuggestionsDisplay.js';
+import { ToastDisplay, pickToast } from '../../apps/cli/src/tui/components/ToastDisplay.js';
+import { Spinner, getSpinnerFrames, getSpinnerStyles } from '../../apps/cli/src/tui/components/Spinner.js';
+import { UserMessage } from '../../apps/cli/src/tui/components/messages/UserMessage.js';
+import { AgentMessage } from '../../apps/cli/src/tui/components/messages/AgentMessage.js';
+import { SystemMessage } from '../../apps/cli/src/tui/components/messages/SystemMessage.js';
+import { ToolMessage } from '../../apps/cli/src/tui/components/messages/ToolMessage.js';
+import { MessageBubble } from '../../apps/cli/src/tui/components/MessageBubble.js';
+import { renderMarkdown } from '../../apps/cli/src/tui/lib/markdown.js';
+import { InputHistory } from '../../apps/cli/src/tui/lib/InputHistory.js';
+import { tildeify, shortenPath, displayPath, truncatePath } from '../../apps/cli/src/tui/lib/pathUtils.js';
 
 // All 11 built-in skins
 import {
@@ -49,9 +49,9 @@ import {
   DARK_SKIN,
   HIGH_CONTRAST_SKIN,
   type Skin,
-} from '../../packages/cli/src/tui/theme/skin-engine.js';
+} from '../../apps/cli/src/tui/theme/skin-engine.js';
 
-import type { Message, ToolCall } from '../../packages/cli/src/tui/state/types.js';
+import type { Message, ToolCall } from '../../apps/cli/src/tui/state/types.js';
 
 // ─── Smoke tests: every new component renders without throwing ─────
 

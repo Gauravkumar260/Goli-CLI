@@ -28,7 +28,7 @@ import {
   countMcpServers,
   countSkills,
   useContextCounts,
-} from '../../packages/cli/src/tui/hooks/useContextCounts.js';
+} from '../../apps/cli/src/tui/hooks/useContextCounts.js';
 
 let testDir: string;
 let origCwd: string;

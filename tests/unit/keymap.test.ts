@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { globalKeyMap, KeyMap, DEFAULT_BINDINGS, type KeyBinding } from '../../packages/cli/src/tui/lib/keymap.js';
+import { globalKeyMap, KeyMap, DEFAULT_BINDINGS, type KeyBinding } from '../../apps/cli/src/tui/lib/keymap.js';
 
 describe('KeyMap', () => {
   it('registers and retrieves bindings', () => {

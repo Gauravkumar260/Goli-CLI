@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-import { useMouseScroll, toggleMouseMode, __resetMouseModeStateForTests } from '../../packages/cli/src/tui/hooks/useMouseScroll.js';
+import { useMouseScroll, toggleMouseMode, __resetMouseModeStateForTests } from '../../apps/cli/src/tui/hooks/useMouseScroll.js';
 
 // ─── Module exports ─────────────────────────────────────────────────
 

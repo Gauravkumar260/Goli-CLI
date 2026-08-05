@@ -39,3 +39,8 @@ packages/*/*.tsbuildinfo
 /fix.cjs
 /demo-output.txt
 /demo-err.txt
+
+# Compiled test artifacts colocated with __tests__/*.test.ts sources.
+packages/*/__tests__/*.js
+packages/*/__tests__/*.js.map
+packages/*/__tests__/*.d.ts

@@ -15,13 +15,13 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 
-import { renderMarkdown } from '../../packages/cli/src/tui/lib/markdown.js';
-import { latexToUnicode } from '../../packages/cli/src/tui/lib/latex.js';
+import { renderMarkdown } from '../../apps/cli/src/tui/lib/markdown.js';
+import { latexToUnicode } from '../../apps/cli/src/tui/lib/latex.js';
 import {
   highlightCode,
   isLanguageSupported,
   TOKEN_COLORS,
-} from '../../packages/cli/src/tui/lib/code-highlight.js';
+} from '../../apps/cli/src/tui/lib/code-highlight.js';
 
 describe('T-053: latexToUnicode — Greek letters', () => {
   it('converts $\\alpha$ to α', () => {
