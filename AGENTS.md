@@ -624,3 +624,25 @@ Fix: renamed studio's `build` script to `build:web`, so `--if-present` skips it 
 ### 5. AGENTS.md corruption (pre-existing) removed
 
 A UTF-16LE-encoded markdown document ("Goli-CLI Agents — The 11-Agent Swarm") had been appended as raw bytes after the Loop Run 12 section (a region of `x 0` / mangled chars). This loop truncated AGENTS.md at the end of the Loop Run 12 section and removed the corrupted block. If text ever renders as `x y x z`-style separated characters in AGENTS.md again, a UTF-16 block was appended — truncate it.
+
+## Loop Run 14 — Phase 1 apps/ + packages/ restructuring (ADR-0047)
+
+All four gates green after the move: typecheck, build, lint, and test (222 files / 4498 tests, exit 0).
+
+### What moved
+
+- `git mv` cli, studio, vscode-ext from `packages/` to `apps/` (ADR-0047).
+- `bin/goli.js` and `completions/` moved into `apps/cli/`.
+- Workspaces globs were already `["apps/*","packages/*"]`. `npm install` re-links the node_modules symlink (`@goli/cli` now resolves to `apps/cli/package.json`) and regenerates package-lock.json.
+
+### Gotchas
+
+1. **eslint flat-config TS-parser block only matched `packages/*/src`** — after the move, `apps/cli/*.ts` files fell back to the JS parser and produced 119 "Unexpected token" parsing errors. Add `apps/*/src/**` and `apps/*/__tests__/**` to the parser block (and the test-relaxation block). The vscode-ext rule block also needed `packages/vscode-ext` → `apps/vscode-ext`.
+
+2. **Moved packages' tsconfig `references` are depth-relative** — `apps/cli/tsconfig.json` had `references: [{ path: "../core" }]` which resolves to `apps/core` (nonexistent) after the move. Fix: `../../packages/core`. Studio and vscode-ext tsconfigs are self-contained (no references).
+
+3. **Mass path replace `packages/cli` → `apps/cli` misses depth-relative imports** — root `tests/unit/*` use `../../packages/cli/...` (caught), but colocated `packages/*/__tests__/*.test.ts` use `../../cli/...` (no literal `packages/cli`), which must become `../../../apps/cli/...` (one level deeper). Grep both forms.
+
+4. **`completions/` + dist path constants in tests/scripts need the new location** — `tests/unit/flag-coverage-audit.test.ts` reads `COMPLETIONS_DIR` (root `completions` → `apps/cli/completions`) and runs the built CLI binary; `scripts/gen-completions.ts` OUTPUT_DIR likewise. `bench.ts`/`tti-bench.ts`/`a11y-audit.ts` CLI_BIN/TOKENS_FILE already updated.
+
+5. **vscode-ext-isolation test asserts the workspace location** — `tests/unit/vscode-ext-isolation.test.ts` expected `packages/vscode-ext` in the workspaces-glob match and `packages/vscode-ext/package.json`. Update to `apps/vscode-ext`.
