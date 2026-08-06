@@ -20,8 +20,8 @@ import { writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 
 import type { AgentRole } from '../../agent/types.js';
-import type { Logger } from '../../utils/logger.js';
 import type { BlackboardEntry } from '../types.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** Options for the SharedBlackboard. */
 export interface SharedBlackboardOptions {

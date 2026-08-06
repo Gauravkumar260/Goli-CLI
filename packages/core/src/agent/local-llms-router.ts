@@ -58,13 +58,13 @@
  * @module agent/local-llms-router
  */
 
-import { OllamaProvider } from '../providers/ollama.js';
+import { OllamaProvider } from '@goli-cli/llm-providers/ollama.js';
 
 import { ProviderBackedModelClient } from './provider-adapter.js';
 
 import type { Message, ToolCall } from './types.js';
-import type { LocalLlmsConfig } from '../config/schema.js';
-import type { Logger } from '../utils/logger.js';
+import type { LocalLlmsConfig } from '@goli-cli/config/schema.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 // ─── Public types ────────────────────────────────────────────────────
 

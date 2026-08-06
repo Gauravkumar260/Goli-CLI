@@ -14,7 +14,7 @@ import {
   findDangerousPattern,
   withSessionContext,
   getSessionContext,
-} from '../../packages/core/src/approval/enhanced-approval.js';
+} from '../../packages/approval/src/enhanced-approval.js';
 
 let testDir: string;
 

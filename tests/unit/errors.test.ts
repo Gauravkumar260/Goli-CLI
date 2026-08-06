@@ -15,7 +15,7 @@ import {
   ToolValidationError,
   isGoliError,
   wrapUnknown,
-} from '../../packages/core/src/utils/errors.js';
+} from '../../packages/shared/src/utils/errors.js';
 
 // Test subclass of ConfigError for the abstract-base-class test
 class TestConfigError extends ConfigError {

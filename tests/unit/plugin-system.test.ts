@@ -8,9 +8,9 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { PluginRegistry, VALID_HOOKS } from '../../packages/core/src/plugins/registry.js';
+import { PluginRegistry, VALID_HOOKS } from '../../packages/plugins/src/registry.js';
 
-import type { PluginContext, MiddlewareContext, MiddlewareKind } from '../../packages/core/src/plugins/registry.js';
+import type { PluginContext, MiddlewareContext, MiddlewareKind } from '../../packages/plugins/src/registry.js';
 
 let testDir: string;
 

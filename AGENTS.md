@@ -24,8 +24,8 @@
 1. **`@goli/core` must be built before `@goli/cli` can typecheck.** The CLI's `tsconfig.json` has `"paths": {}` which overrides the root paths mapping; resolution goes through node_modules symlink → `packages/core/package.json` `exports` → `dist/index.d.ts`. If core's dist is missing or stale (because `tsconfig.tsbuildinfo` makes tsc skip emission), the CLI fails with `Cannot find module '@goli/core'`.
    - **Fix:** `rm -rf packages/*/dist packages/*/tsconfig.tsbuildinfo && npm run build` from a clean state.
 
-2. **`tree-sitter-language-pack` does not exist on npm.** Source comments in `packages/core/src/context/indexer/real-tree-sitter.ts` reference it as if it were a real package, but `npm view tree-sitter-language-pack` 404s. The actual package is `tree-sitter-languages` (plural). The dynamic `import('tree-sitter-language-pack')` will always throw at runtime and the regex fallback in `tree-sitter.ts` is the production code path.
-   - **Fix applied (iter 0):** Ambient module declaration in `packages/core/src/types/optional-deps.d.ts` so the dynamic import typechecks. The runtime fallback is unchanged.
+2. **`tree-sitter-language-pack` does not exist on npm.** Source comments in `packages/context-engine/src/indexer/real-tree-sitter.ts` reference it as if it were a real package, but `npm view tree-sitter-language-pack` 404s. The actual package is `tree-sitter-languages` (plural). The dynamic `import('tree-sitter-language-pack')` will always throw at runtime and the regex fallback in `tree-sitter.ts` is the production code path.
+   - **Fix applied (iter 0):** Ambient module declaration in `packages/shared/src/types/optional-deps.d.ts` so the dynamic import typechecks. The runtime fallback is unchanged.
 
 3. **`z-ai-web-dev-sdk` is referenced by `tools/core/web-fetch.ts` and `tools/core/web-search.ts` but not declared in any `package.json`.** Same pattern as tree-sitter: dynamic `import()` with graceful catch.
    - **Fix applied (iter 0):** Same ambient module declaration file.
@@ -529,13 +529,13 @@ Screen-reader mode is activated by any of:
 
 - **Test isolation:** Any test that renders a component using `useIsScreenReaderEnabled()` or `getActiveSkin()` must clear `NO_COLOR` and `GOLI_CLI_ACCESSIBILITY` env vars in `beforeEach` AND call `resetCapabilitiesCache()`. Otherwise leaked env vars from other test files cause flaky failures.
 - **Commit hygiene:** Use targeted `git add <specific files>` rather than `git add -A` when the working directory contains extracted reference projects (gemini-cli-main, goli-cli-extract). `git add -A` would commit 4000+ unrelated files.
-- **Pre-existing failures:** 4 test files (skills.test.ts, mcp-extension-api.test.ts, mcp-server-management.test.ts, tui-smoke.test.ts) fail because `packages/core/src/memory/skills/` is missing from the uploaded source zip. These are NOT regressions — they were failing before loop 6 started. Re-implementing the skills system is out of scope for a TUI/UI/UX loop.
+- **Pre-existing failures:** 4 test files (skills.test.ts, mcp-extension-api.test.ts, mcp-server-management.test.ts, tui-smoke.test.ts) fail because `packages/memory-engine/src/skills/` is missing from the uploaded source zip. These are NOT regressions — they were failing before loop 6 started. Re-implementing the skills system is out of scope for a TUI/UI/UX loop.
 
 ## Loop Run 12 — Provider Integration + UI Cleanup (iteration 36+)
 
 ### Provider Integration
 
-- Integrated uploaded providers module at `packages/core/src/providers/` (ollama.ts, openai.ts, anthropic.ts, gemini.ts, mock.ts, config.ts, router.ts, ModelProvider.ts, index.ts)
+- Integrated uploaded providers module at `packages/llm-providers/src/` (ollama.ts, openai.ts, anthropic.ts, gemini.ts, mock.ts, config.ts, router.ts, ModelProvider.ts, index.ts)
 - New adapter: `packages/core/src/agent/provider-adapter.ts` — wraps any ModelProvider as a GLMClient via `ProviderBackedGLMClient`
 - `AgentLoop` constructor now checks `GOLI_DEFAULT_MODEL` env var; if it specifies a non-GLM provider (ollama/openai/anthropic), uses the provider adapter instead of GLMClient
 - `.env` auto-loading in `packages/cli/src/index.ts` (no external dotenv dependency) — reads .env from CWD and CLI package dir
@@ -688,3 +688,29 @@ Both remaining `tasks.json` tasks (T-026, T-030) closed. All four gates green: t
 - `PerfTestHarness` deliberately lives in the source-only `@goli-cli/test-utils` package and is consumed via the vitest `@goli-cli/test-utils` root alias (→ `packages/test-utils/src/index.ts`). Do NOT add an `exports` map to test-utils' package.json — subpath exports require built `dist/*.d.ts` (Phase 0 gotcha) and this package has no build step.
 - `npm run test:isolated` on 222 files takes ~6 min; use `--filter <substr>` during development (e.g. `--filter perf-baseline`).
 - When a perf/memory baseline drifts after big refactors, reseed with `npm run test:perf:update` and commit the changed `perf-tests/baselines/*.json` / `memory-tests/baselines/*.json` together with the refactor that justified the new numbers.
+
+## Loop Run 16 — Phase 4: extract shared, config, memory-engine, llm-providers, context-engine, approval, observability, plugins, i18n
+
+All four gates green after the extraction: build / typecheck / lint (`--max-warnings 0`) / test (**205 files / 4241 tests**, exit 0 — count unchanged because tests were rewritten in place, not moved; Phase 8 colocation is still pending).
+
+### What moved
+
+`packages/core/src/{utils,types}` → `@goli-cli/shared`, `config/` → `@goli-cli/config`, `memory/` → `@goli-cli/memory-engine`, `providers/` → `@goli-cli/llm-providers`, `context/` → `@goli-cli/context-engine`, `approval/` → `@goli-cli/approval`, `observability/` → `@goli-cli/observability`, `plugins/` → `@goli-cli/plugins`, `i18n/` → `@goli-cli/i18n`. The 10 in-core directories were **deleted** (no shim — every consumer was rewritten directly). `core/src/index.ts` re-exports were re-pointed to the packages (incl. `SubagentIsolator` → `@goli-cli/orchestration`, whose `src/index.ts` now exports it from `./isolation.js`). `packages/orchestration` gained a `@goli-cli/context-engine` dep (its `isolation.ts` imports Subagent types from it). The dangling `./config`/`./utils` entries were dropped from `@goli/core`'s `exports` map (no consumers used them). Approx **38 root tests**, 4 package source files, apps/cli/src/constants.ts, and a langchain of test imports were rewritten from `packages/core/src/<sub>/` to `packages/<pkg>/src/`; `scripts/migrate_shared.js` (one-shot, unreferenced) deleted; 66 tracked `__tests__/*.d.ts.map` emit artifacts removed.
+
+### Gotchas
+
+1. **PowerShell 5.1 `Set-Content -Encoding utf8` writes a UTF-8 BOM AND mis-decodes existing UTF-8 multibyte bytes (box-drawing/em-dash → mojibake).** This is NOT a safe way to bulk-edit UTF-8 source. `Get-Content -Raw` (no `-Encoding`) reads as ANSI, so UTF-8 files get corrupted on write. **Fix:** do bulk text rewrites with a **Node.js script** (`fs.readFileSync(f,'utf8')` → `.split(from).join(to)` → `fs.writeFileSync(f,out,'utf8')`), which is UTF-8 safe. Detect accidental PS-corruption by scanning the first 3 bytes for `EF BB BF` (BOM); recover with `git checkout -- <files>` and re-apply via Node.
+2. **`npm run build --workspaces --if-present` runs workspaces in glob order, NOT topological.** After `rm -rf packages/*/dist`, a consumer package (e.g. `@goli-cli/plugins`) can fail `Cannot find module '@goli-cli/shared'` because the dep's dist was wiped and rebuilt afterward. Fix: run `npm run build` again once dep dists exist (idempotent). (Only shows on a full clean rebuild.)
+3. **The exported `@goli/core` surface must be split when a symbol moves to a different package.** `SubagentIsolator`/`SUBAGENT_CONFIGS`/`SubagentConfig`/`SubagentIsolatorOptions` were re-exported from `@goli/core` already, but their canonical home is now `@goli-cli/orchestration` (not context-engine). Re-point `core/src/index.ts` re-exports to `@goli-cli/orchestration` and ADD the exports to `packages/orchestration/src/index.ts`.
+4. **Wildcard `exports` maps are required before a package's subpaths can be imported.** `approval`, `observability`, `plugins`, `i18n`, `orchestration` all lacked `"./*.js"`/`"./*"` entries — `@goli-cli/<pkg>/<sub>.js` cannot resolve through tsc/OESM without them. Copy the shared-style exports map into any package that will be imported by subpath.
+5. **`@goli/core/utils/logger` and `@goli/core/config` doc refs must die with the files.** Grep for the `@goli/core/<sub>-slash` form separately from bare `@goli/core` (which is still valid via the shim) when migrating docs.
+6. **`.test.js`/`.d.ts`/`.map` emit artifacts colocate with `__tests__/*.test.ts`** (package tsconfigs include tests). They are gitignored (`.js`/`.d.ts`/`.js.map`) EXCEPT `*.d.ts.map` (66 tracked) — remove the tracked ones on migration. vitest's `include` only matches `.test.ts`/`.tsx`, so the stale `.js` test copies never run (do not be alarmed by them).
+7. **string-path immutable lists point at package source** — `memory-engine/src/sica/immutable-registry.ts`, `config/src/integrity.ts` (integrity-managed files list), `plugins/src/registry.ts` doc comments reference `packages/core/src/<sub>/`; update them to the new package path (the SICA/protected-file lists are path-literal).
+
+### Acceptance verified
+
+`git grep -E "packages/core/src/(config|memory|providers|context|approval|observability|plugins|i18n|utils|types)|@goli/core/(config|memory|providers|context|approval|observability|plugins|i18n|utils)" -- ':!packages/core'` returns only the historical snapshot docs (`goli-cli-*-research|remediation|verification*.md`), `tasks.json`, and `scores.json` — all documenting the old→new mapping, not live code. `@goli/core/<sub>` subpath imports are gone (only bare `@goli/core` root is consumed).
+
+### Deferred (Phase 8)
+
+Root `tests/unit/*` that exercise a Phase-4 package were **rewritten in place** to import `packages/<pkg>/src/**` rather than moved/colocated into `packages/<pkg>/__tests__/`. Phase 8 (test redistribution, "in lockstep, not one big PR") is the phase that moves these into `__tests__/` folders and deletes `tests/unit/`. No coverage is lost now (count unchanged at 4241).

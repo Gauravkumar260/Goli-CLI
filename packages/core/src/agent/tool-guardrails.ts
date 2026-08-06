@@ -30,7 +30,7 @@
  * @module agent/tool-guardrails
  */
 
-import { sortObjectKeys } from '../utils/json-utils.js';
+import { sortObjectKeys } from '@goli-cli/shared/utils/json-utils.js';
 
 import type { ToolCall } from './types.js';
 

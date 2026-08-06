@@ -32,8 +32,8 @@
  */
 
 import type { Message } from './types.js';
-import type { ReasoningEffort } from '../config/schema.js';
-import type { Logger } from '../utils/logger.js';
+import type { ReasoningEffort } from '@goli-cli/config/schema.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** A streaming chunk from the model. */
 interface ModelStreamChunk {

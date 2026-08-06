@@ -287,7 +287,7 @@ export default [
   // T-029: scoped override — locale codes use hyphens (zh-CN, ja-JP) which
   // don't match kebab/pascal/camel case. These filenames are standard.
   {
-    files: ['packages/i18n/src/catalogs/**/*.ts', 'packages/core/src/i18n/catalogs/**/*.ts'],
+    files: ['packages/i18n/src/catalogs/**/*.ts'],
     rules: {
       'unicorn/filename-case': 'off',
     },

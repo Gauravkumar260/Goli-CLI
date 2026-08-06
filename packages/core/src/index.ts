@@ -22,15 +22,15 @@ import './env-loader.js';
 /**
  *
  */
-export { APP_NAME, APP_VERSION, APP_TAGLINE, CLI_BINARY_NAME } from './utils/constants.js';
+export { APP_NAME, APP_VERSION, APP_TAGLINE, CLI_BINARY_NAME } from '@goli-cli/shared/utils/constants.js';
 /**
  *
  */
-export type { LogLevel, LogContext, Logger, LogStream } from './utils/logger.js';
+export type { LogLevel, LogContext, Logger, LogStream } from '@goli-cli/shared/utils/logger.js';
 /**
  *
  */
-export { createLogger, configureLogger, defaultLifecycleLogPath } from './utils/logger.js';
+export { createLogger, configureLogger, defaultLifecycleLogPath } from '@goli-cli/shared/utils/logger.js';
 /**
  *
  */
@@ -48,11 +48,11 @@ export {
   SandboxDeniedError,
   isGoliError,
   wrapUnknown,
-} from './utils/errors.js';
+} from '@goli-cli/shared/utils/errors.js';
 /**
  *
  */
-export type { ErrorCategory } from './utils/errors.js';
+export type { ErrorCategory } from '@goli-cli/shared/utils/errors.js';
 
 // ─── Config ─────────────────────────────────────────────────────────
 // MEDIUM-90: the previous barrel bypassed `./config/index.js` and
@@ -88,7 +88,7 @@ export {
   PolicyIntegrityManager,
   IntegrityStatus,
   calculateIntegrityHash,
-} from './config/index.js';
+} from '@goli-cli/config';
 /**
  *
  */
@@ -106,7 +106,7 @@ export type {
   LocalLlmsConfig,
   ReasoningEffort,
   IntegrityResult,
-} from './config/index.js';
+} from '@goli-cli/config';
 
 // ─── Agent Core Loop (Phase 2) ──────────────────────────────────────
 /**
@@ -410,15 +410,19 @@ export type {
 /**
  *
  */
-export { TreeSitterIndexer, SymbolGraph, HybridRetriever, CompactionEngine, SubagentIsolator, SUBAGENT_CONFIGS, createContextEngine } from './context/index.js';
+export { TreeSitterIndexer, SymbolGraph, HybridRetriever, CompactionEngine, createContextEngine } from '@goli-cli/context-engine';
+/**
+ * Subagent context isolation (moved to orchestration, A3.3).
+ */
+export { SubagentIsolator, SUBAGENT_CONFIGS } from '@goli-cli/orchestration';
 /**
  * Project map generator — Aider-style compressed repo map.
  */
-export { ProjectMapGenerator } from './context/project-map.js';
+export { ProjectMapGenerator } from '@goli-cli/context-engine/project-map.js';
 /**
  *
  */
-export type { ProjectMapGeneratorOptions } from './context/project-map.js';
+export type { ProjectMapGeneratorOptions } from '@goli-cli/context-engine/project-map.js';
 /**
  *
  */
@@ -438,9 +442,11 @@ export type {
   SymbolGraphOptions,
   HybridRetrieverOptions,
   CompactionEngineOptions,
-  SubagentConfig,
-  SubagentIsolatorOptions,
-} from './context/index.js';
+} from '@goli-cli/context-engine';
+/**
+ *
+ */
+export type { SubagentConfig, SubagentIsolatorOptions } from '@goli-cli/orchestration';
 
 // ─── Memory System (Phase 8-9) ──────────────────────────────────────
 /**
@@ -478,7 +484,7 @@ export {
   SicaRateLimiter,
   SicaLoop,
   DEFAULT_SICA_OPTIONS,
-} from './memory/index.js';
+} from '@goli-cli/memory-engine';
 /**
  *
  */
@@ -532,7 +538,7 @@ export type {
   OverfittingResult,
   SicaRateLimiterOptions,
   SicaLoopConstructorOptions,
-} from './memory/index.js';
+} from '@goli-cli/memory-engine';
 
 // ─── Evals (Phase 12) ────────────────────────────────────────────────
 // Observability exports moved to './observability/index.js' to break
@@ -577,27 +583,27 @@ export type {
 /**
  *
  */
-export { OtelTracer } from './observability/tracing/otel.js';
+export { OtelTracer } from '@goli-cli/observability/tracing/otel.js';
 /**
  *
  */
-export type { OtelSpan, OtelTracerOptions } from './observability/tracing/otel.js';
+export type { OtelSpan, OtelTracerOptions } from '@goli-cli/observability/tracing/otel.js';
 /**
  *
  */
-export { LangfuseClient } from './observability/langfuse/client.js';
+export { LangfuseClient } from '@goli-cli/observability/langfuse/client.js';
 /**
  *
  */
-export type { LangfuseClientOptions } from './observability/langfuse/client.js';
+export type { LangfuseClientOptions } from '@goli-cli/observability/langfuse/client.js';
 /**
  *
  */
-export { AlertManager } from './observability/alerts/manager.js';
+export { AlertManager } from '@goli-cli/observability/alerts/manager.js';
 /**
  *
  */
-export type { AlertManagerOptions } from './observability/alerts/manager.js';
+export type { AlertManagerOptions } from '@goli-cli/observability/alerts/manager.js';
 
 // ─── Multi-Agent Orchestration (Phase 13) ───────────────────────────
 /**
@@ -658,7 +664,7 @@ export type {
 /**
  *
  */
-export { PluginRegistry, pluginRegistry, VALID_HOOKS } from './plugins/index.js';
+export { PluginRegistry, pluginRegistry, VALID_HOOKS } from '@goli-cli/plugins';
 /**
  *
  */
@@ -673,4 +679,4 @@ export type {
   PluginContext,
   PluginInit,
   PluginRegistryOptions,
-} from './plugins/index.js';
+} from '@goli-cli/plugins';

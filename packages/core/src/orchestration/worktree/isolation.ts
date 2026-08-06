@@ -19,7 +19,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join, resolve, isAbsolute } from 'node:path';
 
-import type { Logger } from '../../utils/logger.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** A git worktree for a subagent. */
 export interface Worktree {

@@ -13,9 +13,9 @@ import { RegressionGate } from '../../packages/core/src/evals/regression/gate.js
 import { SemanticErrorEvaluator } from '../../packages/core/src/evals/semantic-check/evaluator.js';
 import { SWEBenchHarness, generateStubInstances } from '../../packages/core/src/evals/swebench/harness.js';
 import { DEFAULT_QUALITY_THRESHOLDS } from '../../packages/core/src/evals/types.js';
-import { AlertManager } from '../../packages/core/src/observability/alerts/manager.js';
-import { LangfuseClient } from '../../packages/core/src/observability/langfuse/client.js';
-import { OtelTracer } from '../../packages/core/src/observability/tracing/otel.js';
+import { AlertManager } from '../../packages/observability/src/alerts/manager.js';
+import { LangfuseClient } from '../../packages/observability/src/langfuse/client.js';
+import { OtelTracer } from '../../packages/observability/src/tracing/otel.js';
 
 import type { BenchmarkEvaluation } from '../../packages/core/src/evals/types.js';
 

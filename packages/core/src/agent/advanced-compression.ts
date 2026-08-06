@@ -44,7 +44,7 @@
 import { renderFrozenSnapshot, type FrozenSnapshot } from './frozen-snapshot.js';
 
 import type { Message } from './types.js';
-import type { Logger } from '../utils/logger.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** The phases of compression (P3-2: expanded from 4 to 7). */
 export type CompressionPhase = 'dedupe' | 'prune' | 'evict' | 'freeze' | 'boundaries' | 'summarize' | 'assemble';

@@ -41,6 +41,10 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 
+
+import { MidSessionIntegrityChecker } from '@goli-cli/config/integrity.js';
+import { isToolAllowedForMode } from '@goli-cli/config/mode-prompts.js';
+import { OllamaProvider } from '@goli-cli/llm-providers/ollama.js';
 import {
   createDefaultToolRegistry,
   executeToolCallsConcurrent,
@@ -48,10 +52,6 @@ import {
   toToolDefinition,
   type ToolRegistry,
 } from '@goli-cli/tool-system';
-
-import { MidSessionIntegrityChecker } from '../config/integrity.js';
-import { isToolAllowedForMode } from '../config/mode-prompts.js';
-import { OllamaProvider } from '../providers/ollama.js';
 
 
 import { AdvancedCompressor } from './advanced-compression.js';
@@ -82,9 +82,9 @@ import type {
   AgentEvent,
   AgentRole,
 } from './types.js';
-import type { AppConfig, ReasoningEffort } from '../config/schema.js';
-import type { TrajectoryEntry } from '../memory/skills/types.js';
-import type { Logger } from '../utils/logger.js';
+import type { AppConfig, ReasoningEffort } from '@goli-cli/config/schema.js';
+import type { TrajectoryEntry } from '@goli-cli/memory-engine/skills/types.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 import type {
   MCPServerConfig,
   McpInputSchema,
@@ -198,7 +198,7 @@ export interface AgentLoopOptions {
    * When undefined, no memory curation happens (the agent still runs
    * — curation is an enhancement, not a hard gate).
    */
-  memoryCurator?: import('../memory/curator/agent.js').MemoryCurator;
+  memoryCurator?: import('@goli-cli/memory-engine/curator/agent.js').MemoryCurator;
   /**
    * Context engine bundle (P2-7, audit Finding 5.31 / 5.34 / CC-4).
    *
@@ -217,7 +217,7 @@ export interface AgentLoopOptions {
    *
    * When undefined, no code-intelligence context is injected.
    */
-  contextEngine?: ReturnType<typeof import('../context/index.js').createContextEngine>;
+  contextEngine?: ReturnType<typeof import('@goli-cli/context-engine/index.js').createContextEngine>;
   /**
    * LSP client (P3-4, audit Finding 5.23).
    *
@@ -242,7 +242,7 @@ export interface AgentLoopOptions {
    * skill catalog). This preserves backward compatibility for callers
    * that don't configure a SkillLoader.
    */
-  skillLoader?: import('../memory/skills/loader.js').SkillLoader;
+  skillLoader?: import('@goli-cli/memory-engine/skills/loader.js').SkillLoader;
   /**
    * P2-18 fix (remediation plan Phase 18): Reflexion engine for
    * post-failure strategy adaptation. When provided, the AgentLoop
@@ -268,7 +268,7 @@ export interface AgentLoopOptions {
    * When undefined, no skill extraction happens (the agent still runs
    * — extraction is an enhancement, not a gate).
    */
-  skillWriter?: import('../memory/skills/writer.js').SkillWriter;
+  skillWriter?: import('@goli-cli/memory-engine/skills/writer.js').SkillWriter;
 }
 
 /** Input to a single agent run. */
@@ -536,21 +536,21 @@ export class AgentLoop {
    * `curator.curate(sessionMemory.getAll())` at the end of each turn
    * to promote learnings to persistent memory.
    */
-  private readonly memoryCurator?: import('../memory/curator/agent.js').MemoryCurator;
+  private readonly memoryCurator?: import('@goli-cli/memory-engine/curator/agent.js').MemoryCurator;
   /**
    * P2-6: Ephemeral session memory. Records within-session learnings
    * (tool results that look like durable facts). Instantiated only
    * when `memoryCurator` is provided. Cleared at the start of each
    * `run()` so cross-run learnings don't bleed.
    */
-  private sessionMemory?: import('../memory/session/ephemeral.js').SessionMemory;
+  private sessionMemory?: import('@goli-cli/memory-engine/session/ephemeral.js').SessionMemory;
   /**
    * P2-7: Context engine bundle (tree-sitter indexer + symbol graph +
    * hybrid retriever). When provided, the loop queries the retriever
    * with the task prompt at the start of each `run()` and injects the
    * results into the system prompt.
    */
-  private readonly contextEngine?: ReturnType<typeof import('../context/index.js').createContextEngine>;
+  private readonly contextEngine?: ReturnType<typeof import('@goli-cli/context-engine/index.js').createContextEngine>;
   /**
    * P3-1: FrozenSnapshot captured at session start. Re-injected by the
    * compressor's Freeze layer after every compaction so the agent
@@ -581,13 +581,13 @@ export class AgentLoop {
    * subsystem. Stored at construction; queried once per `run()` to
    * populate `skillsL1` in the system prompt.
    */
-  private readonly skillLoader?: import('../memory/skills/loader.js').SkillLoader;
+  private readonly skillLoader?: import('@goli-cli/memory-engine/skills/loader.js').SkillLoader;
   /**
    * P0-7 fix (remediation plan Phase 7): SkillWriter for extracting
    * skills from successful trajectories. Stored at construction;
    * called from `run()` after a successful run with 5+ tool calls.
    */
-  private readonly skillWriter?: import('../memory/skills/writer.js').SkillWriter;
+  private readonly skillWriter?: import('@goli-cli/memory-engine/skills/writer.js').SkillWriter;
   /**
    * P2-18 fix (remediation plan Phase 18): ReflexionEngine for
    * post-failure strategy adaptation. Stored at construction; called
@@ -663,7 +663,7 @@ export class AgentLoop {
       // Lazy-import to avoid pulling the memory module graph when
       // curation is not configured.
       // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy SessionMemory load
-      const { SessionMemory } = require('../memory/session/ephemeral.js') as typeof import('../memory/session/ephemeral.js');
+      const { SessionMemory } = require('@goli-cli/memory-engine/session/ephemeral.js') as typeof import('@goli-cli/memory-engine/session/ephemeral.js');
       this.sessionMemory = new SessionMemory();
     }
     // P2-7: Store the context engine bundle. The retriever is queried
@@ -1646,7 +1646,7 @@ export class AgentLoop {
           // Clear the session memory for the next run so learnings
           // don't get re-curated (the persistent files already have them).
           // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy SessionMemory reload
-          this.sessionMemory = new (require('../memory/session/ephemeral.js') as typeof import('../memory/session/ephemeral.js')).SessionMemory();
+          this.sessionMemory = new (require('@goli-cli/memory-engine/session/ephemeral.js') as typeof import('@goli-cli/memory-engine/session/ephemeral.js')).SessionMemory();
         }
       } catch (err) {
         this.log.warn('Memory curation failed', {

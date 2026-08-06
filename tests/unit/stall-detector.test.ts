@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { StallDetector } from '../../packages/core/src/agent/stall-detector.js';
-import { DEFAULT_CONFIG } from '../../packages/core/src/config/schema.js';
+import { DEFAULT_CONFIG } from '../../packages/config/src/schema.js';
 
 import type { ToolCall } from '../../packages/core/src/agent/types.js';
 

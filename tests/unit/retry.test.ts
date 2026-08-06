@@ -11,7 +11,7 @@ import {
   ModelError,
   ConfigValidationError,
   ToolValidationError,
-} from '../../packages/core/src/utils/errors.js';
+} from '../../packages/shared/src/utils/errors.js';
 
 describe('isRetryableError', () => {
   it('retries timeouts', () => {

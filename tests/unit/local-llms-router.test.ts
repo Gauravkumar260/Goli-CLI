@@ -50,7 +50,7 @@ import {
   pickPrimary,
   buildFallbackChain,
 } from '../../packages/core/src/agent/local-llms-router.js';
-import type { LocalLlmsConfig } from '../../packages/core/src/config/schema.js';
+import type { LocalLlmsConfig } from '../../packages/config/src/schema.js';
 import type { Message } from '../../packages/core/src/agent/types.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────

@@ -9,13 +9,13 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { DatasetBuilder } from '../../packages/core/src/memory/training/dataset-builder.js';
-import { GRPOScaffold } from '../../packages/core/src/memory/training/grpo-scaffold.js';
-import { computeReward, shouldKeepForTraining } from '../../packages/core/src/memory/training/reward.js';
-import { TrajectoryCurator } from '../../packages/core/src/memory/trajectory/curator.js';
-import { TrajectoryStore } from '../../packages/core/src/memory/trajectory/store.js';
+import { DatasetBuilder } from '../../packages/memory-engine/src/training/dataset-builder.js';
+import { GRPOScaffold } from '../../packages/memory-engine/src/training/grpo-scaffold.js';
+import { computeReward, shouldKeepForTraining } from '../../packages/memory-engine/src/training/reward.js';
+import { TrajectoryCurator } from '../../packages/memory-engine/src/trajectory/curator.js';
+import { TrajectoryStore } from '../../packages/memory-engine/src/trajectory/store.js';
 
-import type { Trajectory } from '../../packages/core/src/memory/trajectory/types.js';
+import type { Trajectory } from '../../packages/memory-engine/src/trajectory/types.js';
 
 let testDir: string;
 let store: TrajectoryStore;

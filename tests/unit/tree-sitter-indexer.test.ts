@@ -8,7 +8,7 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { TreeSitterIndexer } from '../../packages/core/src/context/indexer/tree-sitter.js';
+import { TreeSitterIndexer } from '../../packages/context-engine/src/indexer/tree-sitter.js';
 
 let workspace: string;
 let indexer: TreeSitterIndexer;

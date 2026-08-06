@@ -20,7 +20,7 @@
  * @module agent/budget
  */
 
-import type { BudgetConfig } from '../config/schema.js';
+import type { BudgetConfig } from '@goli-cli/config/schema.js';
 
 /** A snapshot of the budget state at a point in time. */
 export interface BudgetSnapshot {

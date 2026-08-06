@@ -112,7 +112,7 @@ export function isSkillAvailable(mode: AppMode, skillId: string): boolean {
   return getSkillsForMode(mode).includes(skillId);
 }
 
-// ─── Mode→Prompt mapping (single source: @goli/core/config) ─────────
+// ─── Mode→Prompt mapping (single source: @goli-cli/config) ─────────
 /**
  *
  */

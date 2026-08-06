@@ -44,7 +44,7 @@
 
 import type { ClassifiedError } from './error-classifier.js';
 import type { Message, ToolCall } from './types.js';
-import type { Logger } from '../utils/logger.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** A single reflection entry in episodic memory. */
 export interface Reflection {

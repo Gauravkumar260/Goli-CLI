@@ -20,10 +20,10 @@
  * @module agent/stall-detector
  */
 
-import { sortObjectKeys } from '../utils/json-utils.js';
+import { sortObjectKeys } from '@goli-cli/shared/utils/json-utils.js';
 
 import type { ToolCall } from './types.js';
-import type { StallConfig } from '../config/schema.js';
+import type { StallConfig } from '@goli-cli/config/schema.js';
 
 /**
  * Stall detector — detects repeated identical tool calls.

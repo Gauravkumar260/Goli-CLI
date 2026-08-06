@@ -8,9 +8,9 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { loadConfig } from '../../packages/core/src/config/loader.js';
-import { AppConfigSchema, DEFAULT_CONFIG } from '../../packages/core/src/config/schema.js';
-import { ConfigValidationError } from '../../packages/core/src/utils/errors.js';
+import { loadConfig } from '../../packages/config/src/loader.js';
+import { AppConfigSchema, DEFAULT_CONFIG } from '../../packages/config/src/schema.js';
+import { ConfigValidationError } from '../../packages/shared/src/utils/errors.js';
 
 describe('AppConfigSchema', () => {
   it('parses an empty config (all defaults)', () => {

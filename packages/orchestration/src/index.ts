@@ -72,3 +72,11 @@ export { SwarmPipeline } from './swarm-pipeline.js';
  *
  */
 export type { SwarmPipelineOptions } from './swarm-pipeline.js';
+/**
+ * Subagent context isolation (moved from core context/subagent, A3.3).
+ */
+export { SubagentIsolator, SUBAGENT_CONFIGS } from './isolation.js';
+/**
+ *
+ */
+export type { SubagentConfig, SubagentIsolatorOptions } from './isolation.js';

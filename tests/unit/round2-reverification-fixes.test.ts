@@ -24,13 +24,13 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync, existsSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { MEMORY_BUDGETS, TOTAL_MEMORY_BUDGET } from '../../packages/core/src/memory/types.js';
-import type { SkillMetadata } from '../../packages/core/src/memory/skills/types.js';
-import { SkillLoader } from '../../packages/core/src/memory/skills/loader.js';
-import { SicaLoop } from '../../packages/core/src/memory/sica/loop.js';
-import { EnhancedApprovalEngine } from '../../packages/core/src/approval/enhanced-approval.js';
+import { MEMORY_BUDGETS, TOTAL_MEMORY_BUDGET } from '../../packages/memory-engine/src/types.js';
+import type { SkillMetadata } from '../../packages/memory-engine/src/skills/types.js';
+import { SkillLoader } from '../../packages/memory-engine/src/skills/loader.js';
+import { SicaLoop } from '../../packages/memory-engine/src/sica/loop.js';
+import { EnhancedApprovalEngine } from '../../packages/approval/src/enhanced-approval.js';
 import { HookEngine, type PostToolUseHookResult, type HookContext } from '@goli-cli/tool-system';
-import { CompactionEngine } from '../../packages/core/src/context/compaction/engine.js';
+import { CompactionEngine } from '../../packages/context-engine/src/compaction/engine.js';
 
 import { MODE_SKILLS, MODE_TOOLS, isToolAllowed } from '../../apps/cli/src/tui/lib/mode-config.js';
 import { CliAgentLoop } from '../../apps/cli/src/services/CliAgentLoop.js';
@@ -140,7 +140,7 @@ describe('Round-2 W3: agent/index.ts comment line refs are accurate', () => {
 describe('Round-2 W4: CompactionEngine triggerRatio aligned with ADR-0023', () => {
   it('docstring mentions 50% (not 70%) as the trigger threshold', async () => {
     const source = await import('node:fs/promises').then((fs) => fs.readFile(
-      join(process.cwd(), 'packages/core/src/context/compaction/engine.ts'),
+      join(process.cwd(), 'packages/context-engine/src/compaction/engine.ts'),
       'utf-8',
     ));
     expect(source).toMatch(/Triggers at 50%/);
@@ -149,7 +149,7 @@ describe('Round-2 W4: CompactionEngine triggerRatio aligned with ADR-0023', () =
 
   it('createContextEngine constructs with triggerRatio: 0.5', async () => {
     const source = await import('node:fs/promises').then((fs) => fs.readFile(
-      join(process.cwd(), 'packages/core/src/context/index.ts'),
+      join(process.cwd(), 'packages/context-engine/src/index.ts'),
       'utf-8',
     ));
     expect(source).toMatch(/triggerRatio:\s*0\.5/);
@@ -475,7 +475,7 @@ describe('Round-2 W10: MEMORY_BUDGETS.SKILLS_L1', () => {
 describe('Round-2 W11: project-map.ts docstring is honest about regex', () => {
   it("file-level docstring mentions regex-based heuristics", async () => {
     const source = await import('node:fs/promises').then((fs) => fs.readFile(
-      join(process.cwd(), 'packages/core/src/context/project-map.ts'),
+      join(process.cwd(), 'packages/context-engine/src/project-map.ts'),
       'utf-8',
     ));
     expect(source).toMatch(/regex-based heuristics/i);
@@ -491,7 +491,7 @@ describe('Round-2 W11: project-map.ts docstring is honest about regex', () => {
     // chars (just the summary paragraph) so the NOTE paragraph
     // doesn't trip the assertion.
     const source = await import('node:fs/promises').then((fs) => fs.readFile(
-      join(process.cwd(), 'packages/core/src/context/project-map.ts'),
+      join(process.cwd(), 'packages/context-engine/src/project-map.ts'),
       'utf-8',
     ));
     const summary = source.slice(0, 400);

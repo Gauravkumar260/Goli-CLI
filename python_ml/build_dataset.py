@@ -3,7 +3,7 @@
 GOLI-CLI Dataset Builder for GRPO Fine-Tuning (Module 5).
 
 Reads trajectory JSONL files produced by the TypeScript agent loop
-(packages/core/src/memory/trajectory/store.ts) and curates them into
+(packages/memory-engine/src/trajectory/store.ts) and curates them into
 a TRL-compatible training dataset.
 
 Curation strategy (rejection sampling):

@@ -31,7 +31,7 @@ import { WorktreeIsolation } from './worktree/isolation.js';
 
 import type { OrchestrationResult } from './patterns/index.js';
 import type { AgentRole } from '../agent/types.js';
-import type { Logger } from '../utils/logger.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** Options for the SwarmPipeline. */
 export interface SwarmPipelineOptions {

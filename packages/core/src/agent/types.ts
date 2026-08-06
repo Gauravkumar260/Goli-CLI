@@ -8,7 +8,7 @@
  * @module agent/types
  */
 
-import type { SandboxMode } from '../config/schema.js';
+import type { SandboxMode } from '@goli-cli/config/schema.js';
 
 // ─── Messages ─────────────────────────────────────────────────────────
 

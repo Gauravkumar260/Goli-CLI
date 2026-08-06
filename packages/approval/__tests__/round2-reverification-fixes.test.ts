@@ -141,7 +141,7 @@ describe('Round-2 W3: agent/index.ts comment line refs are accurate', () => {
 describe('Round-2 W4: CompactionEngine triggerRatio aligned with ADR-0023', () => {
   it('docstring mentions 50% (not 70%) as the trigger threshold', async () => {
     const source = await import('node:fs/promises').then((fs) => fs.readFile(
-      join(process.cwd(), 'packages/core/src/context/compaction/engine.ts'),
+      join(process.cwd(), 'packages/context-engine/src/compaction/engine.ts'),
       'utf-8',
     ));
     expect(source).toMatch(/Triggers at 50%/);
@@ -150,7 +150,7 @@ describe('Round-2 W4: CompactionEngine triggerRatio aligned with ADR-0023', () =
 
   it('createContextEngine constructs with triggerRatio: 0.5', async () => {
     const source = await import('node:fs/promises').then((fs) => fs.readFile(
-      join(process.cwd(), 'packages/core/src/context/index.ts'),
+      join(process.cwd(), 'packages/context-engine/src/index.ts'),
       'utf-8',
     ));
     expect(source).toMatch(/triggerRatio:\s*0\.5/);
@@ -476,7 +476,7 @@ describe('Round-2 W10: MEMORY_BUDGETS.SKILLS_L1', () => {
 describe('Round-2 W11: project-map.ts docstring is honest about regex', () => {
   it("file-level docstring mentions regex-based heuristics", async () => {
     const source = await import('node:fs/promises').then((fs) => fs.readFile(
-      join(process.cwd(), 'packages/core/src/context/project-map.ts'),
+      join(process.cwd(), 'packages/context-engine/src/project-map.ts'),
       'utf-8',
     ));
     expect(source).toMatch(/regex-based heuristics/i);
@@ -492,7 +492,7 @@ describe('Round-2 W11: project-map.ts docstring is honest about regex', () => {
     // chars (just the summary paragraph) so the NOTE paragraph
     // doesn't trip the assertion.
     const source = await import('node:fs/promises').then((fs) => fs.readFile(
-      join(process.cwd(), 'packages/core/src/context/project-map.ts'),
+      join(process.cwd(), 'packages/context-engine/src/project-map.ts'),
       'utf-8',
     ));
     const summary = source.slice(0, 400);

@@ -77,4 +77,4 @@ export type {
 } from './redteam/promptfoo.js';
 
 // Observability re-exports REMOVED (MEDIUM-72: circular dependency).
-// Import directly from '../observability/index.js' if needed.
+// Import directly from '@goli-cli/observability/index.js' if needed.

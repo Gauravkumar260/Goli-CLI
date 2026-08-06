@@ -28,13 +28,13 @@
  * @module agent/retry
  */
 
-import { ModelHTTPError, ModelTimeoutError, ModelError, isGoliError } from '../utils/errors.js';
+import { ModelHTTPError, ModelTimeoutError, ModelError, isGoliError } from '@goli-cli/shared/utils/errors.js';
 
 import { classifyApiError } from './error-classifier.js';
 
 import type { ClassifiedError } from './error-classifier.js';
-import type { RetryConfig } from '../config/schema.js';
-import type { Logger } from '../utils/logger.js';
+import type { RetryConfig } from '@goli-cli/config/schema.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** Options for {@link callWithRetry}. */
 export interface RetryOptions {

@@ -9,7 +9,7 @@
  *   executor's fail-closed path — production code never reads this var.
  */
 
-import { configureLogger } from '../packages/core/src/utils/logger.js';
+import { configureLogger } from '../packages/shared/src/utils/logger.js';
 
 // Silence the global logger in tests. Individual tests that assert on
 // log output should create a separate logger via `createLogger()`.

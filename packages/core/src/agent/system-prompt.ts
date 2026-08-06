@@ -57,13 +57,13 @@
 
 import { relative, sep } from 'node:path';
 
-import { MODE_PROMPTS } from '../config/mode-prompts.js';
+import { MODE_PROMPTS } from '@goli-cli/config/mode-prompts.js';
 
 import { AGENT_ROLE_LABELS } from './types.js';
 
 import type { AgentRole } from './types.js';
 import type { BasePromptContext } from './types.js';
-import type { SandboxMode } from '../config/schema.js';
+import type { SandboxMode } from '@goli-cli/config/schema.js';
 
 /**
  * Per-role mission statements. Each role in the 11-agent swarm has a

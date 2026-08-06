@@ -306,16 +306,16 @@ export class PolicyIntegrityManager {
 export const DEFAULT_POLICY_PATHS: readonly string[] = [
   // Core safety modules — modifying these mid-session could bypass
   // the approval gate, the sandbox, or the integrity check itself.
-  'packages/core/src/approval/engine.ts',
-  'packages/core/src/approval/enhanced-approval.ts',
-  'packages/core/src/approval/blast-radius.ts',
+  'packages/approval/src/engine.ts',
+  'packages/approval/src/enhanced-approval.ts',
+  'packages/approval/src/blast-radius.ts',
   'packages/sandbox/src/executor.ts',
   'packages/sandbox/src/path-validation.ts',
-  'packages/core/src/config/integrity.ts',
+  'packages/config/src/integrity.ts',
   // SICA immutable registry — the guard for self-modification.
-  'packages/core/src/memory/sica/immutable-registry.ts',
+  'packages/memory-engine/src/sica/immutable-registry.ts',
   // Skills subsystem (SkillWriter writes here — must not modify seeds).
-  'packages/core/src/memory/skills/seeds.ts',
+  'packages/memory-engine/src/skills/seeds.ts',
 ];
 
 /**

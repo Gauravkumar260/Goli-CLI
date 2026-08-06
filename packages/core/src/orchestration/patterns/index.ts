@@ -12,8 +12,8 @@
  */
 
 import type { AgentRole } from '../../agent/types.js';
-import type { Logger } from '../../utils/logger.js';
 import type { Subtask, OrchestrationPattern, TaskDecomposition } from '../types.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** The result of running an orchestration pattern. */
 export interface OrchestrationResult {

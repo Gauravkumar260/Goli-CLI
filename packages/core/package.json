@@ -15,14 +15,6 @@
     "./agent": {
       "types": "./dist/agent/index.d.ts",
       "import": "./dist/agent/index.js"
-    },
-    "./config": {
-      "types": "./dist/config/index.d.ts",
-      "import": "./dist/config/index.js"
-    },
-    "./utils": {
-      "types": "./dist/utils/index.d.ts",
-      "import": "./dist/utils/index.js"
     }
   },
   "scripts": {
@@ -35,7 +27,16 @@
   "dependencies": {
     "better-sqlite3": "12.11.1",
     "zod": "^3.23.8",
+    "@goli-cli/approval": "*",
+    "@goli-cli/config": "*",
+    "@goli-cli/context-engine": "*",
+    "@goli-cli/llm-providers": "*",
+    "@goli-cli/memory-engine": "*",
+    "@goli-cli/observability": "*",
+    "@goli-cli/orchestration": "*",
+    "@goli-cli/plugins": "*",
     "@goli-cli/sandbox": "*",
+    "@goli-cli/shared": "*",
     "@goli-cli/tool-system": "*"
   },
   "devDependencies": {

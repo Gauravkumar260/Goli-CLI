@@ -8,12 +8,12 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { MemoryCurator } from '../../packages/core/src/memory/curator/agent.js';
-import { VectorMemoryPlugin } from '../../packages/core/src/memory/external/vector-plugin.js';
-import { PersistentMemory } from '../../packages/core/src/memory/persistent/files.js';
-import { SessionMemory } from '../../packages/core/src/memory/session/ephemeral.js';
+import { MemoryCurator } from '../../packages/memory-engine/src/curator/agent.js';
+import { VectorMemoryPlugin } from '../../packages/memory-engine/src/external/vector-plugin.js';
+import { PersistentMemory } from '../../packages/memory-engine/src/persistent/files.js';
+import { SessionMemory } from '../../packages/memory-engine/src/session/ephemeral.js';
 
-import type { SessionMemoryEntry } from '../../packages/core/src/memory/types.js';
+import type { SessionMemoryEntry } from '../../packages/memory-engine/src/types.js';
 
 let testDir: string;
 let projectDir: string;

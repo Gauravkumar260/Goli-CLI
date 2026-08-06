@@ -8,13 +8,13 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { SkillArchiver } from '../../packages/core/src/memory/skills/archive.js';
-import { SkillCatalog } from '../../packages/core/src/memory/skills/catalog.js';
-import { SEED_SKILLS } from '../../packages/core/src/memory/skills/index.js';
-import { SkillLoader } from '../../packages/core/src/memory/skills/loader.js';
-import { SkillWriter } from '../../packages/core/src/memory/skills/writer.js';
+import { SkillArchiver } from '../../packages/memory-engine/src/skills/archive.js';
+import { SkillCatalog } from '../../packages/memory-engine/src/skills/catalog.js';
+import { SEED_SKILLS } from '../../packages/memory-engine/src/skills/index.js';
+import { SkillLoader } from '../../packages/memory-engine/src/skills/loader.js';
+import { SkillWriter } from '../../packages/memory-engine/src/skills/writer.js';
 
-import type { TrajectoryEntry } from '../../packages/core/src/memory/skills/types.js';
+import type { TrajectoryEntry } from '../../packages/memory-engine/src/skills/types.js';
 
 let skillsDir: string;
 

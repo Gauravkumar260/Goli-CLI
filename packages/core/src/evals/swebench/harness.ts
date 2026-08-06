@@ -25,12 +25,12 @@
 
 import { DEFAULT_QUALITY_THRESHOLDS } from '../types.js';
 
-import type { Logger } from '../../utils/logger.js';
 import type {
   SWEBenchInstance,
   SWEBenchResult,
   BenchmarkEvaluation,
 } from '../types.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** Options for the SWEBenchHarness. */
 export interface SWEBenchHarnessOptions {

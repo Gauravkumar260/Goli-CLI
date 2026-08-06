@@ -4,9 +4,9 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { SymbolGraph } from '../../packages/core/src/context/symbol-graph/sqlite.js';
+import { SymbolGraph } from '../../packages/context-engine/src/symbol-graph/sqlite.js';
 
-import type { SymbolNode, SymbolEdge } from '../../packages/core/src/context/types.js';
+import type { SymbolNode, SymbolEdge } from '../../packages/context-engine/src/types.js';
 
 let graph: SymbolGraph;
 

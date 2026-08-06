@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { ApprovalEngine } from '../../packages/core/src/approval/engine.js';
+import { ApprovalEngine } from '../../packages/approval/src/engine.js';
 
 describe('ApprovalEngine', () => {
   describe('classifyCommand', () => {

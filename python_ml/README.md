@@ -5,7 +5,7 @@ This directory contains the Python implementation of the GRPO
 open-weight models (e.g. `gpt-oss:120b`, GLM-5.2, DeepSeek V4,
 Qwen3-Coder, Kimi K2.7-Code).
 
-The TypeScript side (`packages/core/src/memory/training/grpo-scaffold.ts`)
+The TypeScript side (`packages/memory-engine/src/training/grpo-scaffold.ts`)
 generates the dataset and emits training configs. This directory contains
 the actual training loop that consumes those artifacts and produces
 LoRA adapters via TRL + vLLM.
@@ -19,7 +19,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # 2. Build the training dataset from trajectory JSONL
-#    Trajectories are emitted by packages/core/src/memory/trajectory/store.ts
+#    Trajectories are emitted by packages/memory-engine/src/trajectory/store.ts
 #    to ~/.goli-cli/trajectories/trajectories.jsonl (+ SQLite index at index.db)
 python build_dataset.py \
   --trajectories ~/.goli-cli/trajectories/trajectories.jsonl \
@@ -71,7 +71,7 @@ The reward is a weighted sum of:
 
 The reward is normalized per-rollout-group (GRPO characteristic advantage)
 so the model learns _relative_ quality, not absolute. The TS-side reward
-function (`packages/core/src/memory/training/reward.ts`) defines the
+function (`packages/memory-engine/src/training/reward.ts`) defines the
 canonical components; this Python module mirrors the math for the TRL
 training loop.
 
@@ -98,7 +98,7 @@ execute it). See `infra/README.md` for self-hosted vLLM deployment.
 
 ## Safety: SICA Integration
 
-The SICA loop (`packages/core/src/memory/sica/`) gates which proposals
+The SICA loop (`packages/memory-engine/src/sica/`) gates which proposals
 are adopted. A proposal that improves SWE-bench but degrades the
 holdout set is rejected by the `OverfitDetector`. A proposal that the
 LLM safety overseer (`SafetyOverseer`) flags is vetoed. A proposal

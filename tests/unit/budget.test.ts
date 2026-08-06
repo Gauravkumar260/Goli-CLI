@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { BudgetTracker } from '../../packages/core/src/agent/budget.js';
-import { DEFAULT_CONFIG } from '../../packages/core/src/config/schema.js';
+import { DEFAULT_CONFIG } from '../../packages/config/src/schema.js';
 
 describe('BudgetTracker', () => {
   it('starts at zero', () => {

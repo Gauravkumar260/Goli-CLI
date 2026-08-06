@@ -2,7 +2,7 @@
  * Plugin system (Hermes pattern).
  *
  * 4 discovery sources (later overrides earlier on name collision):
- * 1. Bundled plugins (packages/core/src/plugins/builtin/)
+ * 1. Bundled plugins (packages/plugins/src/builtin/)
  * 2. User plugins (~/.goli-cli/plugins/<name>/)
  * 3. Project plugins (./.goli/plugins/<name>/) — opt-in via GOLI_ENABLE_PROJECT_PLUGINS
  * 4. npm entry points (goli-cli-plugins)
@@ -611,7 +611,7 @@ export class PluginRegistry extends EventEmitter {
 
   /** Discover bundled plugins. */
   private async discoverBundled(): Promise<number> {
-    // Stub — bundled plugins would be in packages/core/src/plugins/builtin/
+    // Stub — bundled plugins would be in packages/plugins/src/builtin/
     return 0;
   }
 

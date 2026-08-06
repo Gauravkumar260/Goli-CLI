@@ -74,7 +74,7 @@ export interface ClassifiedError {
 /** Options for the ErrorClassifier. */
 export interface ErrorClassifierOptions {
   /** Logger instance. */
-  logger?: import('../utils/logger.js').Logger;
+  logger?: import('@goli-cli/shared/utils/logger.js').Logger;
 }
 
 /**

@@ -10,14 +10,14 @@ import { join } from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 
-import { SicaArchive } from '../../packages/core/src/memory/sica/archive.js';
-import { ImmutableSafetyRegistry } from '../../packages/core/src/memory/sica/immutable-registry.js';
-import { SicaLoop } from '../../packages/core/src/memory/sica/loop.js';
-import { OverfitDetector } from '../../packages/core/src/memory/sica/overfit-detector.js';
-import { SafetyOverseer } from '../../packages/core/src/memory/sica/overseer.js';
-import { SicaRateLimiter } from '../../packages/core/src/memory/sica/rate-limiter.js';
+import { SicaArchive } from '../../packages/memory-engine/src/sica/archive.js';
+import { ImmutableSafetyRegistry } from '../../packages/memory-engine/src/sica/immutable-registry.js';
+import { SicaLoop } from '../../packages/memory-engine/src/sica/loop.js';
+import { OverfitDetector } from '../../packages/memory-engine/src/sica/overfit-detector.js';
+import { SafetyOverseer } from '../../packages/memory-engine/src/sica/overseer.js';
+import { SicaRateLimiter } from '../../packages/memory-engine/src/sica/rate-limiter.js';
 
-import type { SicaProposal, SicaEvaluation } from '../../packages/core/src/memory/sica/types.js';
+import type { SicaProposal, SicaEvaluation } from '../../packages/memory-engine/src/sica/types.js';
 
 let testDir: string;
 

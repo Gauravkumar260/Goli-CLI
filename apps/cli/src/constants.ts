@@ -6,7 +6,7 @@
  * full `@goli/core` module graph (208 source files) just to read three
  * strings. Cold-start drops from ~218ms to <200ms (A1).
  *
- * Keep in sync with `packages/core/src/utils/constants.ts`. If you add a
+ * Keep in sync with `packages/shared/src/utils/constants.ts`. If you add a
  * constant here that the CLI uses at module-load time, add it there too
  * (and vice versa for constants the CLI used to import from core).
  *

@@ -15,22 +15,22 @@ export * from '@goli-cli/sandbox';
 /**
  *
  */
-export { ApprovalEngine } from '../approval/engine.js';
+export { ApprovalEngine } from '@goli-cli/approval/engine.js';
 /**
  *
  */
-export type { ActionClassification, ApprovalEngineOptions } from '../approval/engine.js';
+export type { ActionClassification, ApprovalEngineOptions } from '@goli-cli/approval/engine.js';
 /**
  *
  */
 export {
   computeBlastRadius,
   DEFAULT_BLAST_RADIUS_CONFIG,
-} from '../approval/blast-radius.js';
+} from '@goli-cli/approval/blast-radius.js';
 /**
  *
  */
-export type { BlastRadiusConfig, BlastRadiusResult } from '../approval/blast-radius.js';
+export type { BlastRadiusConfig, BlastRadiusResult } from '@goli-cli/approval/blast-radius.js';
 
 // Enhanced approval (Hermes improvement H7)
 /**
@@ -42,7 +42,7 @@ export {
   withSessionContext,
   getSessionContext,
   findDangerousPattern,
-} from '../approval/enhanced-approval.js';
+} from '@goli-cli/approval/enhanced-approval.js';
 /**
  *
  */
@@ -51,4 +51,4 @@ export type {
   ApprovalDecision as EnhancedApprovalDecision,
   ApprovalResult,
   EnhancedApprovalEngineOptions,
-} from '../approval/enhanced-approval.js';
+} from '@goli-cli/approval/enhanced-approval.js';

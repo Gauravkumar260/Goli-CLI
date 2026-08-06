@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   computeBlastRadius,
   DEFAULT_BLAST_RADIUS_CONFIG,
-} from '../../packages/core/src/approval/blast-radius.js';
+} from '../../packages/approval/src/blast-radius.js';
 
 describe('computeBlastRadius', () => {
   it('allows small additions', () => {

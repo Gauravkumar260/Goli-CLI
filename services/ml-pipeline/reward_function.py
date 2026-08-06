@@ -62,7 +62,7 @@ class TrajectoryMetadata:
     """Metadata extracted from a GOLI-CLI trajectory.
 
     This mirrors the TypeScript Trajectory interface in
-    packages/core/src/memory/trajectory/types.ts.
+    packages/memory-engine/src/trajectory/types.ts.
     """
     prompt: str
     completion: str

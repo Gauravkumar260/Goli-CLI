@@ -8,8 +8,8 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { PersistentMemory } from '../../packages/core/src/memory/persistent/files.js';
-import { MEMORY_BUDGETS } from '../../packages/core/src/memory/types.js';
+import { PersistentMemory } from '../../packages/memory-engine/src/persistent/files.js';
+import { MEMORY_BUDGETS } from '../../packages/memory-engine/src/types.js';
 
 let testDir: string;
 let projectDir: string;

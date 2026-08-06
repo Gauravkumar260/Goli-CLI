@@ -26,9 +26,9 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 
-import { SearchStore, buildQuery, dropDatabase } from '../../packages/core/src/memory/session/search-store.js';
+import { SearchStore, buildQuery, dropDatabase } from '../../packages/memory-engine/src/session/search-store.js';
 
-import type { IndexedMessage } from '../../packages/core/src/memory/session/search-store.js';
+import type { IndexedMessage } from '../../packages/memory-engine/src/session/search-store.js';
 
 /** Make a sample indexed message. */
 function msg(

@@ -21,7 +21,7 @@
 import type { BudgetTracker } from './budget.js';
 import type { StallDetector } from './stall-detector.js';
 import type { ToolCall } from './types.js';
-import type { StallConfig } from '../config/schema.js';
+import type { StallConfig } from '@goli-cli/config/schema.js';
 
 /** Minimal response shape needed by the stop engine. */
 interface ModelResponse {

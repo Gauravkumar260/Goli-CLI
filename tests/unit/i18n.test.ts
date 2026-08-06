@@ -16,7 +16,7 @@ import {
   countTranslations,
   SUPPORTED_LOCALES,
   DEFAULT_LOCALE,
-} from '../../packages/core/src/i18n/index.js';
+} from '../../packages/i18n/src/index.js';
 
 describe('i18n — supported locales', () => {
   it('exports 5 supported locales', () => {

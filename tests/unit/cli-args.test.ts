@@ -12,7 +12,7 @@ import {
   extractGlobalOptions,
   buildCommandContext,
 } from '../../apps/cli/src/commands/types.js';
-import { DEFAULT_CONFIG } from '../../packages/core/src/config/schema.js';
+import { DEFAULT_CONFIG } from '../../packages/config/src/schema.js';
 
 describe('extractGlobalOptions', () => {
   it('extracts all known options', () => {

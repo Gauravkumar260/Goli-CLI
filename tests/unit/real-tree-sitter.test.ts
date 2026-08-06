@@ -21,8 +21,8 @@ import {
   isRealTreeSitterAvailable,
   extractChunksWithTreeSitter,
   _resetTreeSitterCache,
-} from '../../packages/core/src/context/indexer/real-tree-sitter.js';
-import { TreeSitterIndexer } from '../../packages/core/src/context/indexer/tree-sitter.js';
+} from '../../packages/context-engine/src/indexer/real-tree-sitter.js';
+import { TreeSitterIndexer } from '../../packages/context-engine/src/indexer/tree-sitter.js';
 
 describe('H22 real tree-sitter availability', () => {
   beforeEach(() => {

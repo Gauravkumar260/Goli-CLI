@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { createLogger, type Logger } from '../../packages/core/src/utils/logger.js';
+import { createLogger, type Logger } from '../../packages/shared/src/utils/logger.js';
 
 describe('createLogger', () => {
   let logs: string[];

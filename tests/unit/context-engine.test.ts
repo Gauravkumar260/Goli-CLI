@@ -8,13 +8,13 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { CompactionEngine } from '../../packages/core/src/context/compaction/engine.js';
-import { TreeSitterIndexer } from '../../packages/core/src/context/indexer/tree-sitter.js';
-import { HybridRetriever } from '../../packages/core/src/context/retriever/hybrid.js';
-import { SubagentIsolator, SUBAGENT_CONFIGS } from '../../packages/core/src/context/subagent/isolation.js';
-import { SymbolGraph } from '../../packages/core/src/context/symbol-graph/sqlite.js';
+import { CompactionEngine } from '../../packages/context-engine/src/compaction/engine.js';
+import { TreeSitterIndexer } from '../../packages/context-engine/src/indexer/tree-sitter.js';
+import { HybridRetriever } from '../../packages/context-engine/src/retriever/hybrid.js';
+import { SubagentIsolator, SUBAGENT_CONFIGS } from '../../packages/orchestration/src/isolation.js';
+import { SymbolGraph } from '../../packages/context-engine/src/symbol-graph/sqlite.js';
 
-import type { SymbolNode } from '../../packages/core/src/context/types.js';
+import type { SymbolNode } from '../../packages/context-engine/src/types.js';
 
 let workspace: string;
 let indexer: TreeSitterIndexer;

@@ -18,7 +18,7 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { JsonlSessionStore } from '../../packages/core/src/memory/session/jsonl-store.js';
+import { JsonlSessionStore } from '../../packages/memory-engine/src/session/jsonl-store.js';
 
 import type { Message } from '../../packages/core/src/agent/types.js';
 

@@ -34,11 +34,11 @@
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 
-import { APP_VERSION } from '../utils/constants.js';
+import { APP_VERSION } from '@goli-cli/shared/utils/constants.js';
 
 import type { AgentLoop } from '../agent/loop.js';
-import type { AppConfig } from '../config/schema.js';
-import type { Logger } from '../utils/logger.js';
+import type { AppConfig } from '@goli-cli/config/schema.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** A chat completion request (OpenAI format). */
 export interface ChatCompletionRequest {

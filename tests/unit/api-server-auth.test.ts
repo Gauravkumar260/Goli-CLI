@@ -4,9 +4,9 @@
 import { describe, it, expect } from 'vitest';
 
 import { ApiServer } from '../../packages/core/src/api/server.js';
-import { DEFAULT_CONFIG } from '../../packages/core/src/config/schema.js';
+import { DEFAULT_CONFIG } from '../../packages/config/src/schema.js';
 
-import type { AppConfig } from '../../packages/core/src/config/schema.js';
+import type { AppConfig } from '../../packages/config/src/schema.js';
 
 const mockConfig: AppConfig = { ...DEFAULT_CONFIG };
 

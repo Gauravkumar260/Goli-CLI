@@ -19,8 +19,8 @@ import {
   getProviderTypeFromEnv,
   createProviderBackedClientSync,
 } from '../../packages/core/src/agent/provider-adapter.js';
-import { OllamaProvider } from '../../packages/core/src/providers/ollama.js';
-import { OpenAIProvider } from '../../packages/core/src/providers/openai.js';
+import { OllamaProvider } from '../../packages/llm-providers/src/ollama.js';
+import { OpenAIProvider } from '../../packages/llm-providers/src/openai.js';
 
 // Save/restore env vars.
 const origEnv = { ...process.env };

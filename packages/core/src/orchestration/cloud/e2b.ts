@@ -15,8 +15,8 @@
 
 import { randomUUID } from 'node:crypto';
 
-import type { Logger } from '../../utils/logger.js';
 import type { CloudSandboxSession } from '../types.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** Options for the E2BSandbox. */
 export interface E2BSandboxOptions {

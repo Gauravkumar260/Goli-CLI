@@ -4,8 +4,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ApiServer } from '../../packages/core/src/api/server.js';
-import type { AppConfig } from '../../packages/core/src/config/schema.js';
-import { DEFAULT_CONFIG } from '../../packages/core/src/config/schema.js';
+import type { AppConfig } from '../../packages/config/src/schema.js';
+import { DEFAULT_CONFIG } from '../../packages/config/src/schema.js';
 
 const mockConfig: AppConfig = { ...DEFAULT_CONFIG };
 

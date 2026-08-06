@@ -16,7 +16,7 @@
 
 import { isTerminalAuthError } from './error-classifier.js';
 
-import type { Logger } from '../utils/logger.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** Credential states. */
 export type CredentialState = 'OK' | 'EXHAUSTED' | 'DEAD';

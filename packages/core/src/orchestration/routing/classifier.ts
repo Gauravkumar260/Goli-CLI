@@ -18,8 +18,8 @@
 
 import { DEFAULT_ORCHESTRATION_CONFIG } from '../types.js';
 
-import type { Logger } from '../../utils/logger.js';
 import type { RoutingDecision, TaskComplexity } from '../types.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** Hard-blocked providers (legal: ToS competing-product clause).
  *

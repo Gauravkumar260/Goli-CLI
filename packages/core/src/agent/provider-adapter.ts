@@ -11,13 +11,13 @@
  *   const response = await client.call({ messages, tools });
  */
 
-import { AnthropicProvider } from '../providers/anthropic.js';
-import { OllamaProvider } from '../providers/ollama.js';
-import { OpenAIProvider } from '../providers/openai.js';
+import { AnthropicProvider } from '@goli-cli/llm-providers/anthropic.js';
+import { OllamaProvider } from '@goli-cli/llm-providers/ollama.js';
+import { OpenAIProvider } from '@goli-cli/llm-providers/openai.js';
 
 import type { Message, ToolCall } from './types.js';
-import type { ReasoningEffort } from '../config/schema.js';
-import type { ModelProvider, ModelResponse } from '../providers/ModelProvider.js';
+import type { ReasoningEffort } from '@goli-cli/config/schema.js';
+import type { ModelProvider, ModelResponse } from '@goli-cli/llm-providers/ModelProvider.js';
 
 /** A single streaming chunk from the model. */
 export interface ModelStreamChunk {
@@ -207,7 +207,7 @@ export async function createProviderBackedClient(): Promise<ProviderBackedModelC
   const providerType = getProviderTypeFromEnv();
   if (!providerType) return null;
 
-  const { createProvider } = await import('../providers/router.js');
+  const { createProvider } = await import('@goli-cli/llm-providers/router.js');
   const provider = await createProvider();
   return new ProviderBackedModelClient(provider);
 }

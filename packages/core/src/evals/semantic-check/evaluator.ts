@@ -19,8 +19,8 @@
  * @module evals/semantic-check/evaluator
  */
 
-import type { Logger } from '../../utils/logger.js';
 import type { SWEBenchInstance, SWEBenchResult } from '../types.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** Options for the SemanticErrorEvaluator. */
 export interface SemanticErrorEvaluatorOptions {

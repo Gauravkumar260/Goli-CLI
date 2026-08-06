@@ -17,8 +17,8 @@
 
 import { DEFAULT_QUALITY_THRESHOLDS } from '../types.js';
 
-import type { Logger } from '../../utils/logger.js';
 import type { BenchmarkEvaluation, RegressionGateResult } from '../types.js';
+import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** Options for the RegressionGate. */
 export interface RegressionGateOptions {
