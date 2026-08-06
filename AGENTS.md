@@ -742,3 +742,29 @@ All 12 phases of the monorepo-restructure plan (part_004) are committed. Phase 1
 - `npm run lint` → unchanged (eslint . --max-warnings 0)
 - `npm test` → unchanged (vitest), 162 files / 3376 tests
 - Verify: `npm run build && npm run lint && npm run typecheck && npm test` (format:check dropped — pre-existing failure, not gated)
+ 
+ 
+## Loop Run 18 — Delete @goli/core shim, migrate to canonical @goli-cli/* packages
+
+All four gates green after the migration: build (turbo, 18 tasks) / typecheck (28 tasks) / lint (`--max-warnings 0`) / test (**162 files / 3376 tests**, exit 0). Perf (16) + memory (1) suites also green. Docs text updates deferred per plan — only the `docs:gen` typedoc entry was re-pointed.
+
+### What happened
+
+- **`packages/core` (the `@goli/core` compat shim) is deleted.** It was the strangler-fig re-export wrapper over the canonical packages. All consumers were rewritten to import from `@goli-cli/*` directly during the Loop Run 13–17 extractions; this loop removed the wrapper itself.
+- **`env-loader.ts` relocated** to `@goli-cli/shared/utils/env-loader.ts` (via `git mv`). Its side-effect import now lives at the top of `apps/cli/src/index.ts` and `apps/studio/mini-services/agent-runtime/index.ts`.
+- **`tests/integration/lint-enforcement.test.ts`**: the old "core-shim invariant" describe-block (which required every `packages/core/src` file to be comment+re-export-only) became dead once the package was deleted. Replaced with an **absence guard** that asserts `packages/core` is gone — prevents accidental resurrection.
+- **`better-sqlite3` dep hole fixed.** It was only declared in the deleted `packages/core/package.json` and resolved via hoisting; deleting core pruned it and broke 8 test files (`Failed to load url better-sqlite3`). Fixed by declaring `better-sqlite3@12.11.1` + `@types/better-sqlite3@7.6.13` in the packages that actually import it — `@goli-cli/memory-engine` and `@goli-cli/context-engine` (their production `src/` imports it).
+- **SBOM**: `legal/ai-bom.spdx.json` — `SPDXRef-Package-core` (`@goli/core`) → `SPDXRef-Package-agent-core` (`@goli-cli/agent-core`, v0.1.0).
+- **Perf/memory baselines reseeded**: `perf-tests/baselines/module-load.json` + `memory-tests/baselines/core-heap.json` retarget from `@goli/core` → `@goli-cli/agent-core` (run `npm run test:perf` + `npm run test:memory` to verify).
+
+### Gotchas
+
+1. **Undeclared dependency resolved via hoisting is only visible until the host package dies.** `better-sqlite3` was imported by memory-engine/context-engine production code but declared nowhere in their package.json — it "worked" because it was hoisted to root `node_modules` via `@goli/core`'s dep, and the packages are consumed via the workspace symlink (Node resolves imports up to root). Deleting core pruned it → runtime `ERR_MODULE_NOT_FOUND`. **Lesson: any package that imports a native/third-party module must declare it itself, not lean on a sibling's dep.** Grep `require(...)`/`import ... from '<third-party>'` after deleting a package that "owned" a shared native dep.
+2. **Docs text updates were explicitly deferred** but a stray `git checkout -- docs/` only reverted files under `docs/` — root-level doc files (`AUTHORS`, `CHANGELOG.md`, `CHANGES.md`, `CODE-MAP.md`, `README.md`, `Goli.md`, `infra/README.md`, `legal/PRIVACY_POLICY.md`, `legal/TERMS_OF_SERVICE.md`, …) also had path re-points (`packages/core/...` → canonical) in the working tree and had to be reverted separately. Deferral means the docs still reference `@goli/core`/`packages/core` paths — that's expected; a future loop re-points them.
+3. **`@goli/core` alias removal from `vitest.config.ts`** — the legacy root alias for the deleted package is gone; `@goli/cli` / `@goli/evals` aliases remain.
+4. **`tsup.config.ts` external** now lists the seven used `@goli-cli/*` packages instead of `@goli/core`.
+5. **Studio is not gate-tested** — its `mini-services/agent-runtime/index.ts` imports canonical packages + the env-loader side-effect; verify it compiles independently (no tsc task for it in the aggregate build gate).
+
+### Baseline migration check
+
+`git grep -E "@goli/core|packages/core"` now returns only **historical/human docs** (`docs/*`, `CHANGELOG.md`, `CHANGES.md`, `README.md`, `bench/*`, `AGENTS.md` historical notes) — no live `source`/`test`/`config` code references. The docs-expansion tests (`docs-expansion.test.ts`, `docs-expansion-t051.test.ts`) still assert `@goli/core` appears in docs and still pass (docs untouched).
