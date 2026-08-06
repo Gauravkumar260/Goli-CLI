@@ -714,3 +714,31 @@ All four gates green after the extraction: build / typecheck / lint (`--max-warn
 ### Deferred (Phase 8)
 
 Root `tests/unit/*` that exercise a Phase-4 package were **rewritten in place** to import `packages/<pkg>/src/**` rather than moved/colocated into `packages/<pkg>/__tests__/`. Phase 8 (test redistribution, "in lockstep, not one big PR") is the phase that moves these into `__tests__/` folders and deletes `tests/unit/`. No coverage is lost now (count unchanged at 4241).
+
+---
+
+## Loop Run 17 — Phase 11: Turborepo adoption (build/typecheck orchestration)
+
+All 12 phases of the monorepo-restructure plan (part_004) are committed. Phase 11 switched `build`/`typecheck` from npm-workspace delegation to Turborepo 2.10.8. `lint` and `test` are deliberately NOT turbo tasks — turbo excludes the root workspace from task execution, and both gates are root-wide invariants (`eslint . --max-warnings 0`, `vitest run` across all workspaces).
+
+### Gotchas
+
+1. **turbo 2.x requires a `packageManager` field** in the root package.json (e.g. `"packageManager": "npm@11.13.0"`). Without it, turbo errors: `Could not resolve workspace — Missing devEngines.packageManager`.
+2. **`turbo.json` must use the `tasks` key, not the legacy `pipeline` key.** The repo's original turbo.json was BOTH invalid JSON (`"!" + ".next/cache/**"` string-concatenation in `outputs`) and legacy-schema. Rewritten from scratch with `tasks`.
+3. **Turbo excludes the root package from task execution**, so `"build": "turbo run build"` at root does NOT recurse — the root script is only invoked by `npm run build`. But this also means `turbo run lint`/`turbo run test` would run ZERO tasks (no workspace defines them) — never delegate root-only gates to turbo.
+4. **Packages without a `build` script appear in the dry-run as `Command = <NONEXISTENT>`** and are skipped (e.g. `apps/studio` whose build is `build:web`; `test-utils` whose build is an echo no-op). `@goli-cli/test-utils#build` emits no output, so it gets a per-package override `"outputs": []` to silence the warning.
+5. **`.turbo/` must be gitignored** (`dist/` already was). Add both `.turbo/` and `**/.turbo/`.
+6. **Test parallelism race (pre-existing, fixed in Phase 11):** `tests/integration/core-tools.test.ts` "writes to audit log" cleared the SHARED `$GOLI_HOME/audit-log.jsonl` and asserted the last entry was its own `bash` call — flaked when another parallel test file appended between clear and read. Fixed by setting `GOLI_HOME` to a temp dir inside the test (restored in `finally`). Pattern: any test reading a shared file written by other test files must isolate it.
+7. **Cross-platform path relativization in tests:** `f.replace(CORE_SRC + '', '')` fails on Windows (forward vs backslash). Use `path.relative(CORE_SRC, f)`.
+
+### Core shim invariant (ADR-0047 risk register)
+
+`tests/integration/lint-enforcement.test.ts` now guards the strangler-fig: every file under `packages/core/src/` except `index.ts` + `env-loader.ts` must consist of ONLY comments + `export ... from '@goli-cli/...'` statements. Any real code (imports, consts, functions, classes) added to the shim tree fails the gate. Allowlist additions require explicit review.
+
+### Gate status after Phase 11
+
+- `npm run build` → turbo, 19 tasks, topological, cached (FULL TURBO ~200ms after prime)
+- `npm run typecheck` → turbo, 34 tasks, cached
+- `npm run lint` → unchanged (eslint . --max-warnings 0)
+- `npm test` → unchanged (vitest), 162 files / 3376 tests
+- Verify: `npm run build && npm run lint && npm run typecheck && npm test` (format:check dropped — pre-existing failure, not gated)
