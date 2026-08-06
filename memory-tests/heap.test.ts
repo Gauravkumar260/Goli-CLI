@@ -1,8 +1,8 @@
 /**
  * T-030 — core module heap-footprint regression test.
  *
- * Measures the heap delta (bytes) of loading the `@goli/core` brain index in a
- * fresh worker: `global.gc()` → snapshot heap → dynamic import → `global.gc()`
+ * Measures the heap delta (bytes) of loading the `@goli-cli/agent-core` brain index
+ * in a fresh worker: `global.gc()` → snapshot heap → dynamic import → `global.gc()`
  * → snapshot heap. Compares against `memory-tests/baselines/core-heap.json`.
  *
  * `global.gc` is available because the perf config launches worker threads
@@ -20,12 +20,12 @@ const UPDATE = process.env.GOLI_UPDATE_BASELINES === '1';
 const gc = (globalThis as { gc?: () => void }).gc;
 
 describe('core module heap footprint (T-030)', () => {
-  it('loading @goli/core adds a bounded heap delta', async () => {
+  it('loading @goli-cli/agent-core adds a bounded heap delta', async () => {
     const harness = new PerfTestHarness(BASELINE);
 
     gc?.();
     const before = process.memoryUsage().heapUsed;
-    await import('@goli/core');
+    await import('@goli-cli/agent-core');
     gc?.();
     const after = process.memoryUsage().heapUsed;
     const deltaBytes = after - before;
