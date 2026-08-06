@@ -17,7 +17,9 @@ import { existsSync, mkdirSync, accessSync, constants } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import { loadConfig, APP_VERSION, configureLogger, defaultLifecycleLogPath } from '@goli/core';
+import { loadConfig } from '@goli-cli/config';
+import { APP_VERSION } from '@goli-cli/shared/utils/constants.js';
+import { configureLogger, defaultLifecycleLogPath } from '@goli-cli/shared/utils/logger.js';
 
 interface CheckResult {
   name: string;

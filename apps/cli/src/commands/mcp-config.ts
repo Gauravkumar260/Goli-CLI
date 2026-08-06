@@ -40,7 +40,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 
-import { buildReferenceMcpServers, type MCPServerConfig } from '@goli/core';
+import { buildReferenceMcpServers, type MCPServerConfig } from '@goli-cli/tool-system';
 
 /** The MCP config file path. */
 export function defaultMcpConfigPath(): string {

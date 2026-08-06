@@ -632,13 +632,13 @@ describe('Mode config: local-llms is registered', () => {
   });
 
   it('MODE_PROMPTS includes a local-llms fragment', async () => {
-    const { MODE_PROMPTS, getPromptForMode } = await import('@goli/core');
+    const { MODE_PROMPTS, getPromptForMode } = await import('@goli-cli/config');
     expect(MODE_PROMPTS['local-llms']).toBeDefined();
     expect(getPromptForMode('local-llms')).toContain('LOCAL-LLMS');
   });
 
   it('isToolAllowedForMode allows all tools in local-llms', async () => {
-    const { isToolAllowedForMode } = await import('@goli/core');
+    const { isToolAllowedForMode } = await import('@goli-cli/config');
     expect(isToolAllowedForMode('local-llms', 'write_file')).toBe(true);
     expect(isToolAllowedForMode('local-llms', 'bash')).toBe(true);
   });

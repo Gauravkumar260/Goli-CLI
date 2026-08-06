@@ -19,7 +19,7 @@ import {
   type HeadlessJsonOutput,
 } from '../src/commands/headless-output.js';
 
-import type { AgentLoopResult, ToolCall, Todo } from '../../../../packages/core/src/index.js';
+import type { AgentLoopResult, ToolCall, Todo } from '@goli-cli/agent-core';
 
 function makeResult(overrides: Partial<AgentLoopResult> = {}): AgentLoopResult {
   return {

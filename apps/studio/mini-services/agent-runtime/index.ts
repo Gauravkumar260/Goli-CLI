@@ -8,11 +8,16 @@
  *
  * Events in/out: see ../../src/lib/types/socket.ts (single source of truth).
  */
+// ─── Load GOLI_* + allowlisted provider keys from .env FIRST ───────
+import '@goli-cli/shared/utils/env-loader.js';
+
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import { randomUUID } from 'node:crypto';
 
-import { AgentLoop, loadConfig, createLogger, configureLogger, defaultLifecycleLogPath } from '@goli/core';
+import { AgentLoop } from '@goli-cli/agent-core';
+import { loadConfig } from '@goli-cli/config';
+import { createLogger, configureLogger, defaultLifecycleLogPath } from '@goli-cli/shared/utils/logger.js';
 import { validateWorkspace, WorkspaceError } from '../../src/lib/storage/workspace';
 import { loadAgentsMd, formatAgentsMdPreamble } from '../../src/lib/context/agents-md';
 import type {

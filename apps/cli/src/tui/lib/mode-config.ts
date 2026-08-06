@@ -25,7 +25,7 @@
  */
 
 import type { AppMode } from '../theme/agents.js';
-import type { AgentRole } from '@goli/core';
+import type { AgentRole } from '@goli-cli/agent-core';
 
 // ─── Mode→Agent mapping ─────────────────────────────────────────────
 
@@ -116,7 +116,7 @@ export function isSkillAvailable(mode: AppMode, skillId: string): boolean {
 /**
  *
  */
-export { MODE_PROMPTS, getPromptForMode } from '@goli/core';  // re-exported from config barrel
+export { MODE_PROMPTS, getPromptForMode } from '@goli-cli/config';  // re-exported from config barrel
 
 // ─── Mode→Tool category mapping ─────────────────────────────────────
 

@@ -37,8 +37,8 @@
  * @module cli/headless-output
  */
 
-import type { AgentLoopResult } from '@goli/core';
-import type { ToolCall, Todo } from '@goli/core';
+import type { AgentLoopResult } from '@goli-cli/agent-core';
+import type { ToolCall, Todo } from '@goli-cli/agent-core';
 
 /** The output format for headless mode. */
 export type OutputFormat = 'text' | 'json' | 'stream-json';

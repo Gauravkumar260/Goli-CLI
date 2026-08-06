@@ -12,9 +12,6 @@
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "dist", "test"],
-  "references": [
-    { "path": "../../packages/core" }
-  ],
   "ts-node": {
     "esm": true,
     "experimentalSpecifierResolution": "node"

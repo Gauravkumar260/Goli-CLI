@@ -33,7 +33,7 @@ describe('T-010: VS Code extension isolation', () => {
       expect(names).toContain('apps/vscode-ext');
       // The core workspace packages should also be matched by the globs.
       expect(names).toEqual(
-        expect.arrayContaining(['packages/core', 'apps/cli', 'packages/evals']),
+        expect.arrayContaining(['packages/agent-core', 'apps/cli', 'packages/evals']),
       );
     });
   });

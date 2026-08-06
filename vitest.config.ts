@@ -6,8 +6,7 @@
 //   * Switched workspaces to glob ["apps/*", "packages/*"] in root package.json.
 //   * Added `@goli-cli/*` aliases so colocated __tests__ in new packages
 //     can resolve their sibling packages.
-//   * Kept legacy `@goli/core`, `@goli/cli`, `@goli/evals` aliases for the
-//     strangler-fig shim period (Phase 7 — 2-quarter deprecation).
+//   * Kept legacy `@goli/cli`, `@goli/evals` aliases for compat.
 
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'node:path';
@@ -56,8 +55,6 @@ export default defineConfig({
   },
   resolve: {
     alias: [
-      // Legacy — Phase 7 strangler-fig; deleted when @goli/core shim retires.
-      { find: /^@goli\/core$/, replacement: resolve(__dirname, 'packages/core/src/index.ts') },
       { find: /^@goli\/cli$/, replacement: resolve(__dirname, 'apps/cli/src/index.ts') },
       { find: /^@goli\/cli\/(.+)$/, replacement: resolve(__dirname, 'apps/cli/src/$1') },
       { find: /^@goli\/evals$/, replacement: resolve(__dirname, 'packages/evals/src/index.ts') },

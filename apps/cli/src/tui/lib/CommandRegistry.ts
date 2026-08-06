@@ -676,7 +676,7 @@ export function registerDefaultCommands(force?: boolean): void {
         isSafeConcurrent: true,
         handler: () => {
           try {
-            const { SkillArchiver, AUTO_ARCHIVE_DAYS } = require('@goli/core') as typeof import('@goli/core');
+            const { SkillArchiver, AUTO_ARCHIVE_DAYS } = require('@goli-cli/memory-engine') as typeof import('@goli-cli/memory-engine');
             const { existsSync } = require('node:fs') as typeof import('node:fs');
             const { join } = require('node:path') as typeof import('node:path');
             const skillsDir = join(process.cwd(), '.goli', 'skills');
@@ -711,7 +711,7 @@ export function registerDefaultCommands(force?: boolean): void {
     ],
     handler: () => {
       try {
-        const { SEED_SKILLS } = require('@goli/core') as typeof import('@goli/core');
+        const { SEED_SKILLS } = require('@goli-cli/memory-engine') as typeof import('@goli-cli/memory-engine');
         const { getSkillsForMode, MODE_SKILLS } = require('./mode-config.js') as typeof import('./mode-config.js');
         const appMode = AppStateStore.getAppMode();
         const activeForMode = getSkillsForMode(appMode);
@@ -761,7 +761,7 @@ export function registerDefaultCommands(force?: boolean): void {
     handler: async () => {
       AppStateStore.pushSystemMessage('Verifying audit log integrity...', 'info');
       try {
-        const { verifyAuditLog, getAuditLogPath, getAuditLogSummary } = require('@goli/core') as typeof import('@goli/core');
+        const { verifyAuditLog, getAuditLogPath, getAuditLogSummary } = require('@goli-cli/sandbox') as typeof import('@goli-cli/sandbox');
         const logPath = getAuditLogPath();
         const result = await verifyAuditLog(logPath);
         const summary = await getAuditLogSummary(logPath, 1000);
@@ -843,7 +843,7 @@ export function registerDefaultCommands(force?: boolean): void {
   // is reachable from production and the safety pipeline executes
   // end-to-end; real adoption requires wiring a benchmark evaluator
   // (future work, tracked in the H-onwards roadmap).
-  let sicaLoopSingleton: import('@goli/core').SicaLoop | null = null;
+  let sicaLoopSingleton: import('@goli-cli/memory-engine').SicaLoop | null = null;
   let sicaEnabled = false;
   globalCommands.register({
     name: 'sica',
@@ -855,7 +855,7 @@ export function registerDefaultCommands(force?: boolean): void {
       const subcommand = args[0] ?? 'status';
       try {
         // Lazy-load so `goli --help` doesn't pull in the SICA module graph.
-        const { SicaLoop, SicaRateLimiter, SicaArchive } = require('@goli/core') as typeof import('@goli/core');
+        const { SicaLoop, SicaRateLimiter, SicaArchive } = require('@goli-cli/memory-engine') as typeof import('@goli-cli/memory-engine');
         if (subcommand === 'enable') {
           sicaEnabled = true;
         }
@@ -968,7 +968,7 @@ export function registerDefaultCommands(force?: boolean): void {
           // Construct the full proposal (auto-generates proposalId,
           // diff, linesChanged, timestamp) and invoke runCycle.
           const proposal = sicaLoopSingleton.createProposal({
-            target: target as import('@goli/core').SicaTarget,
+            target: target as import('@goli-cli/memory-engine').SicaTarget,
             targetName,
             oldContent,
             newContent,

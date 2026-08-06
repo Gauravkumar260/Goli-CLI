@@ -23,8 +23,11 @@
 
 import { join } from 'node:path';
 
-import { loadConfig, createLogger, configureLogger, defaultLifecycleLogPath, APP_VERSION } from '@goli/core';
-import { AgentLoop, SkillLoader } from '@goli/core';
+import { AgentLoop } from '@goli-cli/agent-core';
+import { loadConfig } from '@goli-cli/config';
+import { SkillLoader } from '@goli-cli/memory-engine';
+import { APP_VERSION } from '@goli-cli/shared/utils/constants.js';
+import { createLogger, configureLogger, defaultLifecycleLogPath } from '@goli-cli/shared/utils/logger.js';
 
 import { extractGlobalOptions, buildCommandContext, type CommandContext } from './types.js';
 
@@ -72,7 +75,7 @@ export async function runWakeup(opts: WakeupOptions): Promise<number> {
   // check is skipped with a warning rather than blocking the launch).
   if (!ctx.godMode) {
     try {
-      const { PolicyIntegrityManager, IntegrityStatus } = await import('@goli/core');
+      const { PolicyIntegrityManager, IntegrityStatus } = await import('@goli-cli/config');
       const { verifyPolicyIntegrityAtStartup } = await import('../index.js');
       const integrityAbort = verifyPolicyIntegrityAtStartup(
         PolicyIntegrityManager,
@@ -110,7 +113,7 @@ export async function runWakeup(opts: WakeupOptions): Promise<number> {
   // Failures are logged but never block the session — skill archival
   // is a maintenance task, not a safety gate.
   try {
-    const { SkillArchiver } = await import('@goli/core');
+    const { SkillArchiver } = await import('@goli-cli/memory-engine');
     const { existsSync } = await import('node:fs');
     const { join } = await import('node:path');
     const skillsDir = join(process.cwd(), '.goli', 'skills');

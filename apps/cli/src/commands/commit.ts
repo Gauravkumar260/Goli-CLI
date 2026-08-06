@@ -16,7 +16,8 @@
  * @module commands/commit
  */
 
-import { loadConfig, configureLogger, defaultLifecycleLogPath } from '@goli/core';
+import { loadConfig } from '@goli-cli/config';
+import { configureLogger, defaultLifecycleLogPath } from '@goli-cli/shared/utils/logger.js';
 
 /**
  *

@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { createDefaultToolRegistry, type ToolRegistry } from '@goli-cli/tool-system';
 
-import type { ToolCall } from '../../packages/core/src/agent/types.js';
+import type { ToolCall } from '@goli-cli/agent-core';
 import type { ToolContext } from '@goli-cli/tool-system';
 
 let workspace: string;

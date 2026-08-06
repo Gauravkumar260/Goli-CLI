@@ -27,7 +27,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { JsonlSessionStore } from '../../packages/memory-engine/src/session/jsonl-store.js';
 
-import type { Message } from '../../packages/core/src/agent/types.js';
+import type { Message } from '@goli-cli/agent-core';
 
 function makeMessage(role: Message['role'], content: string, idx: number): Message {
   return {

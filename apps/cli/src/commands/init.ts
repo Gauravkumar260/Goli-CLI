@@ -14,7 +14,9 @@
 import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { loadConfig, configureLogger, defaultLifecycleLogPath, APP_VERSION } from '@goli/core';
+import { loadConfig } from '@goli-cli/config';
+import { APP_VERSION } from '@goli-cli/shared/utils/constants.js';
+import { configureLogger, defaultLifecycleLogPath } from '@goli-cli/shared/utils/logger.js';
 
 const GOLI_MD_TEMPLATE = `# GOLI.md — Project Memory
 

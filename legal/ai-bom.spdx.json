@@ -58,16 +58,16 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-core",
-      "name": "@goli/core",
-      "versionInfo": "0.2.0-phase2",
+      "SPDXID": "SPDXRef-Package-agent-core",
+      "name": "@goli-cli/agent-core",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "MIT",
       "licenseDeclared": "MIT",
       "copyrightText": "Copyright (c) 2026 GOLI-CLI Contributors",
       "supplier": "Organization: GOLI-CLI Contributors",
-      "description": "GOLI-CLI core: agent loop, tools, safety, context, memory."
+      "description": "GOLI-CLI agent core: agent loop, planner, budget, stall detection."
     },
     {
       "SPDXID": "SPDXRef-Package-cli",

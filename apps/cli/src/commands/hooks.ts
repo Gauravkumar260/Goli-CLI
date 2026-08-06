@@ -14,7 +14,7 @@
  * @module commands/hooks
  */
 
-import { loadUserHooks, saveUserHooks, type UserHook } from '@goli/core';
+import { loadUserHooks, saveUserHooks, type UserHook } from '@goli-cli/tool-system';
 
 const CONFIG_PATH = '.goli/hooks.json';
 

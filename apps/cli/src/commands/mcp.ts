@@ -32,7 +32,7 @@ import {
   defaultMcpConfigPath,
 } from './mcp-config.js';
 
-import type { MCPServerConfig } from '@goli/core';
+import type { MCPServerConfig } from '@goli-cli/tool-system';
 
 /**
  * Build the `goli mcp` subcommand tree.

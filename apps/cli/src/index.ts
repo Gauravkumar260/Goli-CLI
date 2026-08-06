@@ -31,6 +31,9 @@
  * @module @goli/cli
  */
 
+// ─── Load GOLI_* + allowlisted provider keys from .env FIRST ───────
+import '@goli-cli/shared/utils/env-loader.js';
+
 import { readFileSync, existsSync, realpathSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from "node:url";
@@ -405,7 +408,7 @@ function readStdin(): Promise<string> {
  */
 function createLspClient(logger: { info: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void }): unknown {
   try {
-    const core = require('@goli/core') as typeof import('@goli/core');
+    const core = require('@goli-cli/tool-system') as typeof import('@goli-cli/tool-system');
     if (typeof core.TypeScriptLspClient !== 'function') return undefined;
     const rootUri = `file://${process.cwd()}`;
     const client = new core.TypeScriptLspClient({
@@ -441,7 +444,7 @@ function createLspClient(logger: { info: (msg: string, ctx?: Record<string, unkn
  */
 function createContextEngineBundle(logger: { info: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void }): unknown {
   try {
-    const core = require('@goli/core') as typeof import('@goli/core');
+    const core = require('@goli-cli/context-engine') as typeof import('@goli-cli/context-engine');
     if (typeof core.createContextEngine !== 'function') return undefined;
     const bundle = core.createContextEngine({
       workspaceRoot: process.cwd(),
@@ -473,7 +476,7 @@ function createContextEngineBundle(logger: { info: (msg: string, ctx?: Record<st
 function createMemoryCurator(logger: { info: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void }): unknown {
   try {
     // Lazy-load so `goli --version` doesn't pull in the memory module graph.
-    const core = require('@goli/core') as typeof import('@goli/core');
+    const core = require('@goli-cli/memory-engine') as typeof import('@goli-cli/memory-engine');
     if (!core.MemoryCurator || !core.PersistentMemory) return undefined;
     const persistent = new core.PersistentMemory({
       projectRoot: process.cwd(),
@@ -563,44 +566,27 @@ export function verifyPolicyIntegrityAtStartup(
 ): { message: string } | null {
   const log = logger as { info: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void };
   // Resolve the workspace root. In headless mode this is process.cwd().
-  // We hash the safety-critical source directories of the @goli/core
-  // package. If the package is installed in node_modules, the path
+  // We hash the safety-critical source directories of the canonical
+  // `@goli-cli/*` packages (approval, sandbox, hooks, SICA, skills,
+  // config). If the packages are installed in node_modules, the path
   // resolution here will find the installed copy; if running from a
   // monorepo worktree, it'll find the source. Either way, the hash is
   // stable across runs unless the files actually change.
   const workspaceRoot = process.cwd();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fs: any = require('node:fs');
   // The policy dirs are the ones the audit flagged as
   // safety-critical: approval engine, sandbox, hooks, SICA, mode
   // config. We hash the SOURCE directories so a tamper attempt
   // (editing engine.ts to bypass approval) is detectable.
   //
-  // We try several candidate paths to handle both monorepo and
-  // installed-package layouts.
-  const candidateRoots = [
-    join(workspaceRoot, 'packages/core/src'),
-    join(workspaceRoot, 'node_modules/@goli/core/dist/src'),
-    join(workspaceRoot, 'node_modules/@goli/core/src'),
-  ];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fs: any = require('node:fs');
-  const coreSrc = candidateRoots.find((p) => {
-    try { return fs.existsSync(p) && fs.statSync(p).isDirectory(); } catch { return false; }
-  });
-  if (!coreSrc) {
-    // Can't find the core package source — don't block the run, just
-    // log. The integrity check is a safety net, not a hard gate when
-    // the layout is unfamiliar.
-    log.warn('PolicyIntegrityManager: could not locate @goli/core source dir — skipping integrity check', {
-      candidates: candidateRoots,
-    });
-    return null;
-  }
-
-  const policyDirs = [
-    join(coreSrc, 'approval'),
-    join(coreSrc, 'sandbox'),
-    join(coreSrc, 'tools/hooks'),
-    join(coreSrc, 'memory/sica'),
+  // Each dir is resolved independently against its own candidate
+  // paths to handle both monorepo and installed-package layouts.
+  const policyDirCandidates: Array<[string, string[]]> = [
+    ['approval', ['packages/approval/src', 'node_modules/@goli-cli/approval/dist']],
+    ['sandbox', ['packages/sandbox/src', 'node_modules/@goli-cli/sandbox/dist']],
+    ['hooks', ['packages/tool-system/src/hooks', 'node_modules/@goli-cli/tool-system/dist/hooks']],
+    ['sica', ['packages/memory-engine/src/sica', 'node_modules/@goli-cli/memory-engine/dist/sica']],
     // P2-9 fix (re-verification report item FIX-J): the skills
     // subsystem (`memory/skills/`) contains safety-relevant code —
     // `SkillWriter` writes new SKILL.md files from trajectories,
@@ -611,14 +597,27 @@ export function verifyPolicyIntegrityAtStartup(
     // a malicious skill into the catalog, would previously go
     // undetected because `memory/skills/` was NOT in the hash list.
     // We now hash it alongside the other safety-critical dirs.
-    join(coreSrc, 'memory/skills'),
-    join(coreSrc, 'config'),
-  ].filter((p) => {
-    try { return fs.existsSync(p); } catch { return false; }
-  });
+    ['skills', ['packages/memory-engine/src/skills', 'node_modules/@goli-cli/memory-engine/dist/skills']],
+    ['config', ['packages/config/src', 'node_modules/@goli-cli/config/dist']],
+  ];
+  const resolveDir = (candidates: string[]): string | undefined => {
+    for (const c of candidates) {
+      const p = join(workspaceRoot, c);
+      try { if (fs.existsSync(p) && fs.statSync(p).isDirectory()) return p; } catch { /* skip */ }
+    }
+    return undefined;
+  };
+  const policyDirs = policyDirCandidates
+    .map(([, candidates]) => resolveDir(candidates))
+    .filter((p): p is string => p !== undefined);
 
   if (policyDirs.length === 0) {
-    log.info('PolicyIntegrityManager: no policy dirs found to hash', { coreSrc });
+    // Can't find the safety-critical package dirs — don't block the run,
+    // just log. The integrity check is a safety net, not a hard gate
+    // when the layout is unfamiliar.
+    log.warn('PolicyIntegrityManager: could not locate safety-critical package dirs — skipping integrity check', {
+      candidates: policyDirCandidates.flatMap(([, c]) => c),
+    });
     return null;
   }
 
@@ -693,7 +692,10 @@ async function runHeadless(
   },
 ): Promise<number> {
   try {
-    const { loadConfig, createLogger, configureLogger, defaultLifecycleLogPath, AgentLoop, SkillLoader, PolicyIntegrityManager, IntegrityStatus } = await import('@goli/core');
+    const { loadConfig, PolicyIntegrityManager, IntegrityStatus } = await import('@goli-cli/config');
+    const { createLogger, configureLogger, defaultLifecycleLogPath } = await import('@goli-cli/shared/utils/logger.js');
+    const { AgentLoop } = await import('@goli-cli/agent-core');
+    const { SkillLoader } = await import('@goli-cli/memory-engine');
     const { formatAsJson, formatAsText, formatUsageSummary, parseOutputFormat } = await import('./commands/headless-output.js');
 
     // Validate output format.

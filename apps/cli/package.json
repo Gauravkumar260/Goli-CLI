@@ -19,7 +19,13 @@
     "smoke": "node dist/index.js --version"
   },
   "dependencies": {
-    "@goli/core": "*",
+    "@goli-cli/agent-core": "*",
+    "@goli-cli/config": "*",
+    "@goli-cli/context-engine": "*",
+    "@goli-cli/memory-engine": "*",
+    "@goli-cli/sandbox": "*",
+    "@goli-cli/shared": "*",
+    "@goli-cli/tool-system": "*",
     "commander": "^12.1.0",
     "ink": "5.2.1",
     "react": "18.3.1",

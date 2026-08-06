@@ -23,8 +23,8 @@
  * Going forward, any new lint warning will fail CI (npm run lint exits 1).
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { resolve, join, relative } from 'node:path';
+import { readFileSync, statSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 describe('T-050: Lint warnings cleanup enforcement', () => {
   it('package.json lint script uses --max-warnings 0', () => {
@@ -98,44 +98,12 @@ describe('T-050: Lint configuration best practices', () => {
   });
 });
 
-describe('Core shim invariant (ADR-0047 risk register)', () => {
-  const CORE_SRC = resolve(process.cwd(), 'packages/core/src');
-  // Real code that legitimately lives in @goli/core (the compatibility
-  // surface). Everything else must be a comment + re-export shim only.
-  const ALLOWLIST = new Set(['index.ts', 'env-loader.ts']);
-
-  function listTsFiles(dir: string): string[] {
-    const out: string[] = [];
-    for (const entry of readdirSync(dir)) {
-      const full = join(dir, entry);
-      const stat = statSync(full);
-      if (stat.isDirectory()) out.push(...listTsFiles(full));
-      else if (entry.endsWith('.ts')) out.push(full);
-    }
-    return out;
-  }
-
-  function stripComments(src: string): string {
-    return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
-  }
-
-  it('every non-allowlisted core/src file is a re-export-only shim', () => {
-    const files = listTsFiles(CORE_SRC).map((f) => relative(CORE_SRC, f));
-    expect(files.length).toBeGreaterThan(10);
-
-    const offenders: string[] = [];
-    for (const rel of files) {
-      if (ALLOWLIST.has(rel)) continue;
-      let body = stripComments(readFileSync(join(CORE_SRC, rel), 'utf-8'));
-      // Remove every `export ... from '<pkg>';` statement (multi-line
-      // tolerant). What remains must be whitespace/semicolons only.
-      body = body.replace(/export\s+(type\s+)?\{[\s\S]*?\}\s*from\s*['"][^'"]+['"]\s*;?/g, '');
-      body = body.replace(/export\s+\*\s*from\s*['"][^'"]+['"]\s*;?/g, '');
-      body = body.replace(/export\s+const\s+[\s\S]*?;/g, '');
-      if (body.replace(/\s/g, '') !== '') {
-        offenders.push(`${rel}: ${body.trim().split('\n')[0]}`);
-      }
-    }
-    expect(offenders).toEqual([]);
+describe('packages/core removal (ADR-0047 deferred deletion)', () => {
+  it('the @goli/core compatibility shim no longer exists', () => {
+    const coreDir = resolve(process.cwd(), 'packages/core');
+    // Deleting packages/core was the ADR-0047 endgame. Guard against
+    // accidental resurrection (a new file there would silently re-add
+    // the shim surface without a review).
+    expect(() => statSync(coreDir)).toThrow();
   });
 });

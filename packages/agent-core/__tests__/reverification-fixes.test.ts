@@ -25,8 +25,10 @@ import { join, resolve } from 'node:path';
 
 import { SystemPromptAssembler } from '../src/system-prompt.js';
 import type { SystemPromptContext } from '../src/system-prompt.js';
-import { AgentLoop, loadConfig, createLogger, EffortRoutingClient, ProvenanceTracker, ReflexionEngine } from '@goli/core';
-import type { AgentLoopResult } from '@goli/core';
+import { AgentLoop, EffortRoutingClient, ProvenanceTracker, ReflexionEngine } from '@goli-cli/agent-core';
+import type { AgentLoopResult } from '@goli-cli/agent-core';
+import { loadConfig } from '@goli-cli/config';
+import { createLogger } from '@goli-cli/shared/utils/logger.js';
 import { CliAgentLoop } from '@goli/cli/services/CliAgentLoop.js';
 import { globalCommands, registerDefaultCommands } from '@goli/cli/tui/lib/CommandRegistry.js';
 
@@ -120,18 +122,20 @@ describe('P2-9 N3: AgentLoopResult.toolCalls field + getLastRunResult()', () => 
 describe('P2-9 FIX-J: PolicyIntegrityManager hash list includes memory/skills', () => {
   it('verifyPolicyIntegrityAtStartup hashes memory/skills directory', () => {
     // Read the source of verifyPolicyIntegrityAtStartup and verify
-    // memory/skills is in the policyDirs array. This is a static
-    // check — a full integration test would require a real workspace
-    // with the safety-critical directories, which is covered by the
-    // T-064 test suite.
+    // the safety-critical policy dirs (incl. the skills subsystem)
+    // are registered. Static check — a full integration test would
+    // require a real workspace with the safety-critical directories,
+    // which is covered by the T-064 test suite.
     const source = readFileSync(CLI_INDEX_SRC, 'utf-8');
-    expect(source).toContain("join(coreSrc, 'memory/skills')");
-    // Verify the old list is still intact too (we didn't remove any).
-    expect(source).toContain("join(coreSrc, 'approval')");
-    expect(source).toContain("join(coreSrc, 'sandbox')");
-    expect(source).toContain("join(coreSrc, 'tools/hooks')");
-    expect(source).toContain("join(coreSrc, 'memory/sica')");
-    expect(source).toContain("join(coreSrc, 'config')");
+    // The six safety-critical dirs, each resolved against its own
+    // candidate paths (approval, sandbox, tool-system/hooks,
+    // memory-engine/sica, memory-engine/skills, config).
+    expect(source).toContain("'skills', ['packages/memory-engine/src/skills'");
+    expect(source).toContain("'approval', ['packages/approval/src'");
+    expect(source).toContain("'sandbox', ['packages/sandbox/src'");
+    expect(source).toContain("'hooks', ['packages/tool-system/src/hooks'");
+    expect(source).toContain("'sica', ['packages/memory-engine/src/sica'");
+    expect(source).toContain("'config', ['packages/config/src'");
   });
 });
 

@@ -16,7 +16,8 @@
  * @module commands/index
  */
 
-import { createContextEngine, configureLogger, defaultLifecycleLogPath, createLogger } from '@goli/core';
+import { createContextEngine } from '@goli-cli/context-engine';
+import { createLogger, configureLogger, defaultLifecycleLogPath } from '@goli-cli/shared/utils/logger.js';
 
 /**
  * Run the `goli index` command.

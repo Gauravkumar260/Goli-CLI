@@ -15,7 +15,8 @@ import { existsSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import { configureLogger, defaultLifecycleLogPath, getAuditLogSummary, verifyAuditLog } from '@goli/core';
+import { getAuditLogSummary, verifyAuditLog } from '@goli-cli/sandbox';
+import { configureLogger, defaultLifecycleLogPath } from '@goli-cli/shared/utils/logger.js';
 
 /**
  * Run the `goli audit` command.

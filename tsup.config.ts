@@ -42,5 +42,7 @@ export default defineConfig({
     ].join('\n'),
   },
   // Keep node_modules external (we don't bundle deps)
-  external: ['react', 'ink', 'commander', '@goli/core', 'supports-hyperlinks'],
+  external: ['react', 'ink', 'commander', 'supports-hyperlinks',
+    '@goli-cli/agent-core', '@goli-cli/config', '@goli-cli/context-engine',
+    '@goli-cli/memory-engine', '@goli-cli/sandbox', '@goli-cli/shared', '@goli-cli/tool-system'],
 });

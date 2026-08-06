@@ -70,7 +70,7 @@ describe('ImmutableSafetyRegistry', () => {
 
   it('does not mark non-protected paths as immutable', () => {
     const registry = new ImmutableSafetyRegistry({ workspaceRoot: testDir });
-    const normalPath = join(testDir, 'packages/core/src/agent/loop.ts');
+    const normalPath = join(testDir, 'packages/agent-core/src/loop.ts');
     expect(registry.isImmutable(normalPath)).toBe(false);
   });
 

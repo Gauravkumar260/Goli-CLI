@@ -16,18 +16,11 @@
 
 import { join } from 'node:path';
 
-import {
-  AgentLoop,
-  SkillLoader,
-  loadConfig,
-  createLogger,
-  configureLogger,
-  defaultLifecycleLogPath,
-  type AppConfig,
-  type Logger,
-  type ToolApprovalRequest,
-  type ToolApprovalDecision,
-} from '@goli/core';
+import { AgentLoop } from '@goli-cli/agent-core';
+import { loadConfig, type AppConfig } from '@goli-cli/config';
+import { SkillLoader } from '@goli-cli/memory-engine';
+import { createLogger, configureLogger, defaultLifecycleLogPath, type Logger } from '@goli-cli/shared/utils/logger.js';
+import { type ToolApprovalRequest, type ToolApprovalDecision } from '@goli-cli/tool-system';
 
 import { getPrimaryAgentForMode, modeToSandboxPolicy } from '../tui/lib/mode-config.js';
 import { AppStateStore } from '../tui/state/AppStateStore.js';

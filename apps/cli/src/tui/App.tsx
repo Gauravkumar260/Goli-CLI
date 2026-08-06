@@ -65,7 +65,7 @@ import { HeaderBar } from './components/HeaderBar.js';
 import { StatusBar } from './components/StatusBar.js';
 import { DialogManager, type DialogEntry } from './components/DialogManager.js';
 import { PolicyUpdateDialog } from './components/PolicyUpdateDialog.js';
-import type { IntegrityResult } from '@goli/core';
+import type { IntegrityResult } from '@goli-cli/config';
 import { loadSkin, BUILTIN_SKIN_NAMES } from './theme/skin-engine.js';
 import { LoadingIndicator } from './components/LoadingIndicator.js';
 import { ApprovalModeIndicator } from './components/ApprovalModeIndicator.js';
@@ -842,7 +842,7 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
             onAccept={() => {
               // Persist the new hash via PolicyIntegrityManager.acceptIntegrity.
               try {
-                const { PolicyIntegrityManager } = require('@goli/core') as typeof import('@goli/core');
+                const { PolicyIntegrityManager } = require('@goli-cli/config') as typeof import('@goli-cli/config');
                 const mgr = new PolicyIntegrityManager({
                   storagePath: `${process.cwd()}/.goli/policy.hash`,
                 });

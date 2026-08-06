@@ -9,7 +9,7 @@
  * @module commands/types
  */
 
-import type { AppConfig } from '@goli/core';
+import type { AppConfig } from '@goli-cli/config';
 
 /** Global options parsed from the top-level Commander program. */
 export interface GlobalOptions {

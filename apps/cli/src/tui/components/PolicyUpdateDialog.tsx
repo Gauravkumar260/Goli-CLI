@@ -15,7 +15,7 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { T } from '../theme/tokens.js';
-import type { IntegrityResult } from '@goli/core';
+import type { IntegrityResult } from '@goli-cli/config';
 
 interface PolicyUpdateDialogProps {
   /** The integrity result from checkIntegrity(). */

@@ -54,7 +54,7 @@
     "prepare": "husky || true",
     "bench": "tsx scripts/bench.ts",
     "bench:quick": "tsx scripts/bench.ts --quick",
-    "docs:gen": "typedoc --out docs/api/_generated packages/core/src/index.ts --tsconfig packages/core/tsconfig.json",
+    "docs:gen": "typedoc --out docs/api/_generated packages/agent-core/src/index.ts --tsconfig packages/agent-core/tsconfig.json",
     "a11y:audit": "tsx scripts/a11y-audit.ts",
     "gen:10k-repo": "tsx scripts/gen-10k-repo.ts",
     "bench:tti": "tsx scripts/tti-bench.ts --10k",
