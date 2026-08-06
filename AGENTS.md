@@ -88,7 +88,7 @@ These were RED at iter 0 baseline and therefore are NOT regressions if they stay
 - **Qodo CLI:** Test-driven, spec-driven, multi-agent, coverage-aware.
 - **Cursor CLI / Amp CLI:** IDE-tight, codebase indexing, agentic refactor.
 
-**These inferred postures are based on public docs/READMEs from my training data. They are marked as `inferred: true` in `scores.json`. No source-code audit was performed for these 6 references.**
+**These inferred postures are based on public docs/READMEs from my training data. They are marked as `inferred: true` in `bench/scores.json`. No source-code audit was performed for these 6 references.**
 
 ## Loop mechanics (operational learnings)
 
@@ -709,7 +709,7 @@ All four gates green after the extraction: build / typecheck / lint (`--max-warn
 
 ### Acceptance verified
 
-`git grep -E "packages/core/src/(config|memory|providers|context|approval|observability|plugins|i18n|utils|types)|@goli/core/(config|memory|providers|context|approval|observability|plugins|i18n|utils)" -- ':!packages/core'` returns only the historical snapshot docs (`goli-cli-*-research|remediation|verification*.md`), `tasks.json`, and `scores.json` — all documenting the old→new mapping, not live code. `@goli/core/<sub>` subpath imports are gone (only bare `@goli/core` root is consumed).
+`git grep -E "packages/core/src/(config|memory|providers|context|approval|observability|plugins|i18n|utils|types)|@goli/core/(config|memory|providers|context|approval|observability|plugins|i18n|utils)" -- ':!packages/core'` returns only the historical snapshot docs (`goli-cli-*-research|remediation|verification*.md`), `bench/tasks.json`, and `bench/scores.json` — all documenting the old→new mapping, not live code. `@goli/core/<sub>` subpath imports are gone (only bare `@goli/core` root is consumed).
 
 ### Deferred (Phase 8)
 
