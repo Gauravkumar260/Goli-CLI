@@ -123,12 +123,12 @@ state serialization) for marginal gain.
 
 ## Implementation
 
-- `packages/core/src/tools/core/spawn-subagent.ts` — `SPAWN_SUBAGENT_TOOL`,
+- `packages/tool-system/src/core/spawn-subagent.ts` — `SPAWN_SUBAGENT_TOOL`,
   `SubagentSpawnInput`, `SubagentResult`
-- `packages/core/src/tools/types.ts` — `ToolContext.spawnSubagent`
-- `packages/core/src/tools/parallel-execution.ts` — moved
+- `packages/tool-system/src/types.ts` — `ToolContext.spawnSubagent`
+- `packages/tool-system/src/parallel-execution.ts` — moved
   `spawn_subagent` from `NEVER_PARALLEL_TOOLS` to `PARALLEL_SAFE_TOOLS`
-- `packages/core/src/tools/index.ts` — register the new tool (count 16 → 17)
+- `packages/tool-system/src/index.ts` — register the new tool (count 16 → 17)
 - `tests/unit/parallel-subagents.test.ts` — 11 unit tests
 - `tests/unit/tool-registry.test.ts` — updated count 16 → 17
 

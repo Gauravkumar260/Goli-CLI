@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest';
 import { callWithRetry } from '../../packages/core/src/agent/retry.js';
 import { ToolGuardrailController } from '../../packages/core/src/agent/tool-guardrails.js';
 import { SWEBenchHarness } from '../../packages/core/src/evals/swebench/harness.js';
-import { HookEngine } from '../../packages/core/src/tools/hooks/engine.js';
+import { HookEngine } from '@goli-cli/tool-system';
 import { ModelHTTPError } from '../../packages/core/src/utils/errors.js';
 
 describe('H3: error-classifier wired into retry', () => {

@@ -13,16 +13,16 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { SPAWN_SUBAGENT_TOOL } from '../../packages/core/src/tools/core/spawn-subagent.js';
+import { SPAWN_SUBAGENT_TOOL } from '../src/core/spawn-subagent.js';
 import {
   PARALLEL_SAFE_TOOLS,
   NEVER_PARALLEL_TOOLS,
   shouldParallelizeToolBatch,
-} from '../../packages/core/src/tools/parallel-execution.js';
+} from '../src/parallel-execution.js';
 
-import type { ToolCall } from '../../packages/core/src/agent/types.js';
-import type { SubagentSpawnInput, SubagentResult } from '../../packages/core/src/tools/core/spawn-subagent.js';
-import type { ToolContext } from '../../packages/core/src/tools/types.js';
+import type { ToolCall } from '@goli-cli/agent-core/types.js';
+import type { SubagentSpawnInput, SubagentResult } from '../src/core/spawn-subagent.js';
+import type { ToolContext } from '../src/types.js';
 
 function makeContext(overrides: Partial<ToolContext> = {}): ToolContext {
   return {

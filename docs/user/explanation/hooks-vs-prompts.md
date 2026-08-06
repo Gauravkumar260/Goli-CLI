@@ -58,7 +58,7 @@ input." You can run the test in CI on every PR.
 ## The Goli-CLI hook architecture
 
 Hooks are TypeScript callbacks registered with the hooks engine
-(`packages/core/src/tools/hooks/engine.ts`). They fire at specific
+(`packages/tool-system/src/hooks/engine.ts`). They fire at specific
 events:
 
 ```
@@ -88,7 +88,7 @@ type HookResult =
 ### Built-in hooks
 
 Goli-CLI ships six built-in hooks (in
-`packages/core/src/tools/hooks/builtin/`):
+`packages/tool-system/src/hooks/builtin/`):
 
 | Hook                             | Event      | What it does                                                                                          |
 | -------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------- |

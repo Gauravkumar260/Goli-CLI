@@ -10,13 +10,13 @@ import { join } from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 
-import { startBackgroundShell, cleanupAllShells, getActiveShells, hasShell } from '../../packages/core/src/tools/core/background-shell.js';
-import { TODO_WRITE_TOOL, getCurrentTodos, clearTodos } from '../../packages/core/src/tools/core/todo-write.js';
-import { createDefaultToolRegistry } from '../../packages/core/src/tools/index.js';
-import { type ToolRegistry } from '../../packages/core/src/tools/registry.js';
+import { startBackgroundShell, cleanupAllShells, getActiveShells, hasShell } from '../src/core/background-shell.js';
+import { TODO_WRITE_TOOL, getCurrentTodos, clearTodos } from '../src/core/todo-write.js';
+import { createDefaultToolRegistry } from '../src/index.js';
+import { type ToolRegistry } from '../src/registry.js';
 
-import type { ToolCall } from '../../packages/core/src/agent/types.js';
-import type { ToolContext } from '../../packages/core/src/tools/types.js';
+import type { ToolCall } from '@goli-cli/agent-core/types.js';
+import type { ToolContext } from '../src/types.js';
 
 let workspace: string;
 let registry: ToolRegistry;

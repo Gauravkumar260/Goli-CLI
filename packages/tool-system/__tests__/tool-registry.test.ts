@@ -4,11 +4,11 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { createDefaultToolRegistry } from '../../packages/core/src/tools/index.js';
-import { ToolRegistry } from '../../packages/core/src/tools/registry.js';
+import { createDefaultToolRegistry } from '../src/index.js';
+import { ToolRegistry } from '../src/registry.js';
 
-import type { ToolCall } from '../../packages/core/src/agent/types.js';
-import type { Tool, ToolContext } from '../../packages/core/src/tools/types.js';
+import type { ToolCall } from '@goli-cli/agent-core/types.js';
+import type { Tool, ToolContext } from '../src/types.js';
 
 function makeToolCall(name: string, args: Record<string, unknown>, parseError?: string): ToolCall {
   return {

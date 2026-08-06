@@ -106,23 +106,23 @@ The `ToolRegistry.dispatch()` pipeline is now:
 
 ## Implementation
 
-- `packages/core/src/tools/hooks/types.ts` — Hook, HookEvent,
+- `packages/tool-system/src/hooks/types.ts` — Hook, HookEvent,
   HookContext, PreToolUseHookResult, PostToolUseHookResult
-- `packages/core/src/tools/hooks/engine.ts` — HookEngine class
+- `packages/tool-system/src/hooks/engine.ts` — HookEngine class
   (register, runPreToolUse, runPostToolUse, runUserPromptSubmit, runStop)
-- `packages/core/src/tools/hooks/builtin/block-destructive.ts` — 14
+- `packages/tool-system/src/hooks/builtin/block-destructive.ts` — 14
   destructive command patterns
-- `packages/core/src/tools/hooks/builtin/block-secrets.ts` — 15
+- `packages/tool-system/src/hooks/builtin/block-secrets.ts` — 15
   sensitive file patterns
-- `packages/core/src/tools/hooks/builtin/block-writes-outside-workspace.ts`
-- `packages/core/src/tools/hooks/builtin/audit-log.ts` — extends
+- `packages/tool-system/src/hooks/builtin/block-writes-outside-workspace.ts`
+- `packages/tool-system/src/hooks/builtin/audit-log.ts` — extends
   Module 4's audit log to all tools
-- `packages/core/src/tools/hooks/builtin/auto-format.ts` — prettier,
+- `packages/tool-system/src/hooks/builtin/auto-format.ts` — prettier,
   black, rustfmt, gofmt
-- `packages/core/src/tools/hooks/builtin/git-checkpoint.ts` —
+- `packages/tool-system/src/hooks/builtin/git-checkpoint.ts` —
   `git stash create` (non-destructive)
-- `packages/core/src/tools/hooks/index.ts` — registerBuiltinHooks()
-- `packages/core/src/tools/registry.ts` — dispatch pipeline updated
+- `packages/tool-system/src/hooks/index.ts` — registerBuiltinHooks()
+- `packages/tool-system/src/registry.ts` — dispatch pipeline updated
   to run PreToolUse/PostToolUse hooks
 
 ## References

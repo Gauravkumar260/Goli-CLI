@@ -16,7 +16,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ProvenanceTracker, isSensitiveTool, isWebTool } from '../../packages/core/src/agent/provenance.js';
 import { ReflexionEngine } from '../../packages/core/src/agent/reflexion.js';
 import { ProjectMapGenerator } from '../../packages/core/src/context/project-map.js';
-import { DynamicToolManager } from '../../packages/core/src/tools/dynamic-tool-manager.js';
+import { DynamicToolManager } from '@goli-cli/tool-system';
 
 import type { ToolCall, ClassifiedError } from '../../packages/core/src/agent/types.js';
 

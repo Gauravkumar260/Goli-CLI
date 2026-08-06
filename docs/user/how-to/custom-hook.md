@@ -62,7 +62,7 @@ path = "~/.goli/hooks/no-sudo.ts"
 tools = ["bash"]
 ```
 
-Or programmatically in `packages/core/src/tools/hooks/builtin/` (for
+Or programmatically in `packages/tool-system/src/hooks/builtin/` (for
 built-in hooks).
 
 ## Step 3: Verify the hook fires
@@ -111,7 +111,7 @@ type AfterToolResult =
 ## Built-in hooks
 
 Goli-CLI ships these built-in hooks (in
-`packages/core/src/tools/hooks/builtin/`):
+`packages/tool-system/src/hooks/builtin/`):
 
 | Hook                             | Event      | What it does                                                                         |
 | -------------------------------- | ---------- | ------------------------------------------------------------------------------------ |

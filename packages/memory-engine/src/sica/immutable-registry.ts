@@ -57,14 +57,14 @@ export class ImmutableSafetyRegistry {
     // `packages/core/src/sica/` pointed at a directory that does
     // NOT exist in the source tree. The actual SICA code lives at
     // `packages/core/src/memory/sica/`. We correct the path AND
-    // add `packages/core/src/tools/hooks/` (the parent of `builtin/`)
+    // add `packages/tool-system/src/hooks/` (the parent of `builtin/`)
     // so user-defined hooks AND the HookEngine itself are also
     // protected — the audit noted only `builtin/` was protected,
     // leaving `engine.ts` and `types.ts` mutable.
     this.immutablePaths = new Set([
       join(root, 'packages/sandbox/src/'), // OS-native sandbox
       join(root, 'packages/core/src/approval/'), // Approval policy engine
-      join(root, 'packages/core/src/tools/hooks/'), // Hook engine + builtins
+      join(root, 'packages/tool-system/src/hooks/'), // Hook engine + builtins
       join(root, 'packages/core/src/memory/sica/'), // SICA itself (meta-safety) — corrected path
       join(root, 'packages/core/src/evals/redteam/'), // Red-team harness
       join(root, 'packages/core/src/orchestration/routing/'), // Provider blocklist

@@ -92,7 +92,7 @@ The sandbox is combined with:
 - `packages/sandbox/src/cgroups.ts` — cgroup v2 config generation
 - `packages/sandbox/src/audit-log.ts` — append-only JSONL log
 - `packages/sandbox/src/executor.ts` — executeInSandbox (main entry)
-- `packages/core/src/tools/core/bash.ts` — updated to use the sandbox
+- `packages/tool-system/src/core/bash.ts` — updated to use the sandbox
 
 ## References
 

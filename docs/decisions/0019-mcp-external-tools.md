@@ -67,11 +67,11 @@ across 30+ tools and makes it clear which server owns each tool.
 
 ## Implementation
 
-- `packages/core/src/tools/mcp/types.ts` — MCPServerConfig, MCPTool,
+- `packages/tool-system/src/mcp/types.ts` — MCPServerConfig, MCPTool,
   MCPSession, JsonRpcRequest, JsonRpcResponse
-- `packages/core/src/tools/mcp/client.ts` — MCPClientManager class
+- `packages/tool-system/src/mcp/client.ts` — MCPClientManager class
   (connectStdio, connectHttp, callTool, getAllTools, disconnectAll)
-- `packages/core/src/tools/mcp/index.ts` — public exports +
+- `packages/tool-system/src/mcp/index.ts` — public exports +
   REFERENCE_MCP_SERVERS (filesystem, git, github, postgres, fetch)
 - JSON-RPC 2.0 over stdio (newline-delimited) or HTTP (POST)
 

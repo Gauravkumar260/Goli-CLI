@@ -3,7 +3,7 @@
 This directory holds the **JSON Schema** for every tool Goli-CLI exposes.
 These schemas are the **single source of truth** — the TypeScript `Tool`
 interface uses Zod schemas that are converted to JSON Schema at runtime
-(`packages/core/src/tools/schema-validator.ts`), and this directory
+(`packages/tool-system/src/schema-validator.ts`), and this directory
 mirrors the generated JSON Schema for documentation and MCP clients.
 
 ## Index
@@ -74,7 +74,7 @@ Example (`read-file.schema.json`):
 ## Generation
 
 The schemas in this directory are generated from the Zod schemas in
-`packages/core/src/tools/core/<name>.ts` by running:
+`packages/tool-system/src/core/<name>.ts` by running:
 
 ```bash
 npm run gen:tool-schemas
@@ -89,7 +89,7 @@ JSON files by hand — edit the Zod schemas in the source and regenerate.
 Each tool also has a "footprint" — the character budget it consumes
 from the context window. See
 [`docs/decisions/0025-hard-character-budgets.md`](../../decisions/0025-hard-character-budgets.md)
-and `packages/core/src/tools/footprint-ladder.ts` for the ladder. The
+and `packages/tool-system/src/footprint-ladder.ts` for the ladder. The
 footprint is **not** part of the JSON Schema (it's a runtime concern)
 but is documented in each tool's source file.
 

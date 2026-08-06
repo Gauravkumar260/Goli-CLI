@@ -13,7 +13,7 @@ PreToolUse/PostToolUse hook engine. Ship 6 builtin hooks. End of Phase
 
 ## Current Implementation Status
 
-MCP client (stdio + HTTP transports, MCPClientManager) + tool discovery + namespacing (server:tool) shipped at packages/core/src/tools/mcp/. Hook engine + HookEvent types + 6 builtin hooks (auto_format, block_secrets, block_destructive, block_writes_outside_workspace, git_checkpoint, audit_log) shipped at packages/core/src/tools/hooks/. MCP server management CLI (goli mcp add/remove/list/scan) + TOML config landed (ADR-0044). OAuth 2.1 + dynamic discovery on the roadmap.
+MCP client (stdio + HTTP transports, MCPClientManager) + tool discovery + namespacing (server:tool) shipped at packages/tool-system/src/mcp/. Hook engine + HookEvent types + 6 builtin hooks (auto_format, block_secrets, block_destructive, block_writes_outside_workspace, git_checkpoint, audit_log) shipped at packages/tool-system/src/hooks/. MCP server management CLI (goli mcp add/remove/list/scan) + TOML config landed (ADR-0044). OAuth 2.1 + dynamic discovery on the roadmap.
 
 See the per-module sections in [docs/architecture.md](../architecture.md)
 for the current code locations and `AGENTS.md` for accumulated

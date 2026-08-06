@@ -103,13 +103,13 @@ callback. Rejected because it breaks automation.
 
 ## Implementation
 
-- `packages/core/src/tools/core/diff-utils.ts` — `computeDiff`,
+- `packages/tool-system/src/core/diff-utils.ts` — `computeDiff`,
   `buildDiffEntry`, `formatDiffAsString`, `DiffEntry`, `DiffApprovalResult`
-- `packages/core/src/tools/types.ts` — `ToolContext.requestDiffApproval`
+- `packages/tool-system/src/types.ts` — `ToolContext.requestDiffApproval`
   and `ToolContext.diffReviewDisabled`
-- `packages/core/src/tools/core/edit-file.ts` — refactored to call
+- `packages/tool-system/src/core/edit-file.ts` — refactored to call
   `requestDiffApproval` before writing
-- `packages/core/src/tools/core/write-file.ts` — same refactor
+- `packages/tool-system/src/core/write-file.ts` — same refactor
 - `tests/unit/diff-first-editing.test.ts` — 16 unit tests covering
   computeDiff, buildDiffEntry, formatDiffAsString, and the edit_file /
   write_file diff-first flows

@@ -9,11 +9,10 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { createDefaultToolRegistry } from '../../packages/core/src/tools/index.js';
-import { type ToolRegistry } from '../../packages/core/src/tools/registry.js';
+import { createDefaultToolRegistry, type ToolRegistry } from '@goli-cli/tool-system';
 
 import type { ToolCall } from '../../packages/core/src/agent/types.js';
-import type { ToolContext } from '../../packages/core/src/tools/types.js';
+import type { ToolContext } from '@goli-cli/tool-system';
 
 let workspace: string;
 let registry: ToolRegistry;

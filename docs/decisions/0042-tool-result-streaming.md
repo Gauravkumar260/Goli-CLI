@@ -113,10 +113,10 @@ streaming. The opt-out keeps scripts simple.
 
 ## Implementation
 
-- `packages/core/src/tools/core/tool-streaming.ts` — `ToolResultChunk`,
+- `packages/tool-system/src/core/tool-streaming.ts` — `ToolResultChunk`,
   `createChunkEmitter`, `splitIntoChunks`, `splitIntoLines`
-- `packages/core/src/tools/types.ts` — `ToolContext.onToolResultChunk`
-- `packages/core/src/tools/index.ts` — exports
+- `packages/tool-system/src/types.ts` — `ToolContext.onToolResultChunk`
+- `packages/tool-system/src/index.ts` — exports
 - `tests/unit/tool-result-streaming.test.ts` — 14 unit tests
 
 ## Follow-up

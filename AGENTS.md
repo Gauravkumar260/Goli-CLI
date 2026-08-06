@@ -171,7 +171,7 @@ maintenance cost — the ladder keeps the core schema narrow.
 | 3. **service_gated_tool** | Tool with `check_fn`            | 1 file, 0 schema cost when gated | Needs an external service/dep not all users have          |
 | 4. **plugin**             | `~/.goli/plugins/<name>/`       | 1 file, not in core              | User/org-specific                                         |
 | 5. **mcp_server**         | External MCP process            | 0 in core; `goli mcp add`        | Needs separate runtime/isolation                          |
-| 6. **core_tool**          | `packages/core/src/tools/core/` | 1 file, always in schema         | **Highest footprint** — virtually every user needs it     |
+| 6. **core_tool**          | `packages/tool-system/src/core/` | 1 file, always in schema      | **Highest footprint** — virtually every user needs it     |
 
 ### Decision flow
 
@@ -251,8 +251,8 @@ schema-generation time.
 
 ### Reference
 
-- Source: `packages/core/src/tools/footprint-ladder.ts`
-- Tests: `tests/unit/footprint-ladder.test.ts` (27 tests)
+- Source: `packages/tool-system/src/footprint-ladder.ts`
+- Tests: `packages/tool-system/__tests__/footprint-ladder.test.ts` (32 tests)
 - Hermes reference: `hermes-agent-main/AGENTS.md` (Footprint Ladder section)
 
 ## Per-conversation prompt caching invariant (T-021 ✓ done)

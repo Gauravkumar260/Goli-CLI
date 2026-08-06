@@ -203,23 +203,23 @@ BLOCKING — the tool's `await` doesn't resolve until the user decides.
 
 | File | Tool | Tier | Notes |
 |------|------|------|-------|
-| `core/src/tools/core/bash.ts` | `bash` | T2 | Pre-exec approval gate (P1.3) |
-| `core/src/tools/core/write-file.ts` | `write_file` | T1 | Pre-exec approval + diff-review (P1.3) |
-| `core/src/tools/core/edit-file.ts` | `edit_file` | T1 | Read-before-Edit enforced; pre-exec approval (P1.3) |
-| `core/src/tools/core/notebook-edit.ts` | `notebook_edit` | T1 | Pre-exec approval (P1.3) |
-| `core/src/tools/core/background-shell.ts` | `bash_output` / `kill_shell` | T0 / T1 | `kill_shell` has pre-exec approval (P1.3) |
-| `core/src/tools/core/spawn-subagent.ts` | `spawn_subagent` | T2 | Delegates to `ctx.spawnSubagent` (P3.3 — now wired) |
-| `core/src/tools/core/read-file.ts` | `read_file` | T0 | — |
-| `core/src/tools/core/grep.ts` | `grep` | T0 | — |
-| `core/src/tools/core/list-directory.ts` | `list_directory` | T0 | — |
-| `core/src/tools/core/web-search.ts` | `web_search` | T0 | — |
-| `core/src/tools/core/web-fetch.ts` | `web_fetch` | T0 | — |
-| `core/src/tools/core/lsp-tools.ts` | `lsp_hover` / `lsp_goto_definition` / `lsp_references` / `lsp_diagnostics` | T0 | Delegates to `ctx.lspClient` (P3.4 — now wired) |
-| `core/src/tools/core/typescript-lsp-client.ts` | — | — | **NEW (P3.4)**: `TypeScriptLspClient` impl |
-| `core/src/tools/core/path-safety.ts` | — | — | `resolveUserPath`, `checkPathInWorkspace` |
-| `core/src/tools/core/diff-utils.ts` | — | — | `buildDiffEntry`, `formatDiffAsString` |
-| `core/src/tools/core/diff-approval.ts` | — | — | `checkSingleEntryDiffApproval` |
-| `core/src/tools/core/tool-streaming.ts` | — | — | Chunk emitter (NOT wired — dead code) |
+| `tool-system/src/core/bash.ts` | `bash` | T2 | Pre-exec approval gate (P1.3) |
+| `tool-system/src/core/write-file.ts` | `write_file` | T1 | Pre-exec approval + diff-review (P1.3) |
+| `tool-system/src/core/edit-file.ts` | `edit_file` | T1 | Read-before-Edit enforced; pre-exec approval (P1.3) |
+| `tool-system/src/core/notebook-edit.ts` | `notebook_edit` | T1 | Pre-exec approval (P1.3) |
+| `tool-system/src/core/background-shell.ts` | `bash_output` / `kill_shell` | T0 / T1 | `kill_shell` has pre-exec approval (P1.3) |
+| `tool-system/src/core/spawn-subagent.ts` | `spawn_subagent` | T2 | Delegates to `ctx.spawnSubagent` (P3.3 — now wired) |
+| `tool-system/src/core/read-file.ts` | `read_file` | T0 | — |
+| `tool-system/src/core/grep.ts` | `grep` | T0 | — |
+| `tool-system/src/core/list-directory.ts` | `list_directory` | T0 | — |
+| `tool-system/src/core/web-search.ts` | `web_search` | T0 | — |
+| `tool-system/src/core/web-fetch.ts` | `web_fetch` | T0 | — |
+| `tool-system/src/core/lsp-tools.ts` | `lsp_hover` / `lsp_goto_definition` / `lsp_references` / `lsp_diagnostics` | T0 | Delegates to `ctx.lspClient` (P3.4 — now wired) |
+| `tool-system/src/core/typescript-lsp-client.ts` | — | — | **NEW (P3.4)**: `TypeScriptLspClient` impl |
+| `tool-system/src/core/path-safety.ts` | — | — | `resolveUserPath`, `checkPathInWorkspace` |
+| `tool-system/src/core/diff-utils.ts` | — | — | `buildDiffEntry`, `formatDiffAsString` |
+| `tool-system/src/core/diff-approval.ts` | — | — | `checkSingleEntryDiffApproval` |
+| `tool-system/src/core/tool-streaming.ts` | — | — | Chunk emitter (NOT wired — dead code) |
 
 **Files that DON'T exist** (brief fabricated them):
 - `classify.ts`, `decide.ts` — logic is in `engine.ts`
@@ -332,9 +332,9 @@ Git worktree isolation is NOT implemented (follow-up).
 
 | File | Purpose |
 |------|---------|
-| `core/src/tools/mcp/client.ts` | `MCPClientManager` — stdio + http transports |
-| `core/src/tools/mcp/types.ts` | `MCPServerConfig`, `MCPTool`, `MCPSession` |
-| `core/src/tools/mcp/index.ts` | Barrel + `REFERENCE_MCP_SERVERS` |
+| `tool-system/src/mcp/client.ts` | `MCPClientManager` — stdio + http transports |
+| `tool-system/src/mcp/types.ts` | `MCPServerConfig`, `MCPTool`, `MCPSession` |
+| `tool-system/src/mcp/index.ts` | Barrel + `REFERENCE_MCP_SERVERS` |
 | `cli/src/commands/mcp.ts` | `goli mcp add/remove/list/test/enable/disable` |
 | `cli/src/commands/mcp-config.ts` | `loadMcpServers` from `$GOLI_HOME/mcp-servers.toml` |
 
@@ -343,7 +343,7 @@ registers tools as virtual T1 `Tool`s via `wrapMcpTool()`.
 
 ### Hooks (fully working)
 
-**File**: `core/src/tools/hooks/`
+**File**: `tool-system/src/hooks/`
 
 6 builtin hooks (all functional):
 - `git-checkpoint.ts` — auto-commits before edits
@@ -357,9 +357,9 @@ registers tools as virtual T1 `Tool`s via `wrapMcpTool()`.
 
 | File | Purpose |
 |------|---------|
-| `core/src/tools/core/lsp-types.ts` | `LspClient` interface (4 methods) |
-| `core/src/tools/core/lsp-tools.ts` | The 4 LSP tools (T0) |
-| `core/src/tools/core/typescript-lsp-client.ts` | **NEW (P3.4)**: `TypeScriptLspClient` — spawns `typescript-language-server --stdio` |
+| `tool-system/src/core/lsp-types.ts` | `LspClient` interface (4 methods) |
+| `tool-system/src/core/lsp-tools.ts` | The 4 LSP tools (T0) |
+| `tool-system/src/core/typescript-lsp-client.ts` | **NEW (P3.4)**: `TypeScriptLspClient` — spawns `typescript-language-server --stdio` |
 
 Install: `npm install -g typescript-language-server typescript`
 
@@ -415,7 +415,7 @@ dirs at headless startup. On MISMATCH, aborts. `--god` skips.
 ### `ImmutableSafetyRegistry` (P1.2 — path fixed)
 
 Protects `packages/core/src/memory/sica/` (was `src/sica/` — wrong).
-Also protects `packages/core/src/tools/hooks/` (parent of `builtin/`).
+Also protects `packages/tool-system/src/hooks/` (parent of `builtin/`).
 
 ### Mode → sandbox mapping (P1.7 — now implemented)
 

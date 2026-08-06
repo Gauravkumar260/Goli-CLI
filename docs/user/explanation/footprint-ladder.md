@@ -129,7 +129,7 @@ Examples: `background_shell`, future `web_fetch_stream`.
 
 ## How the budget is enforced
 
-The budget is enforced in `packages/core/src/tools/truncation.ts`:
+The budget is enforced in `packages/tool-system/src/truncation.ts`:
 
 ```typescript
 function truncate(result: ToolResult, footprint: Footprint): ToolResult {
@@ -179,5 +179,5 @@ budget.
   streaming for unbounded tools.
 - [Reference: Tools](../reference/tools.md) — every tool's declared
   footprint.
-- [`packages/core/src/tools/footprint-ladder.ts`](../../../packages/core/src/tools/footprint-ladder.ts)
+- [`packages/tool-system/src/footprint-ladder.ts`](../../../packages/tool-system/src/footprint-ladder.ts)
   — the implementation.

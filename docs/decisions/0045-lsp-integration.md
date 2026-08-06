@@ -105,14 +105,14 @@ semantic analysis that only a language server can do.
 
 ## Implementation
 
-- `packages/core/src/tools/core/lsp-types.ts` — `LspClient`,
+- `packages/tool-system/src/core/lsp-types.ts` — `LspClient`,
   `LspLocation`, `LspHoverResult`, `LspDiagnostic`, `LspSeverity`,
   `formatLocation`, `formatDiagnostic`
-- `packages/core/src/tools/core/lsp-tools.ts` — `LSP_HOVER_TOOL`,
+- `packages/tool-system/src/core/lsp-tools.ts` — `LSP_HOVER_TOOL`,
   `LSP_GOTO_DEFINITION_TOOL`, `LSP_REFERENCES_TOOL`,
   `LSP_DIAGNOSTICS_TOOL`, `LSP_TOOLS`
-- `packages/core/src/tools/types.ts` — `ToolContext.lspClient`
-- `packages/core/src/tools/index.ts` — register 4 new tools (count 17 → 21)
+- `packages/tool-system/src/types.ts` — `ToolContext.lspClient`
+- `packages/tool-system/src/index.ts` — register 4 new tools (count 17 → 21)
 - `tests/unit/lsp-integration.test.ts` — 14 unit tests with a mock client
 - `tests/unit/tool-registry.test.ts` — updated count 17 → 21
 

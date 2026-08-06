@@ -76,7 +76,7 @@ The denylist will remain as defense-in-depth even after Phase 5.
 
 ## Implementation
 
-- `packages/core/src/tools/core/bash.ts` — `BASH_TOOL` with allowlist +
+- `packages/tool-system/src/core/bash.ts` — `BASH_TOOL` with allowlist +
   denylist + god mode bypass
 - `ALLOWLIST`: array of regex patterns matching safe commands
 - `DENYLIST`: array of regex patterns matching dangerous commands

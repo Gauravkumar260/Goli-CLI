@@ -17,9 +17,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { ToolRegistry } from '../../packages/core/src/tools/registry.js';
+import { ToolRegistry, type Tool, type ToolContext } from '@goli-cli/tool-system';
 
-import type { Tool, ToolContext } from '../../packages/core/src/tools/types.js';
 import type { ToolCall } from '../../packages/core/src/agent/types.js';
 
 function makeToolCall(name: string, args: Record<string, unknown>): ToolCall {

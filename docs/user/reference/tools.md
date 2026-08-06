@@ -3,7 +3,7 @@
 > Complete list of every built-in tool Goli-CLI exposes to the agent.
 
 Tools are the agent's hands. Each tool is a TypeScript module in
-`packages/core/src/tools/core/` that implements the `Tool` interface
+`packages/tool-system/src/core/` that implements the `Tool` interface
 (see [`docs/ai-agent/tool-schemas/README.md`](../../ai-agent/tool-schemas/README.md)
 for the schema convention).
 
@@ -82,7 +82,7 @@ for the schema convention).
 Every tool declares its **footprint** — the character budget it
 consumes from the context window. See
 [`docs/decisions/0025-hard-character-budgets.md`](../../decisions/0025-hard-character-budgets.md)
-and `packages/core/src/tools/footprint-ladder.ts`.
+and `packages/tool-system/src/footprint-ladder.ts`.
 
 | Footprint          | Tools                                                       |
 | ------------------ | ----------------------------------------------------------- |
@@ -97,7 +97,7 @@ truncated with a `[truncated]` marker.
 
 ## Tool registry
 
-The tool registry (`packages/core/src/tools/registry.ts`) is
+The tool registry (`packages/tool-system/src/registry.ts`) is
 **self-registering** — built-in tools register at startup, and MCP
 servers / plugins can add tools at runtime
 ([ADR 0044](../../decisions/0044-mcp-server-management.md)).

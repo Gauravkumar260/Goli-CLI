@@ -38,7 +38,7 @@
 
 import { createRequire } from 'node:module';
 
-import type { ToolDefinition } from '../tools/types.js';
+import type { ToolDefinition } from '@goli-cli/tool-system';
 
 /**
  * A frozen snapshot of the tool definitions available at conversation start.

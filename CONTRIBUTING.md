@@ -217,7 +217,7 @@ fraction of contributions to be AI-assisted. The policy is:
 - **AI-assisted code must be reviewed line-by-line** by the human author.
   "I asked the model and pasted the output" is not a contribution.
 - **Security-critical code** (`packages/sandbox/src/`,
-  `packages/core/src/tools/hooks/builtin/`,
+  `packages/tool-system/src/hooks/builtin/`,
   `packages/core/src/memory/sica/`,
   `packages/core/src/evals/redteam/`,
   `packages/core/src/orchestration/routing/`,
@@ -234,7 +234,7 @@ fraction of contributions to be AI-assisted. The policy is:
 - **Sandbox is the trust boundary** (Module 4). Any change to
   `packages/sandbox/src/` requires a security review and a red-team test pass.
 - **Hooks are deterministic guardrails** (Module 3). Any change to
-  `packages/core/src/tools/hooks/builtin/` requires a security review.
+  `packages/tool-system/src/hooks/builtin/` requires a security review.
 - **SBOM is gated in CI**. Adding a GPL/AGPL dependency will block the PR.
   See `docs/decisions/0004-sbom-gate.md`.
 - **Vulnerabilities**: report security vulnerabilities privately to
@@ -269,13 +269,13 @@ meets the need:
 3. **service_gated_tool** — tool with `check_fn` (1 file, 0 schema cost when gated)
 4. **plugin** in `~/.goli/plugins/` (1 file, not in core)
 5. **mcp_server** — external MCP process (0 in core)
-6. **core_tool** in `packages/core/src/tools/core/` (highest footprint)
+6. **core_tool** in `packages/tool-system/src/core/` (highest footprint)
 
 In your PR description, state which rung you chose and why the lower rungs
 are insufficient. PRs adding new core tools (rung 6) without justification
 will be rejected.
 
-Source: `packages/core/src/tools/footprint-ladder.ts`
+Source: `packages/tool-system/src/footprint-ladder.ts`
 
 ---
 

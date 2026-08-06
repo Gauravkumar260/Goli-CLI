@@ -115,16 +115,16 @@ the API.
 
 ## Implementation
 
-- `packages/core/src/tools/core/spec-registry.ts` — `SpecRegistry`,
+- `packages/tool-system/src/core/spec-registry.ts` — `SpecRegistry`,
   `Spec`, `SpecStatus`, `specRegistry` singleton, `deriveTitle`,
   `renderSpecMarkdown`
-- `packages/core/src/tools/core/spec-write.ts` — `SPEC_WRITE_TOOL`
-- `packages/core/src/tools/core/spec-review.ts` — `SPEC_REVIEW_TOOL`
-- `packages/core/src/tools/core/spec-update.ts` — `SPEC_UPDATE_TOOL`
-- `packages/core/src/tools/types.ts` — `ToolContext.specMode`
-- `packages/core/src/tools/core/edit-file.ts` — spec-mode gating check
-- `packages/core/src/tools/core/write-file.ts` — spec-mode gating check
-- `packages/core/src/tools/index.ts` — register 3 new tools
+- `packages/tool-system/src/core/spec-write.ts` — `SPEC_WRITE_TOOL`
+- `packages/tool-system/src/core/spec-review.ts` — `SPEC_REVIEW_TOOL`
+- `packages/tool-system/src/core/spec-update.ts` — `SPEC_UPDATE_TOOL`
+- `packages/tool-system/src/types.ts` — `ToolContext.specMode`
+- `packages/tool-system/src/core/edit-file.ts` — spec-mode gating check
+- `packages/tool-system/src/core/write-file.ts` — spec-mode gating check
+- `packages/tool-system/src/index.ts` — register 3 new tools
 - `tests/unit/spec-driven-development.test.ts` — 16 unit tests
 - `tests/unit/tool-registry.test.ts` — updated count 13 → 16
 

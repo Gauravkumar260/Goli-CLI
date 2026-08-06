@@ -12,9 +12,9 @@ import {
   PATH_SCOPED_TOOLS,
   NEVER_PARALLEL_TOOLS,
   MAX_CONCURRENT_TOOLS,
-} from '../../packages/core/src/tools/parallel-execution.js';
+} from '../src/parallel-execution.js';
 
-import type { ToolCall } from '../../packages/core/src/agent/types.js';
+import type { ToolCall } from '@goli-cli/agent-core/types.js';
 
 function makeToolCall(name: string, args: Record<string, unknown> = {}): ToolCall {
   return {

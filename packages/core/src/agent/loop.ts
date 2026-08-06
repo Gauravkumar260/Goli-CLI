@@ -41,12 +41,17 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 
+import {
+  createDefaultToolRegistry,
+  executeToolCallsConcurrent,
+  MCPClientManager,
+  toToolDefinition,
+  type ToolRegistry,
+} from '@goli-cli/tool-system';
+
 import { MidSessionIntegrityChecker } from '../config/integrity.js';
 import { isToolAllowedForMode } from '../config/mode-prompts.js';
 import { OllamaProvider } from '../providers/ollama.js';
-import { type ToolRegistry, createDefaultToolRegistry, toToolDefinition } from '../tools/index.js';
-import { MCPClientManager } from '../tools/mcp/index.js';
-import { executeToolCallsConcurrent } from '../tools/parallel-execution.js';
 
 
 import { AdvancedCompressor } from './advanced-compression.js';
@@ -79,11 +84,16 @@ import type {
 } from './types.js';
 import type { AppConfig, ReasoningEffort } from '../config/schema.js';
 import type { TrajectoryEntry } from '../memory/skills/types.js';
-import type { ToolContext } from '../tools/index.js';
-import type { MCPServerConfig, MCPTool } from '../tools/mcp/index.js';
-import type { McpInputSchema } from '../tools/mcp/types.js';
-import type { ToolDefinition, ToolApprovalRequest, ToolApprovalDecision } from '../tools/types.js';
 import type { Logger } from '../utils/logger.js';
+import type {
+  MCPServerConfig,
+  McpInputSchema,
+  MCPTool,
+  ToolApprovalDecision,
+  ToolApprovalRequest,
+  ToolContext,
+  ToolDefinition,
+} from '@goli-cli/tool-system';
 
 /**
  * Minimal interface the agent loop needs from a model client.
@@ -219,7 +229,7 @@ export interface AgentLoopOptions {
    * `typescript-language-server --stdio`). Other languages (Python,
    * Rust, Go) would need their own `LspClient` implementations.
    */
-  lspClient?: import('../tools/core/lsp-types.js').LspClient;
+  lspClient?: import('@goli-cli/tool-system').LspClient;
   /**
    * P1-4 fix (verification report item #4): SkillLoader for the skills
    * subsystem (ADR-0026). When provided, the AgentLoop calls
@@ -393,7 +403,7 @@ export interface CompactionSummary {
 function inferMcpToolTier(
   toolName: string,
   inputSchema: McpInputSchema,
-): import('../tools/types.js').PermissionTier {
+): import('@goli-cli/tool-system').PermissionTier {
   const name = toolName.toLowerCase();
 
   // ─── T0: read-only verbs ──────────────────────────────────────────
@@ -565,7 +575,7 @@ export class AgentLoop {
    * P3-4: LSP client. When provided, the 4 LSP tools delegate to it.
    * When undefined, they throw "LSP client not configured".
    */
-  private readonly lspClient?: import('../tools/core/lsp-types.js').LspClient;
+  private readonly lspClient?: import('@goli-cli/tool-system').LspClient;
   /**
    * P1-4 fix (verification report item #4): SkillLoader for the skills
    * subsystem. Stored at construction; queried once per `run()` to
@@ -892,7 +902,7 @@ export class AgentLoop {
    * now infer the tier via {@link inferMcpToolTier} based on the tool
    * name and the presence of write/exec/network args in the schema.
    */
-  private wrapMcpTool(serverName: string, mcpTool: MCPTool): import('../tools/types.js').Tool {
+  private wrapMcpTool(serverName: string, mcpTool: MCPTool): import('@goli-cli/tool-system').Tool {
     const namespacedName = `${serverName}:${mcpTool.name}`;
     const manager = this.mcpManager!;
     // P1-11 fix: infer the tier from the tool name + input schema.
@@ -908,7 +918,7 @@ export class AgentLoop {
       },
       tier: inferredTier,
       readOnly: inferredTier === 'T0',
-      handler: async (args: Record<string, unknown>, ctx): Promise<import('../tools/types.js').ToolResult> => {
+      handler: async (args: Record<string, unknown>, ctx): Promise<import('@goli-cli/tool-system').ToolResult> => {
         const result = await manager.callTool(namespacedName, args);
         return {
           toolCallId: ctx.toolCallId,
@@ -1988,8 +1998,8 @@ export class AgentLoop {
    * but currently ignored (logged).
    */
   private async spawnSubagentInternal(
-    input: import('../tools/core/spawn-subagent.js').SubagentSpawnInput,
-  ): Promise<import('../tools/core/spawn-subagent.js').SubagentResult> {
+    input: import('@goli-cli/tool-system').SubagentSpawnInput,
+  ): Promise<import('@goli-cli/tool-system').SubagentResult> {
     const subagentId = input.subagentId ?? `sub-${Math.random().toString(36).slice(2, 10)}`;
     // Depth check — prevent infinite recursion.
     if (this.currentDepth >= this.maxSubagentDepth) {

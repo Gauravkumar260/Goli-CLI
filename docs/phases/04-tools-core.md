@@ -14,7 +14,7 @@ via tool calls (no sandbox yet — Phase 5 adds that).
 
 ## Current Implementation Status
 
-Tool registry + JSON Schema validation (schema-validator.ts) + truncation + parallel execution + footprint-ladder + checkpoint-manager + 6 core tools (read_file, write_file, edit_file, list_directory, grep, bash) all shipped at packages/core/src/tools/. Additional gap tools (web_search, web_fetch, todo_write, ask_user, notebook_edit, background_shell, spawn_subagent) and spec-driven tools (spec_write, spec_review, spec_update) and 4 LSP tools (lsp_hover, lsp_goto_definition, lsp_references, lsp_diagnostics) also landed — total 21 registered tools.
+Tool registry + JSON Schema validation (schema-validator.ts) + truncation + parallel execution + footprint-ladder + checkpoint-manager + 6 core tools (read_file, write_file, edit_file, list_directory, grep, bash) all shipped at packages/tool-system/src/. Additional gap tools (web_search, web_fetch, todo_write, ask_user, notebook_edit, background_shell, spawn_subagent) and spec-driven tools (spec_write, spec_review, spec_update) and 4 LSP tools (lsp_hover, lsp_goto_definition, lsp_references, lsp_diagnostics) also landed — total 21 registered tools.
 
 See the per-module sections in [docs/architecture.md](../architecture.md)
 for the current code locations and `AGENTS.md` for accumulated

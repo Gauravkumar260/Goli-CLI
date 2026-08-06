@@ -52,8 +52,8 @@ environment.
 - [ ] Read `tests/integration/agent-loop-e2e.test.ts` — see how the
       loop is tested.
 - [ ] Read the providers (`packages/core/src/providers/`).
-- [ ] Read the tool registry (`packages/core/src/tools/registry.ts`).
-- [ ] Read the hooks engine (`packages/core/src/tools/hooks/`).
+- [ ] Read the tool registry (`packages/tool-system/src/registry.ts`).
+- [ ] Read the hooks engine (`packages/tool-system/src/hooks/`).
 - [ ] Read the sandbox (`packages/sandbox/src/`).
 - [ ] Trace a single prompt through the entire system: TUI →
       `useAgentLoop` → `CliAgentLoop` → `agent/loop.ts` → provider →

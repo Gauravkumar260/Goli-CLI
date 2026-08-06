@@ -38,8 +38,8 @@ import { homedir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 
 import type { ToolCall } from '../agent/types.js';
-import type { Tool } from '../tools/types.js';
 import type { Logger } from '../utils/logger.js';
+import type { Tool } from '@goli-cli/tool-system';
 
 /** All valid hook names. */
 export const VALID_HOOKS = new Set([

@@ -46,7 +46,7 @@
  *    - When to use: the capability has its own runtime (Python, Rust, etc.)
  *      or needs to run in a separate process for isolation.
  *
- * 6. **CORE TOOL** (footprint: 1 file in `packages/core/src/tools/core/`)
+ * 6. **CORE TOOL** (footprint: 1 file in `packages/tool-system/src/core/`)
  *    - A tool that ships with goli-cli core and is always available.
  *    - Example: `read_file`, `write_file`, `bash`, `grep`.
  *    - When to use: the capability is needed by virtually every user and
@@ -150,7 +150,7 @@ export const RUNG_DESCRIPTIONS: Record<FootprintLadderRung, string> = {
     'Tool with check_fn — appears in schema only when prereq configured (1 file, 0 schema cost when gated).',
   plugin: 'User-installed module in ~/.goli/plugins/ (1 file, not in core).',
   mcp_server: 'External MCP server process (0 in core; user runs `goli mcp add`).',
-  core_tool: 'Always-available tool in packages/core/src/tools/core/ (highest footprint).',
+  core_tool: 'Always-available tool in packages/tool-system/src/core/ (highest footprint).',
 };
 
 /**

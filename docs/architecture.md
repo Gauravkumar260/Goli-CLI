@@ -144,7 +144,7 @@ The sandbox layer (`packages/sandbox/src/`) provides OS-level isolation:
 | Subagent (1) | `spawn_subagent`                                                                                  |
 | LSP (4)      | `lsp_hover`, `lsp_goto_definition`, `lsp_references`, `lsp_diagnostics`                           |
 
-The registry is created by `createDefaultToolRegistry()` in `packages/core/src/tools/index.ts`. MCP servers add tools at runtime via `MCPClientManager.connectAll()`.
+The registry is created by `createDefaultToolRegistry()` in `packages/tool-system/src/index.ts`. MCP servers add tools at runtime via `MCPClientManager.connectAll()`.
 
 ## Configuration
 

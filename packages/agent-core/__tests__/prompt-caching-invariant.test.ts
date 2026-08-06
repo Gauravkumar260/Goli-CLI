@@ -33,7 +33,7 @@ import {
 } from '../src/toolset-snapshot.js';
 
 import type { PromptBuildContext } from '../src/prompt-builder.js';
-import type { ToolDefinition } from '../../packages/core/src/tools/types.js';
+import type { ToolDefinition } from '@goli-cli/tool-system';
 
 function makeCtx(overrides: Partial<PromptBuildContext> = {}): PromptBuildContext {
   return {

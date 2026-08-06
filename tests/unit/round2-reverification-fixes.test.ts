@@ -29,8 +29,7 @@ import type { SkillMetadata } from '../../packages/core/src/memory/skills/types.
 import { SkillLoader } from '../../packages/core/src/memory/skills/loader.js';
 import { SicaLoop } from '../../packages/core/src/memory/sica/loop.js';
 import { EnhancedApprovalEngine } from '../../packages/core/src/approval/enhanced-approval.js';
-import { HookEngine } from '../../packages/core/src/tools/hooks/engine.js';
-import type { PostToolUseHookResult, HookContext } from '../../packages/core/src/tools/hooks/types.js';
+import { HookEngine, type PostToolUseHookResult, type HookContext } from '@goli-cli/tool-system';
 import { CompactionEngine } from '../../packages/core/src/context/compaction/engine.js';
 
 import { MODE_SKILLS, MODE_TOOLS, isToolAllowed } from '../../apps/cli/src/tui/lib/mode-config.js';

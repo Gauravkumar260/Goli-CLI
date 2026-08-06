@@ -74,7 +74,7 @@ about this once compaction is implemented.
 
 ## Implementation
 
-- `packages/core/src/tools/core/edit-file.ts` — `EDIT_FILE_TOOL` with
+- `packages/tool-system/src/core/edit-file.ts` — `EDIT_FILE_TOOL` with
   `old_string`, `new_string`, `replace_all` parameters
 - Uniqueness check: `countOccurrences()` → refuse if > 1 and
   `replace_all` is false

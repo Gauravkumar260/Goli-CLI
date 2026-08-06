@@ -42,7 +42,7 @@ import type { AppMode } from '../tui/theme/agents.js';
  * Round-2 verification item T1 (dead tool refs): the previous set
  * included `edit_batch`, `run_shell_command`, and `background_shell` —
  * none of which are registered tool names (see
- * `packages/core/src/tools/index.ts:createDefaultToolRegistry()` for
+ * `packages/tool-system/src/index.ts:createDefaultToolRegistry()` for
  * the canonical 21-tool list). The actual registered critical tools
  * are `bash` (the unified shell tool), `bash_output` + `kill_shell`
  * (the background-shell pair), and the file/web write tools. The

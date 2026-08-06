@@ -20,11 +20,11 @@ You are a Goli-CLI maintainer. Scaffold a new tool named `{{name}}` that
 1. Read `AGENTS.md` for the project's conventions on tools.
 2. Read `STYLEGUIDE.md` for the enforced code style.
 3. Read an existing tool as a template:
-   `packages/core/src/tools/core/read-file.ts` is a good starting
+   `packages/tool-system/src/core/read-file.ts` is a good starting
    point.
-4. Read `packages/core/src/tools/registry.ts` to understand how tools
+4. Read `packages/tool-system/src/registry.ts` to understand how tools
    are registered.
-5. Read `packages/core/src/tools/types.ts` for the `Tool` interface.
+5. Read `packages/tool-system/src/types.ts` for the `Tool` interface.
 6. Read `docs/decisions/0014-old-string-new-string-edits.md`,
    `0015-allowlist-first-bash.md`, `0018-hooks-over-prompts.md`, and
    `0037-diff-first-editing.md` for the design principles tools must
@@ -36,7 +36,7 @@ You are a Goli-CLI maintainer. Scaffold a new tool named `{{name}}` that
 
 Create three files:
 
-### 1. `packages/core/src/tools/core/{{name}}.ts`
+### 1. `packages/tool-system/src/core/{{name}}.ts`
 
 The tool implementation. Must export a `{{name}}Tool` constant of type
 `Tool`. The implementation should:
@@ -50,7 +50,7 @@ The tool implementation. Must export a `{{name}}Tool` constant of type
 - Use the sandbox (`ctx.sandbox`) for any filesystem or process work.
 - Be ≤ 200 lines (split helpers into a separate file if needed).
 
-### 2. `packages/core/src/tools/core/{{name}}.test.ts`
+### 2. `packages/tool-system/src/core/{{name}}.test.ts`
 
 Unit tests, colocated. Must cover:
 
@@ -69,7 +69,7 @@ The JSON Schema for the tool's input, following the convention in
 
 ## Also update
 
-- `packages/core/src/tools/registry.ts` — register the new tool.
+- `packages/tool-system/src/registry.ts` — register the new tool.
 - `packages/core/src/index.ts` — re-export the new tool.
 - `docs/ai-agent/tool-schemas/README.md` — add a row to the index.
 - `docs/ai-agent/mcp/manifest.json` — add the tool to the MCP manifest
