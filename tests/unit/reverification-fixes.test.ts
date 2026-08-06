@@ -30,8 +30,8 @@ import type { AgentLoopResult } from '@goli/core';
 import { CliAgentLoop } from '../../apps/cli/src/services/CliAgentLoop.js';
 import { globalCommands, registerDefaultCommands } from '../../apps/cli/src/tui/lib/CommandRegistry.js';
 
-const CORE_LOOP_SRC = resolve(__dirname, '../../packages/core/src/agent/loop.ts');
-const CORE_TYPES_SRC = resolve(__dirname, '../../packages/core/src/agent/types.ts');
+const CORE_LOOP_SRC = resolve(__dirname, '../../packages/agent-core/src/loop.ts');
+const CORE_TYPES_SRC = resolve(__dirname, '../../packages/agent-core/src/types.ts');
 const CLI_INDEX_SRC = resolve(__dirname, '../../apps/cli/src/index.ts');
 const CLI_AGENT_LOOP_SRC = resolve(__dirname, '../../apps/cli/src/services/CliAgentLoop.ts');
 const CLI_COMMAND_REGISTRY_SRC = resolve(__dirname, '../../apps/cli/src/tui/lib/CommandRegistry.ts');

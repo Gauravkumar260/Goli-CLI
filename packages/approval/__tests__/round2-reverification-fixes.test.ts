@@ -119,7 +119,7 @@ describe('Round-2 W2: SicaLoop.setEnabled() toggles without reconstruction', () 
 describe('Round-2 W3: agent/index.ts comment line refs are accurate', () => {
   it('mentions loop.ts:593 for EffortRoutingClient (actual instantiation line)', async () => {
     const source = await import('node:fs/promises').then((fs) => fs.readFile(
-      join(process.cwd(), 'packages/core/src/agent/index.ts'),
+      join(process.cwd(), 'packages/agent-core/src/index.ts'),
       'utf-8',
     ));
     expect(source).toContain('loop.ts:593');
@@ -128,7 +128,7 @@ describe('Round-2 W3: agent/index.ts comment line refs are accurate', () => {
 
   it('mentions loop.ts:654 for ProvenanceTracker (actual instantiation line)', async () => {
     const source = await import('node:fs/promises').then((fs) => fs.readFile(
-      join(process.cwd(), 'packages/core/src/agent/index.ts'),
+      join(process.cwd(), 'packages/agent-core/src/index.ts'),
       'utf-8',
     ));
     expect(source).toContain('loop.ts:654');

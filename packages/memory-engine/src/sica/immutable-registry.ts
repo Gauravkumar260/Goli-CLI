@@ -67,7 +67,7 @@ export class ImmutableSafetyRegistry {
       join(root, 'packages/tool-system/src/hooks/'), // Hook engine + builtins
       join(root, 'packages/memory-engine/src/sica/'), // SICA itself (meta-safety) — corrected path
       join(root, 'packages/evals/src/redteam/'), // Red-team harness
-      join(root, 'packages/core/src/orchestration/routing/'), // Provider blocklist
+      join(root, 'packages/orchestration/src/routing/'), // Provider blocklist
       join(root, 'config/sandbox.toml'), // Sandbox profiles
       join(root, 'config/routing.toml'), // Provider allowlist/blocklist
     ]);

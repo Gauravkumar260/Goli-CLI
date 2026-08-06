@@ -324,7 +324,7 @@ describe('T-021: agent loop documents and enforces (acceptance #1)', () => {
     const { readFile } = await import('node:fs/promises');
     const { resolve } = await import('node:path');
     const loopSrc = await readFile(
-      resolve(process.cwd(), 'packages/core/src/agent/loop.ts'),
+      resolve(process.cwd(), 'packages/agent-core/src/loop.ts'),
       'utf-8',
     );
     expect(loopSrc).toMatch(/T-021/);
