@@ -79,19 +79,19 @@ The sandbox is combined with:
 
 ## Implementation
 
-- `packages/core/src/sandbox/types.ts` — SandboxMode, ApprovalPolicy,
+- `packages/sandbox/src/types.ts` — SandboxMode, ApprovalPolicy,
   PermissionTier, SandboxResult, ResourceLimits, AuditLogEntry
 - `packages/core/src/approval/engine.ts` — ApprovalEngine (classify +
   decide)
 - `packages/core/src/approval/blast-radius.ts` — BlastRadiusEnforcer
-- `packages/core/src/sandbox/path-validation.ts` — validatePath,
+- `packages/sandbox/src/path-validation.ts` — validatePath,
   isSymlink, isSymlinkCreationCommand
-- `packages/core/src/sandbox/seatbelt.ts` — macOS profile generation
-- `packages/core/src/sandbox/landlock.ts` — Linux bubblewrap wrapper
-- `packages/core/src/sandbox/network.ts` — NetworkEgressFilter
-- `packages/core/src/sandbox/cgroups.ts` — cgroup v2 config generation
-- `packages/core/src/sandbox/audit-log.ts` — append-only JSONL log
-- `packages/core/src/sandbox/executor.ts` — executeInSandbox (main entry)
+- `packages/sandbox/src/seatbelt.ts` — macOS profile generation
+- `packages/sandbox/src/landlock.ts` — Linux bubblewrap wrapper
+- `packages/sandbox/src/network.ts` — NetworkEgressFilter
+- `packages/sandbox/src/cgroups.ts` — cgroup v2 config generation
+- `packages/sandbox/src/audit-log.ts` — append-only JSONL log
+- `packages/sandbox/src/executor.ts` — executeInSandbox (main entry)
 - `packages/core/src/tools/core/bash.ts` — updated to use the sandbox
 
 ## References

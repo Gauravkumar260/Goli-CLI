@@ -134,7 +134,7 @@ const _YOLO_MODE_FROZEN = process.env['GOLI_YOLO_MODE'] === '1' || process.env['
  * the canonical `ApprovalDecision` from `sandbox/types.ts` instead
  * of redefining it, so there's a single source of truth.
  */
-export type ApprovalDecision = import('../sandbox/types.js').ApprovalDecision | 'smart_approve';
+export type ApprovalDecision = import('@goli-cli/sandbox').ApprovalDecision | 'smart_approve';
 
 /** The result of checking a command. */
 export interface ApprovalResult {

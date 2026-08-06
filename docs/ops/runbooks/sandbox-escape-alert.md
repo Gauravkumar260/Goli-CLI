@@ -99,7 +99,7 @@ mode.
 The sandbox allows writes to the workspace root, but the agent
 found a path that resolves outside the workspace via a symlink. The
 TOCTOU defense should catch this, but if it didn't, there's a bug
-in `packages/core/src/sandbox/path-validation.ts`.
+in `packages/sandbox/src/path-validation.ts`.
 
 Fix: add a test case for the specific path, fix the validation,
 release a patch.

@@ -308,7 +308,7 @@ targets WCAG 2.1 AA.
 - **No `eval`, no `Function` constructor, no `child_process.exec` with
   string concatenation.** Use `execFile` with arg arrays.
 - **No `fs` writes outside the workspace root.** Enforced by
-  `packages/core/src/sandbox/path-validation.ts`.
+  `packages/sandbox/src/path-validation.ts`.
 - **No network egress from the sandbox.** Enforced by the sandbox
   (Landlock / Seatbelt / cgroups).
 - **Secrets in env vars, never in code.** `.env` is gitignored; `.env.example`

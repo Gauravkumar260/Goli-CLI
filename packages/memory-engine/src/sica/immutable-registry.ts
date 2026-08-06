@@ -62,7 +62,7 @@ export class ImmutableSafetyRegistry {
     // protected — the audit noted only `builtin/` was protected,
     // leaving `engine.ts` and `types.ts` mutable.
     this.immutablePaths = new Set([
-      join(root, 'packages/core/src/sandbox/'), // OS-native sandbox
+      join(root, 'packages/sandbox/src/'), // OS-native sandbox
       join(root, 'packages/core/src/approval/'), // Approval policy engine
       join(root, 'packages/core/src/tools/hooks/'), // Hook engine + builtins
       join(root, 'packages/core/src/memory/sica/'), // SICA itself (meta-safety) — corrected path

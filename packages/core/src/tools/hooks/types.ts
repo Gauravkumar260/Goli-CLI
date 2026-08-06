@@ -127,7 +127,7 @@ export interface HookContext {
   /** Whether --auto mode is active (auto-approve Tier 2 actions). */
   autoMode?: boolean;
   /** The current sandbox mode (read-only / workspace-write / danger-full-access). */
-  sandboxMode?: import('../../sandbox/types.js').SandboxMode;
+  sandboxMode?: import('@goli-cli/sandbox').SandboxMode;
   /** The session ID (for SessionStart / Stop hooks). */
   sessionId?: string;
   /** The stop reason (for Stop hooks). */

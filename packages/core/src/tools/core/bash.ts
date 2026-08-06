@@ -13,9 +13,9 @@
  * @module tools/core/bash
  */
 
+import { executeInSandboxAsync, isSymlinkCreationCommand } from '@goli-cli/sandbox';
+
 import { ApprovalEngine } from '../../approval/engine.js';
-import { executeInSandboxAsync } from '../../sandbox/executor.js';
-import { isSymlinkCreationCommand } from '../../sandbox/path-validation.js';
 
 import { startBackgroundShell } from './background-shell.js';
 

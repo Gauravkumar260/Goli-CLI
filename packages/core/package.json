@@ -34,7 +34,8 @@
   },
   "dependencies": {
     "better-sqlite3": "12.11.1",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "@goli-cli/sandbox": "*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.13",

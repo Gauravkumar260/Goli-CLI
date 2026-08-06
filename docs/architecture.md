@@ -128,7 +128,7 @@ Every tool call passes through tier-gated safety checks:
 | T3   | Destructive     | `bash` (`rm -rf`, `git push --force`)           | Always prompt, even in `--god` |
 | BLK  | Blocked         | `bash` (`rm -rf /`), secrets exfiltration       | Never allowed                  |
 
-The sandbox layer (`packages/core/src/sandbox/`) provides OS-level isolation:
+The sandbox layer (`packages/sandbox/src/`) provides OS-level isolation:
 
 - **cgroups v2** — memory + CPU limits (Linux)
 - **bubblewrap (`bwrap`)** — namespace isolation and filesystem path restrictions (Linux). The file `landlock.ts` is misnamed — it wraps bubblewrap, not native Landlock syscalls. Native Landlock is future work.

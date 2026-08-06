@@ -216,7 +216,7 @@ fraction of contributions to be AI-assisted. The policy is:
   guidance and _Thaler v. Perlmutter_ (D.C. Cir. 2025).
 - **AI-assisted code must be reviewed line-by-line** by the human author.
   "I asked the model and pasted the output" is not a contribution.
-- **Security-critical code** (`packages/core/src/sandbox/`,
+- **Security-critical code** (`packages/sandbox/src/`,
   `packages/core/src/tools/hooks/builtin/`,
   `packages/core/src/memory/sica/`,
   `packages/core/src/evals/redteam/`,
@@ -232,7 +232,7 @@ fraction of contributions to be AI-assisted. The policy is:
 ## 6. Security & Compliance
 
 - **Sandbox is the trust boundary** (Module 4). Any change to
-  `packages/core/src/sandbox/` requires a security review and a red-team test pass.
+  `packages/sandbox/src/` requires a security review and a red-team test pass.
 - **Hooks are deterministic guardrails** (Module 3). Any change to
   `packages/core/src/tools/hooks/builtin/` requires a security review.
 - **SBOM is gated in CI**. Adding a GPL/AGPL dependency will block the PR.

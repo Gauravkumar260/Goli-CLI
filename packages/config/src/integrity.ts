@@ -309,8 +309,8 @@ export const DEFAULT_POLICY_PATHS: readonly string[] = [
   'packages/core/src/approval/engine.ts',
   'packages/core/src/approval/enhanced-approval.ts',
   'packages/core/src/approval/blast-radius.ts',
-  'packages/core/src/sandbox/executor.ts',
-  'packages/core/src/sandbox/path-validation.ts',
+  'packages/sandbox/src/executor.ts',
+  'packages/sandbox/src/path-validation.ts',
   'packages/core/src/config/integrity.ts',
   // SICA immutable registry — the guard for self-modification.
   'packages/core/src/memory/sica/immutable-registry.ts',

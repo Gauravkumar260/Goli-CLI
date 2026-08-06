@@ -54,7 +54,7 @@ environment.
 - [ ] Read the providers (`packages/core/src/providers/`).
 - [ ] Read the tool registry (`packages/core/src/tools/registry.ts`).
 - [ ] Read the hooks engine (`packages/core/src/tools/hooks/`).
-- [ ] Read the sandbox (`packages/core/src/sandbox/`).
+- [ ] Read the sandbox (`packages/sandbox/src/`).
 - [ ] Trace a single prompt through the entire system: TUI →
       `useAgentLoop` → `CliAgentLoop` → `agent/loop.ts` → provider →
       tool → sandbox → hook → back to loop → final message → TUI.

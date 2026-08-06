@@ -394,7 +394,7 @@ describe('bash tool (Phase 5 sandbox)', () => {
 
   it('writes to audit log', async () => {
     // Clear audit log first
-    const { getAuditLogPath } = await import('../../packages/core/src/sandbox/audit-log.js');
+    const { getAuditLogPath } = await import('@goli-cli/sandbox');
     const { writeFileSync } = await import('node:fs');
     const auditPath = getAuditLogPath();
     writeFileSync(auditPath, '', 'utf-8');
@@ -404,7 +404,7 @@ describe('bash tool (Phase 5 sandbox)', () => {
       ctx,
     );
 
-    const { readAuditLog } = await import('../../packages/core/src/sandbox/audit-log.js');
+    const { readAuditLog } = await import('@goli-cli/sandbox');
     const entries = await readAuditLog();
     expect(entries.length).toBeGreaterThan(0);
     const lastEntry = entries[entries.length - 1]!;

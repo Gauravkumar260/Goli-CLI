@@ -1,92 +1,17 @@
 /**
- * Sandbox module public exports (Module 4).
+ * Legacy re-export shim — Phase 2 extraction. Canonical sandbox code
+ * now lives in `@goli-cli/sandbox`. This file keeps `@goli/core`'s
+ * public surface byte-compatible while the strangler-fig migration
+ * completes (see ADR-0047). Delete once `git grep "core/src/sandbox"`
+ * (excluding this shim) is empty and no `@goli/core/sandbox` imports
+ * remain.
  *
  * @module sandbox
  */
 
-/**
- *
- */
-export type {
-  SandboxMode,
-  ApprovalPolicy,
-  PermissionTier,
-  SandboxResult,
-  PathValidationResult,
-  NetworkDestination,
-  NetworkEgressResult,
-  ApprovalDecision,
-  ApprovalRequest,
-  AuditLogEntry,
-  ResourceLimits,
-} from './types.js';
-/**
- *
- */
-export {
-  validatePath,
-  validatePathStrict,
-  isSymlink,
-  isSymlinkCreationCommand,
-  isPathChainSymlinkFree,
-  openSafeRead,
-  openSafeWrite,
-} from './path-validation.js';
-/**
- * Public seatbelt exports. `buildSeatbeltCommandArgs` is the
- * SAFE arg-array form (no shell re-parse). `buildSeatbeltCommand`
- * (string form) is deprecated and shell-injection-vulnerable via
- * `execSync` which invokes `/bin/sh -c <string>` — it is kept here
- * only for backward compatibility with external callers that have
- * not yet migrated. New callers MUST use `buildSeatbeltCommandArgs`.
- */
-export { generateSeatbeltProfile, buildSeatbeltCommandArgs, buildSeatbeltCommand } from './seatbelt.js';
-/**
- *
- */
-export type { NetworkAllowlist } from './seatbelt.js';
-/**
- *
- */
-export {
-  generateBubblewrapCommand,
-  isBubblewrapAvailable,
-  isLandlockSupported,
-} from './landlock.js';
-/**
- *
- */
-export { NetworkEgressFilter, DEFAULT_NETWORK_ALLOWLIST } from './network.js';
-/**
- *
- */
-export {
-  generateCgroupConfig,
-  generateCgroupSetupScript,
-  generateCgroupCleanupScript,
-  isCgroupsV2Available,
-  DEFAULT_RESOURCE_LIMITS,
-} from './cgroups.js';
-/**
- *
- */
-export {
-  getAuditLogPath,
-  appendAuditLog,
-  readAuditLog,
-  verifyAuditLog,
-  getAuditLogSummary,
-} from './audit-log.js';
-/**
- *
- */
-export { executeInSandbox } from './executor.js';
-/**
- *
- */
-export type { SandboxExecutorOptions } from './executor.js';
+export * from '@goli-cli/sandbox';
 
-// Approval engine
+// Approval engine re-exports (kept local until Phase 4 extracts `approval`).
 /**
  *
  */

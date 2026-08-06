@@ -82,7 +82,7 @@ Changes to the following directories require **two human reviewers** and
 a red-team test pass. CI will block merges that touch these paths
 without the `security-reviewed` label.
 
-- `packages/core/src/sandbox/` — OS-native sandbox implementation (cgroups, landlock, bubblewrap, seatbelt, network, path-validation, audit-log, executor)
+- `packages/sandbox/src/` — OS-native sandbox implementation (cgroups, landlock, bubblewrap, seatbelt, network, path-validation, audit-log, executor)
 - `packages/core/src/approval/` — tiered approval policy engine + blast-radius guard + enhanced approval
 - `packages/core/src/tools/hooks/builtin/` — `block_destructive`, `block_secrets`, `block_writes_outside_workspace`, `auto_format`, `git_checkpoint`, `audit_log`
 - `packages/core/src/memory/sica/` — recursive self-improvement loop (immutable-registry, overseer, overfit-detector, archive, rate-limiter, loop)

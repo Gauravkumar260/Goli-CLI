@@ -21,7 +21,7 @@ import type {
   PermissionTier,
   ApprovalDecision,
   ApprovalRequest,
-} from '../sandbox/types.js';
+} from '@goli-cli/sandbox';
 
 /** The 3-tier classification of an action. */
 export interface ActionClassification {

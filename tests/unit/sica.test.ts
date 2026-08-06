@@ -64,7 +64,7 @@ describe('ImmutableSafetyRegistry', () => {
   it('marks sandbox paths as immutable', () => {
     const registry = new ImmutableSafetyRegistry({ workspaceRoot: testDir });
     // The registry adds paths with trailing slash; check a file inside
-    const sandboxFile = join(testDir, 'packages/core/src/sandbox/executor.ts');
+    const sandboxFile = join(testDir, 'packages/sandbox/src/executor.ts');
     expect(registry.isImmutable(sandboxFile)).toBe(true);
   });
 

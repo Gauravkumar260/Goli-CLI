@@ -40,7 +40,7 @@ implementation patterns and gotchas.
 - [ ] Wire `bash` tool (Phase 4 stub) to delegate to sandbox
 - [ ] ADR-0001 (sandbox as trust boundary) + ADR-0016 (kernel-enforced sandbox over prompt-level guidance)
 - [ ] No ADR for Firecracker vs Docker — E2B Firecracker chosen by implementation in packages/core/src/orchestration/cloud/e2b.ts
-- [ ] No ADR-0017 (number reserved); network + filesystem isolation is enforced by packages/core/src/sandbox/network.ts + packages/core/src/sandbox/path-validation.ts
+- [ ] No ADR-0017 (number reserved); network + filesystem isolation is enforced by packages/sandbox/src/network.ts + packages/sandbox/src/path-validation.ts
 
 ## Steps (P5.x)
 

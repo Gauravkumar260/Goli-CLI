@@ -10,10 +10,10 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { appendAuditLog } from '../../../sandbox/audit-log.js';
+import { appendAuditLog } from '@goli-cli/sandbox';
 
-import type { AuditLogEntry, PermissionTier, SandboxMode } from '../../../sandbox/types.js';
 import type { Hook, HookContext, PostToolUseHookResult } from '../types.js';
+import type { AuditLogEntry, PermissionTier, SandboxMode } from '@goli-cli/sandbox';
 
 /** Map tool names to permission tiers. */
 const TOOL_TIER_MAP: Record<string, PermissionTier> = {

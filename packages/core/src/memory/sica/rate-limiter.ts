@@ -77,8 +77,8 @@ export class SicaRateLimiter {
     // Safety-critical target patterns — even small changes here can
     // disable the sandbox or bypass the approval engine.
     const safetyCriticalPatterns = [
-      /sandbox\/executor/,
-      /sandbox\/path-validation/,
+      /sandbox\/src\/executor/,
+      /sandbox\/src\/path-validation/,
       /approval\/engine/,
       /tools\/hooks\/builtin\/block-/,
       /tools\/hooks\/builtin\/block-secrets/,
