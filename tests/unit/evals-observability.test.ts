@@ -8,16 +8,16 @@ import { join } from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-import { generateRedteamConfig, configToYaml, evaluateRedteamResults } from '../../packages/core/src/evals/redteam/promptfoo.js';
-import { RegressionGate } from '../../packages/core/src/evals/regression/gate.js';
-import { SemanticErrorEvaluator } from '../../packages/core/src/evals/semantic-check/evaluator.js';
-import { SWEBenchHarness, generateStubInstances } from '../../packages/core/src/evals/swebench/harness.js';
-import { DEFAULT_QUALITY_THRESHOLDS } from '../../packages/core/src/evals/types.js';
+import { generateRedteamConfig, configToYaml, evaluateRedteamResults } from '@goli-cli/evals/redteam/promptfoo.js';
+import { RegressionGate } from '@goli-cli/evals/regression/gate.js';
+import { SemanticErrorEvaluator } from '@goli-cli/evals/semantic-check/evaluator.js';
+import { SWEBenchHarness, generateStubInstances } from '@goli-cli/evals/swebench/harness.js';
+import { DEFAULT_QUALITY_THRESHOLDS } from '@goli-cli/evals/types.js';
 import { AlertManager } from '../../packages/observability/src/alerts/manager.js';
 import { LangfuseClient } from '../../packages/observability/src/langfuse/client.js';
 import { OtelTracer } from '../../packages/observability/src/tracing/otel.js';
 
-import type { BenchmarkEvaluation } from '../../packages/core/src/evals/types.js';
+import type { BenchmarkEvaluation } from '@goli-cli/evals/types.js';
 
 let testDir: string;
 

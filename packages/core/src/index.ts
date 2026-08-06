@@ -556,7 +556,7 @@ export {
   configToYaml,
   evaluateRedteamResults,
   DEFAULT_QUALITY_THRESHOLDS,
-} from './evals/index.js';
+} from '@goli-cli/evals';
 /**
  *
  */
@@ -577,7 +577,7 @@ export type {
   PromptfooProvider,
   PromptfooRedteamConfig,
   RedTeamGateResult,
-} from './evals/index.js';
+} from '@goli-cli/evals';
 
 // ─── Observability (Phase 12) ────────────────────────────────────────
 /**

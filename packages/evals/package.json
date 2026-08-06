@@ -1,5 +1,5 @@
 {
-  "name": "@goli/evals",
+  "name": "@goli-cli/evals",
   "version": "0.2.0-phase2",
   "description": "GOLI-CLI evaluation harness and Golden Set benchmark suite (Phase 12).",
   "type": "module",
@@ -7,6 +7,20 @@
   "author": "GOLI-CLI Contributors <contrib@goli-cli.dev>",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./*.js": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

@@ -11,7 +11,7 @@ Goli-CLI is an npm workspaces monorepo with 4 packages:
 | ----------------- | ---------------------- | ---------------------------------------------------------------------------------------- |
 | `@goli/core`      | `packages/core/`       | The "Brain": agent loop, tools, safety, context, model providers, 8-agent orchestration |
 | `@goli/cli`       | `packages/cli/`        | User-facing TUI (Ink/React), command parsing, binary distribution                        |
-| `@goli/evals`     | `packages/evals/`      | Evaluation harness (SWE-bench-style, currently a stub)                                   |
+| `@goli-cli/evals` | `packages/evals/`        | Evaluation harness (SWE-bench harness, semantic evaluator, regression gate, promptfoo red-team) |
 | `goli-vscode-ext` | `packages/vscode-ext/` | Standalone VS Code extension (NOT in npm workspaces — see ADR-0017)                      |
 
 ## @goli/core Public API
@@ -485,18 +485,10 @@ strikethrough, inline code, bullet lists (nested), ordered lists
 (nested), blockquotes, GFM tables, links, LaTeX→Unicode symbol
 preprocessing (~80 symbols: Greek, arrows, math ops, blackboard).
 
-## @goli/evals Public API
+## @goli-cli/evals Public API
 
-The evals package is currently a stub (Phase 12 work lands in
-`packages/core/src/evals/`, not here):
-
-```typescript
-import { EVALS_VERSION } from "@goli/evals";
-// → '0.2.0-phase2'
-```
-
-The actual SWE-bench harness, semantic evaluator, regression gate, and
-promptfoo red-team config generation live in `@goli/core`:
+The evals package hosts the SWE-bench harness, semantic evaluator,
+regression gate, and promptfoo red-team config generation (Phase 12):
 
 ```typescript
 import {
@@ -505,7 +497,7 @@ import {
   RegressionGate,
   generateRedteamConfig,
   evaluateRedteamResults,
-} from "@goli/core";
+} from "@goli-cli/evals";
 
 const harness = new SWEBenchHarness({
   // SWE-bench Verified instances

@@ -11,9 +11,9 @@
  * @module observability/alerts
  */
 
-import { DEFAULT_QUALITY_THRESHOLDS } from '@goli/evals';
+import { DEFAULT_QUALITY_THRESHOLDS } from '@goli-cli/evals';
 
-import type { AlertType, TriggeredAlert, QualityThresholds } from '@goli/evals';
+import type { AlertType, TriggeredAlert, QualityThresholds } from '@goli-cli/evals';
 import type { Logger } from '@goli-cli/shared/utils/logger.js';
 
 /** Options for the AlertManager. */

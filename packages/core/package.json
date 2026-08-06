@@ -30,6 +30,7 @@
     "@goli-cli/approval": "*",
     "@goli-cli/config": "*",
     "@goli-cli/context-engine": "*",
+    "@goli-cli/evals": "*",
     "@goli-cli/llm-providers": "*",
     "@goli-cli/memory-engine": "*",
     "@goli-cli/observability": "*",

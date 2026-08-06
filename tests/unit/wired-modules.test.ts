@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest';
 
 import { callWithRetry } from '../../packages/core/src/agent/retry.js';
 import { ToolGuardrailController } from '../../packages/core/src/agent/tool-guardrails.js';
-import { SWEBenchHarness } from '../../packages/core/src/evals/swebench/harness.js';
+import { SWEBenchHarness } from '@goli-cli/evals/swebench/harness.js';
 import { HookEngine } from '@goli-cli/tool-system';
 import { ModelHTTPError } from '../../packages/shared/src/utils/errors.js';
 
