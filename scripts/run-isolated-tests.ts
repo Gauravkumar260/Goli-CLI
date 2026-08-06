@@ -10,8 +10,10 @@
  *
  * Design (mirrors hermes-agent's subprocess-per-test isolation):
  *   - 1 subprocess = 1 test file = 1 vitest `run` invocation.
- *   - Hard per-file timeout (default 30s) — a hung file is killed, not waited
- *     on, so one stall can't block the whole suite.
+ *   - Hard per-file timeout (default 60s) — a hung file is killed, not waited
+ *     on, so one stall can't block the whole suite. 30s was too tight for
+ *     legit slow files (e.g. demo-mode.test.ts takes ~27s + transform under
+ *     4-way contention).
  *   - Bounded worker pool (xdist-style parallelism, default min(cores, 8)) —
  *     no fork-bomb: at most `--workers N` children exist at any instant.
  *   - `--serial` runs one file at a time (for debugging order dependence).
@@ -21,7 +23,7 @@
  *   npx tsx scripts/run-isolated-tests.ts --filter foo # only files matching 'foo'
  *   npx tsx scripts/run-isolated-tests.ts --serial   # 1 file at a time
  *   npx tsx scripts/run-isolated-tests.ts --list     # just print the file list
- *   npx tsx scripts/run-isolated-tests.ts --workers 8 --timeout 60
+ *   npx tsx scripts/run-isolated-tests.ts --workers 8 --timeout 120
  *
  * Exit codes: 0 = every file passed; 1 = at least one file failed/timed-out.
  */
@@ -45,7 +47,7 @@ const flag = (name: string): string | undefined => {
 const has = (name: string): boolean => args.includes(name);
 
 const workers = Number(flag('--workers') ?? '0') || Math.min(cpus().length, 8);
-const timeoutSeconds = Number(flag('--timeout') ?? '30') || 30;
+const timeoutSeconds = Number(flag('--timeout') ?? '60') || 60;
 const filter = flag('--filter') ?? '';
 const listOnly = has('--list');
 const serial = has('--serial');
