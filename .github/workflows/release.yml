@@ -42,8 +42,7 @@ jobs:
           npm publish --workspace packages/observability --access public
           npm publish --workspace packages/i18n --access public
           npm publish --workspace packages/plugins --access public
-          npm publish --workspace packages/api --access public
-          npm publish --workspace packages/gateway --access public
+          npm publish --workspace packages/sdk --access public
           npm publish --workspace packages/evals --access public
           npm publish --workspace apps/cli --access public
         env:

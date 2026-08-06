@@ -13,6 +13,14 @@
     "./host-provider": {
       "types": "./dist/host-provider.d.ts",
       "import": "./dist/host-provider.js"
+    },
+    "./*.js": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
     }
   },
   "scripts": {

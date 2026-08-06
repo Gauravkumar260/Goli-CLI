@@ -647,7 +647,7 @@ export type {
 /**
  *
  */
-export { ApiServer } from './api/index.js';
+export { ApiServer } from '@goli-cli/sdk';
 /**
  *
  */
@@ -658,7 +658,7 @@ export type {
   RunRequest,
   RunStatus,
   ApiServerOptions,
-} from './api/index.js';
+} from '@goli-cli/sdk';
 
 // ─── Plugin System (Hermes improvement H11) ─────────────────────────
 /**

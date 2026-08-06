@@ -15,7 +15,7 @@ import {
   type GatewayMessage,
   type GatewayReply,
   type PlatformId,
-} from '../../packages/core/src/gateway/index.js';
+} from '@goli-cli/sdk';
 
 describe('T-018: multi-platform gateway abstraction', () => {
   describe('SUPPORTED_PLATFORMS', () => {

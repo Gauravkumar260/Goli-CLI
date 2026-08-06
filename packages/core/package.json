@@ -37,6 +37,7 @@
     "@goli-cli/orchestration": "*",
     "@goli-cli/plugins": "*",
     "@goli-cli/sandbox": "*",
+    "@goli-cli/sdk": "*",
     "@goli-cli/shared": "*",
     "@goli-cli/tool-system": "*"
   },

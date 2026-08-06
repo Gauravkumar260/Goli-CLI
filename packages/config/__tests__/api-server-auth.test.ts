@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { ApiServer } from '@goli-cli/api/server.js';
+import { ApiServer } from '@goli-cli/sdk';
 import { DEFAULT_CONFIG } from '../src/schema.js';
 
 import type { AppConfig } from '../src/schema.js';
