@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "description": "Deterministic fixture for PerfTestHarness unit tests (NOT a real perf baseline).",
+    "version": 1
+  },
+  "metrics": {
+    "fast_fn_ms": { "value": 5, "unit": "ms", "tolerance": 0.15 },
+    "ok_fn_ms": { "value": 10, "unit": "ms", "tolerance": 0.15 },
+    "slow_fn_ms": { "value": 10, "unit": "ms", "tolerance": 0.15 },
+    "strict_fn_ms": { "value": 10, "unit": "ms", "tolerance": 0.05 },
+    "informational_ms": { "value": 100, "unit": "ms", "tolerance": 1000 },
+    "bare_ms": { "value": 10, "unit": "ms" }
+  }
+}

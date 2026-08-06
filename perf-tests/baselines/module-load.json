@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "description": "Module-load performance baseline (T-030). Measures first dynamic import of the @goli/core brain index within a fresh vitest worker.",
+    "version": 1,
+    "methodology": "wall-clock ms around a single `await import('@goli/core')` (first load only — module graph is cached on subsequent imports). This metric measures vite-node's COLD esbuild transform of the entire core source graph, which is inherently noisy (30%+ run-to-run variance); the 50% per-metric tolerance is set accordingly — it is a coarse 'importing core got catastrophically heavy' sentinel, NOT a tight budget. Reseeded with `npm run test:perf:update`.",
+    "environment": {
+      "node_version": "see `node --version`",
+      "os": "win32",
+      "date": "2026-08-06"
+    }
+  },
+  "metrics": {
+    "core_index_dynamic_import_ms": {
+      "value": 1807.4403,
+      "unit": "ms",
+      "tolerance": 0.5,
+      "note": "Remeasured 2026-08-06T08:40:35.161Z (1807.4403 ms)."
+    }
+  }
+}

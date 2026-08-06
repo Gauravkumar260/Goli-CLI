@@ -516,7 +516,7 @@
       "id": "T-026",
       "dimension": "code_quality",
       "priority": "P2",
-      "status": "pending",
+      "status": "done",
       "summary": "Subprocess-per-test isolation for hermetic test runs.",
       "acceptance_criteria": [
         "Test runner script that spawns each test file in a fresh subprocess",
@@ -528,7 +528,10 @@
       "expected_score_impact": {
         "code_quality": "+2",
         "stability": "+2"
-      }
+      },
+      "completed_at": "2026-08-06T14:50:00+08:00",
+      "completed_by": "loop-run-15",
+      "completion_notes": "scripts/run-isolated-tests.ts spawns each test file in a FRESH `node` subprocess (one vitest run per file) with a 30s default hard timeout (killed + SIGKILL fallback) and a bounded xdist-style worker pool (default min(cores,8)=4, --workers N override, --serial for one-at-a-time, --filter/--list for triage). Test discovery mirrors vitest.config.ts include globs (tests/unit, tests/integration, packages/*/__tests__, apps/*/__tests__). Full-suite verification UNDER ISOLATION: 222 files, 4498 tests passed, 0 failed, 0 timeouts in 358.8s on 4 workers (well beyond the original 1197-test acceptance). npm script: npm run test:isolated. All 4 gates green afterwards (typecheck/build/lint/test 4498)."
     },
     {
       "id": "T-027",
@@ -605,7 +608,7 @@
       "id": "T-030",
       "dimension": "performance",
       "priority": "P2",
-      "status": "pending",
+      "status": "done",
       "summary": "Perf-test harness with JSON baselines + test:perf/test:memory scripts",
       "acceptance_criteria": [
         "packages/test-utils/src/perf-test-harness.ts exists with PerfTestHarness class",
@@ -619,7 +622,10 @@
       "expected_score_impact": {
         "performance": "+3",
         "stability": "+2"
-      }
+      },
+      "completed_at": "2026-08-06T14:50:00+08:00",
+      "completed_by": "loop-run-15",
+      "completion_notes": "PerfTestHarness (packages/test-utils/src/perf-test-harness.ts, 300 LOC) + index.ts export. Default tolerance 0.15; regression-only semantics (fails on measured > baseline*(1+tolerance), tolerates faster machines); per-metric tolerance override; measure/measureAsync/measureMedian; checkAll/assertAll (throws PerfRegressionError); updateBaseline (re-seeds baselines). vitest.perf.config.ts runs ONLY perf-tests/ + memory-tests/ with threads execArgv --expose-gc. perf-tests/: harness.test.ts (14 deterministic unit tests), cold-start.test.ts (node dist --version, median of 3, skips if dist unbuilt), module-load.test.ts (@goli/core first dynamic import — 50% per-metric tolerance because it measures vite-node cold esbuild transform of the whole core graph, ~30%+ noise), baselines/cold-start.json + module-load.json. memory-tests/: heap.test.ts (@goli/core heap delta with global.gc), baselines/core-heap.json. Scripts: npm run test:perf (16 tests pass), test:memory (1 test pass), test:perf:update (tsx scripts/update-perf-baselines.ts seeds baselines with GOLI_UPDATE_BASELINES=1). T-052 perf-baseline.test.ts still green (asserts test:perf contains vitest, test:memory contains --expose-gc). All 4 gates green."
     },
     {
       "id": "T-031",

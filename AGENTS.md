@@ -646,3 +646,45 @@ All four gates green after the move: typecheck, build, lint, and test (222 files
 4. **`completions/` + dist path constants in tests/scripts need the new location** — `tests/unit/flag-coverage-audit.test.ts` reads `COMPLETIONS_DIR` (root `completions` → `apps/cli/completions`) and runs the built CLI binary; `scripts/gen-completions.ts` OUTPUT_DIR likewise. `bench.ts`/`tti-bench.ts`/`a11y-audit.ts` CLI_BIN/TOKENS_FILE already updated.
 
 5. **vscode-ext-isolation test asserts the workspace location** — `tests/unit/vscode-ext-isolation.test.ts` expected `packages/vscode-ext` in the workspaces-glob match and `packages/vscode-ext/package.json`. Update to `apps/vscode-ext`.
+
+---
+
+## Loop Run 15 — T-026 subprocess-per-test isolation + T-030 perf harness (last two pending tasks)
+
+Both remaining `tasks.json` tasks (T-026, T-030) closed. All four gates green: typecheck / build / lint (`--max-warnings 0`) / test (222 files / 4498 tests, exit 0).
+
+### T-030 — PerfTestHarness + test:perf/test:memory
+
+- **New:** `packages/test-utils/src/perf-test-harness.ts` (`PerfTestHarness`, ~300 LOC) + `packages/test-utils/src/index.ts` (the package finally has the `index.ts` its package.json `main`/`types` pointed at).
+- **Contract:** default tolerance **0.15** (the ±15% gate). Comparison is **regression-only (directional)**: a metric FAILS only when `measured > baseline * (1 + tolerance)`. Faster/lighter machines always pass — this is what keeps perf tests CI-stable (a machine that merely measures lower must never fail).
+- **Per-metric `tolerance` override** in the baseline JSON is a first-class feature (used by the noisy `module-load` metric; documented in `_meta.methodology`).
+- **API:** `measure` / `measureAsync` / `measureMedian` / `record` / `checkAll` / `assertAll` (throws `PerfRegressionError` with the raw results) / `updateBaseline` (re-seeds, preserves `_meta` + tolerance, always regenerates the note so note/value can't disagree).
+- **`vitest.perf.config.ts`** merges the root config but REPLACES `include` with `perf-tests/**` + `memory-tests/**` — the perf suite is deliberately NOT part of `npm test` (noisy wall-clock/heap tests stay out of the 4498-case gate). Sets `poolOptions.threads.execArgv: ['--expose-gc']` so `global.gc` works in memory tests.
+- **`perf-tests/`:** `harness.test.ts` (14 deterministic unit tests, no wall-clock), `cold-start.test.ts` (`node apps/cli/dist/index.js --version`, median of 3, `describe.skipIf(!dist)`, `perf-tests/baselines/cold-start.json`), `module-load.test.ts` (`@goli/core` first dynamic import, `perf-tests/baselines/module-load.json`).
+- **`memory-tests/`:** `heap.test.ts` (heap delta of importing `@goli/core` with `global.gc()`, `memory-tests/baselines/core-heap.json`).
+- **Scripts:** `test:perf` (16 tests green), `test:memory` (`node --expose-gc ... vitest.mjs run`, 1 test green), `test:perf:update` (`scripts/update-perf-baselines.ts` runs the suite with `GOLI_UPDATE_BASELINES=1` so each test calls `updateBaseline()` instead of `assertAll()`).
+- **T-052 `perf-baseline.test.ts` unchanged and still green** — it only asserts `test:perf` contains `vitest` and `test:memory` contains `--expose-gc`, both still true.
+- **Baselines are committed** with this machine's numbers; reseed anytime with `npm run test:perf:update`.
+
+### T-030 gotchas
+
+1. **`updateBaseline` partial-write trap:** the update script spawns vitest which fails the whole run on a single failing test file — but each test writes ITS OWN baseline file immediately, so a failed update can still leave *some* baselines overwritten (a stale note from that partial write can then disagree with the new value). Fix: `updateBaseline()` always regenerates the note from the current measurement (never reuses `prev.note`), so value and note are atomic. (Also why the `cold-start` note initially showed 556ms while value showed 277ms — two partial runs interleaved.)
+2. **`@goli/core` cold-transform is ~30%+ noisy.** A single `await import('@goli/core')` under vitest is the first esbuild transform of the ENTIRE core source graph (measured 1774–2355ms run-to-run on the same machine). A 15% gate on that metric flakes. It gets a **per-metric `tolerance: 0.5`** and is documented as a coarse "importing core got catastrophically heavy" sentinel, NOT a tight budget. The meaningful tight gate is `cold-start`.
+3. **`mergeConfig` from `vitest/config` REPLACES arrays.** `test.include` must be re-specified in full in `vitest.perf.config.ts`; merge does not union it with the root's `tests/**` patterns.
+4. **`describe.skipIf(!existsSync(dist))`** keeps the perf suite runnable on a fresh clone with no build; run `npm run build` first to actually measure cold-start.
+5. **Perf-test files at repo root needed eslint wiring** — `perf-tests/**` + `memory-tests/**` were added to BOTH the TS-parser block AND the test-relaxation block in `eslint.config.js` (otherwise they'd fall back to the JS parser → 100+ "Unexpected token" errors).
+
+### T-026 — subprocess-per-test isolation runner
+
+- **New:** `scripts/run-isolated-tests.ts` (npm script `test:isolated`).
+- **Mechanics:** 1 test file = 1 fresh `node` subprocess = 1 vitest `run` invocation. Default **30s hard timeout** per file (`--timeout N`), killed with `child.kill()` then `SIGKILL` if it lingers 2s — a hung file can't block the suite. **Bounded worker pool** (xdist-style, default `min(cores, 8)`, `--workers N`, `--serial`, `--filter`, `--list`) — no fork-bomb, at most N children exist at once.
+- **Discovery** mirrors `vitest.config.ts` include globs: `tests/unit`, `tests/integration`, `packages/*/__tests__`, `apps/*/__tests__`, extensions `.test.ts`/`.test.tsx` → **222 files**.
+- **Verification (criterion 4, scaled past the original 1197):** full isolated run — **222 files, 4498 tests passed, 0 failed, 0 timeouts in 358.8s on 4 workers**. Same 4498 tests pass in the normal single-process gate (140.8s). The `competitive-gap`/`custom-commands` files noted as pre-existing failures in earlier loops now PASS (fixed in later iterations).
+- **Count parsing gotcha:** vitest's summary prints both `Test Files  N passed` and `Tests  N passed`. Match the `Tests` line specifically: `/\bTests\s+(\d+)\s+passed/` and `/\bTests\s+(\d+)\s+failed/`. A bare `/(\d+)\s+passed/` grabs the "Test Files" count instead.
+- **`--no-color`** keeps output parseable and avoids ANSI noise in failure dumps; vitest accepts it fine.
+
+### General loop 15 learnings
+
+- `PerfTestHarness` deliberately lives in the source-only `@goli-cli/test-utils` package and is consumed via the vitest `@goli-cli/test-utils` root alias (→ `packages/test-utils/src/index.ts`). Do NOT add an `exports` map to test-utils' package.json — subpath exports require built `dist/*.d.ts` (Phase 0 gotcha) and this package has no build step.
+- `npm run test:isolated` on 222 files takes ~6 min; use `--filter <substr>` during development (e.g. `--filter perf-baseline`).
+- When a perf/memory baseline drifts after big refactors, reseed with `npm run test:perf:update` and commit the changed `perf-tests/baselines/*.json` / `memory-tests/baselines/*.json` together with the refactor that justified the new numbers.

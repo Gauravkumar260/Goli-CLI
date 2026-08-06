@@ -1,0 +1,19 @@
+{
+  "_meta": {
+    "description": "Memory baseline (T-030). Measures the heap delta of loading the @goli/core brain index within a fresh vitest worker (--expose-gc).",
+    "version": 1,
+    "methodology": "process.memoryUsage().heapUsed after global.gc(), then dynamic import @goli/core, then global.gc() again; delta in bytes. Reseeded with `npm run test:perf:update`.",
+    "environment": {
+      "node_version": "see `node --version`",
+      "os": "win32",
+      "date": "2026-08-06"
+    }
+  },
+  "metrics": {
+    "core_load_heap_delta_bytes": {
+      "value": 20690928,
+      "unit": "bytes",
+      "note": "Remeasured 2026-08-06T08:40:35.159Z (20690928 bytes)."
+    }
+  }
+}

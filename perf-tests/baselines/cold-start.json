@@ -1,0 +1,19 @@
+{
+  "_meta": {
+    "description": "CLI cold-start performance baseline (T-030). Measured via `node apps/cli/dist/index.js --version` on the built bundle.",
+    "version": 1,
+    "methodology": "median of 3 wall-clock spawn-to-exit runs (process.hrtime.bigint around child_process.spawnSync). Reseeded with `npm run test:perf:update`.",
+    "environment": {
+      "node_version": "see `node --version`",
+      "os": "win32",
+      "date": "2026-08-06"
+    }
+  },
+  "metrics": {
+    "cli_version_cold_start_ms": {
+      "value": 239.2677,
+      "unit": "ms",
+      "note": "Remeasured 2026-08-06T08:40:33.265Z (239.2677 ms)."
+    }
+  }
+}

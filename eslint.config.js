@@ -69,6 +69,9 @@ export default [
       'tests/**/*.ts',
       'tests/**/*.tsx',
       'scripts/**/*.ts',
+      'perf-tests/**/*.ts',
+      'perf-tests/**/*.tsx',
+      'memory-tests/**/*.ts',
     ],
     languageOptions: {
       parser: tsparser,
@@ -317,6 +320,9 @@ export default [
       'apps/*/__tests__/**/*.ts',
       'apps/*/__tests__/**/*.tsx',
       'packages/test-utils/src/**/*.ts',
+      'perf-tests/**/*.ts',
+      'perf-tests/**/*.tsx',
+      'memory-tests/**/*.ts',
     ],
     rules: {
       'unicorn/filename-case': 'off', // test helpers use __test_dirname.ts-style names
