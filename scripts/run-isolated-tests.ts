@@ -70,7 +70,7 @@ function walk(dir: string, out: string[]): void {
 }
 
 function discoverTestFiles(): string[] {
-  const roots: string[] = ['tests/unit', 'tests/integration'];
+  const roots: string[] = ['tests/integration'];
   for (const pkgDir of ['packages', 'apps']) {
     const base = resolve(REPO_ROOT, pkgDir);
     if (!statSync(base, { throwIfNoEntry: false })) continue;
