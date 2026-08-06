@@ -6,6 +6,8 @@
 # Build artifacts.
 dist/
 *.tsbuildinfo
+.turbo/
+**/.turbo/
 
 # Logs.
 *.log

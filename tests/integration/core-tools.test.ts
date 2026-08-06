@@ -392,22 +392,32 @@ describe('bash tool (Phase 5 sandbox)', () => {
   });
 
   it('writes to audit log', async () => {
-    // Clear audit log first
-    const { getAuditLogPath } = await import('@goli-cli/sandbox');
-    const { writeFileSync } = await import('node:fs');
-    const auditPath = getAuditLogPath();
-    writeFileSync(auditPath, '', 'utf-8');
+    // Isolate the audit log to a temp GOLI_HOME so concurrent test files
+    // writing to the shared default log can't race with the final entry.
+    const prevGoliHome = process.env['GOLI_HOME'];
+    const tmpHome = mkdtempSync(join(tmpdir(), 'goli-audit-'));
+    process.env['GOLI_HOME'] = tmpHome;
+    try {
+      const { getAuditLogPath } = await import('@goli-cli/sandbox');
+      const { writeFileSync } = await import('node:fs');
+      const auditPath = getAuditLogPath();
+      mkdirSync(tmpHome, { recursive: true });
+      writeFileSync(auditPath, '', 'utf-8');
 
-    await registry.dispatch(
-      makeToolCall('bash', { command: 'echo audited' }),
-      ctx,
-    );
+      await registry.dispatch(
+        makeToolCall('bash', { command: 'echo audited' }),
+        ctx,
+      );
 
-    const { readAuditLog } = await import('@goli-cli/sandbox');
-    const entries = await readAuditLog();
-    expect(entries.length).toBeGreaterThan(0);
-    const lastEntry = entries[entries.length - 1]!;
-    expect(lastEntry.tool).toBe('bash');
-    expect(lastEntry.action).toContain('echo audited');
+      const { readAuditLog } = await import('@goli-cli/sandbox');
+      const entries = await readAuditLog();
+      expect(entries.length).toBeGreaterThan(0);
+      const lastEntry = entries[entries.length - 1]!;
+      expect(lastEntry.tool).toBe('bash');
+      expect(lastEntry.action).toContain('echo audited');
+    } finally {
+      if (prevGoliHome === undefined) delete process.env['GOLI_HOME'];
+      else process.env['GOLI_HOME'] = prevGoliHome;
+    }
   });
 });

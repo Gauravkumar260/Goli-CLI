@@ -28,14 +28,15 @@
   "engines": {
     "node": ">=20.18.0"
   },
+  "packageManager": "npm@11.13.0",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "turbo run build",
     "dev": "tsx apps/cli/src/index.ts",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "turbo run typecheck",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -43,7 +44,7 @@
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:isolated": "tsx scripts/run-isolated-tests.ts",
-    "verify": "npm run typecheck && npm run lint && npm run format:check && npm test",
+    "verify": "npm run build && npm run lint && npm run typecheck && npm test",
     "deps:check": "syncpack lint",
     "deps:fix": "syncpack fix",
     "sbom:gen": "syft dir:. -o spdx-json > sbom/spdx.json",
@@ -95,6 +96,7 @@
     "prettier": "^3.4.2",
     "syncpack": "^15.3.2",
     "tsx": "^4.19.2",
+    "turbo": "^2.10.8",
     "typedoc": "^0.27.6",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

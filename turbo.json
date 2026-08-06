@@ -1,20 +1,22 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "pipeline": {
+  "globalDependencies": [".env", "tsconfig.base.json", "eslint.config.js"],
+  "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!" + ".next/cache/**"]
+      "outputs": ["dist/**"]
     },
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": []
     },
     "test": {
-      "dependsOn": ["^build"],
-      "inputs": ["src/**/*.tsx", "src/**/*.ts", "test/**/*.ts", "test/**/*.tsx"]
+      "cache": false,
+      "outputs": []
     },
     "lint": {
-      "dependsOn": ["^build"]
+      "cache": false,
+      "outputs": []
     },
     "dev": {
       "cache": false,
@@ -22,6 +24,10 @@
     },
     "clean": {
       "cache": false
+    },
+    "@goli-cli/test-utils#build": {
+      "dependsOn": [],
+      "outputs": []
     }
   }
 }
