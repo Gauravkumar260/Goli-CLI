@@ -99,9 +99,5 @@ export async function createProvider(spec?: ModelSpec): Promise<ModelProvider> {
     });
   }
 
-  if (providerType === 'mock') {
-    return buildProvider({ type: 'mock', model: modelName || 'mock-model' });
-  }
-
   throw new Error(`Unsupported provider type: ${providerType}`);
 }

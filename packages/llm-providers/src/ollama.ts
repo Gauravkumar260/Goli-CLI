@@ -75,6 +75,8 @@ export class OllamaProvider implements ModelProvider {
         let buffer = '';
         let fullText = '';
         const toolCalls: ToolCall[] = [];
+        let inputTokens = 0;
+        let outputTokens = 0;
 
         while (true) {
             const { done, value } = await reader.read();
@@ -93,6 +95,9 @@ export class OllamaProvider implements ModelProvider {
                         fullText += content;
                         options.onToken(content);
                     }
+                    // Ollama sends token counts on the final `done: true` chunk.
+                    if (typeof json.prompt_eval_count === 'number') inputTokens = json.prompt_eval_count;
+                    if (typeof json.eval_count === 'number') outputTokens = json.eval_count;
                     if (json.message?.tool_calls) {
                         for (const tc of json.message.tool_calls) {
                             toolCalls.push({
@@ -109,7 +114,7 @@ export class OllamaProvider implements ModelProvider {
                 }
             }
         }
-        return { text: fullText, toolCalls, costUsd: 0 };
+        return { text: fullText, toolCalls, costUsd: 0, inputTokens, outputTokens };
     } else {
         const json = await response.json() as any;
         const toolCalls: ToolCall[] = (json.message?.tool_calls || []).map((tc: any) => ({
@@ -120,7 +125,9 @@ export class OllamaProvider implements ModelProvider {
         return { 
             text: json.message.content || '', 
             toolCalls,
-            costUsd: 0 
+            costUsd: 0,
+            inputTokens: json.prompt_eval_count ?? 0,
+            outputTokens: json.eval_count ?? 0
         };
     }
   }

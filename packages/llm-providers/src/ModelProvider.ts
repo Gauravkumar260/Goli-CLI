@@ -65,16 +65,9 @@ export interface ModelProvider {
 
 /**
  * Provider configuration union.
- *
- * The previous union omitted the `'mock'` provider type, even though
- * `MockProvider` exists in `./mock.ts` and is used in tests. Adding
- * `'mock'` here lets `buildProvider` switch on it (MEDIUM-63) and
- * lets callers construct a `ProviderConfig` for the mock provider
- * without casting.
  */
 export type ProviderConfig =
   | { type: 'anthropic'; apiKey: string; model: string }
   | { type: 'openai';   apiKey: string; model: string }
   | { type: 'gemini';   apiKey: string; model: string }
-  | { type: 'ollama';   baseUrl: string; model: string; apiKey?: string }
-  | { type: 'mock';     model: string; responses?: string[] };
+  | { type: 'ollama';   baseUrl: string; model: string; apiKey?: string };

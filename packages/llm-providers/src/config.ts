@@ -26,15 +26,6 @@ export async function buildProvider(cfg: ProviderConfig): Promise<ModelProvider>
       const { OpenAIProvider } = await import('./openai.js');
       return new OpenAIProvider(cfg);
     }
-    case 'mock': {
-      // The previous implementation had NO 'mock' case, so calling
-      // `buildProvider({ type: 'mock', ... })` fell through to the
-      // default branch and threw "Unknown provider type: mock". The
-      // MockProvider class exists and is used in tests, but could
-      // only be instantiated directly (not via the factory).
-      const { MockProvider } = await import('./mock.js');
-      return new MockProvider(cfg);
-    }
     default: {
       // Exhaustiveness check — if a new ProviderConfig variant is
       // added without a case above, TypeScript flags this as a type

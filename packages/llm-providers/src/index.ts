@@ -1,9 +1,5 @@
 /**
  * Provider module public exports.
- *
- * MockProvider is exported alongside the real providers so tests can
- * construct it directly (the previous barrel omitted it, leaving it
- * accessible only via deep imports — MEDIUM-64).
  */
 export { GeminiProvider } from './gemini.js';
 /**
@@ -18,10 +14,6 @@ export { OpenAIProvider } from './openai.js';
  *
  */
 export { AnthropicProvider } from './anthropic.js';
-/**
- *
- */
-export { MockProvider } from './mock.js';
 /**
  *
  */
