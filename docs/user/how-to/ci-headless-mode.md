@@ -78,7 +78,7 @@ jobs:
           fetch-depth: 0 # full history for git diff
 
       - name: Install Goli-CLI
-        run: npm install -g goli-cli
+        run: npm install -g @goli-cli/cli
 
       - name: Run AI review
         env:
@@ -118,7 +118,7 @@ ai-review:
   variables:
     GOLI_DEFAULT_MODEL: anthropic/claude-3-5-sonnet
   script:
-    - npm install -g goli-cli
+    - npm install -g @goli-cli/cli
     - |
       goli -p "Review the changes in this MR for bugs." \
         --headless-output json \
@@ -148,7 +148,7 @@ CI should treat exit 1 as failure and exit 2 as a config issue.
   avoid surprises when the provider updates the model.
 - **Set a timeout.** `--timeout-ms 300000` (5 min) prevents hung
   runs from blocking CI forever.
-- **Cache the install.** `npm install -g goli-cli` is slow; cache
+- **Cache the install.** `npm install -g @goli-cli/cli` is slow; cache
   `~/.npm` in CI.
 - **Use `--no-telemetry`** if you don't want any outbound calls except
   the LLM provider.

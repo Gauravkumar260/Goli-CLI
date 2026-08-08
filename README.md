@@ -1,8 +1,10 @@
 # Goli-CLI
 
 > A TypeScript AI coding agent with an Ink (React) TUI — my college side project.
-> Open-weight-first, npm-workspaces monorepo.
+> Open-weight-first, npm-workspaces monorepo, published to npm as
+> [`@goli-cli/cli`](https://www.npmjs.com/package/@goli-cli/cli).
 
+[![npm](https://img.shields.io/npm/v/@goli-cli/cli.svg)](https://www.npmjs.com/package/@goli-cli/cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node: 20+](https://img.shields.io/badge/node-%E2%89%A520.18-brightgreen)](package.json)
 [![TypeScript: 5.7+](https://img.shields.io/badge/TypeScript-%E2%89%A55.7-blue)](package.json)
@@ -130,7 +132,24 @@ interfaces, `packages/` for shared libraries.
 
 ---
 
-## Getting started
+## Quick Start
+
+### Recommended — Install from npm
+
+Prerequisites: **Node.js ≥ 20.18** and npm ≥ 11.
+
+```bash
+npm install -g @goli-cli/cli
+goli --version
+goli wakeup
+```
+
+For the default route, run **local Ollama** (`ollama serve`, no key) or
+set `OLLAMA_API_KEY` for the Ollama Cloud tier; for Anthropic/Gemini
+set the matching key. Config lives in `~/.goli/config.toml` (or env
+vars — see [docs/user/reference/env-vars.md](docs/user/reference/env-vars.md)).
+
+### From source — Contributors & development
 
 Prerequisites: **Node.js ≥ 20.18** and npm ≥ 11 (the repo pins
 `packageManager: npm@11.13.0`).

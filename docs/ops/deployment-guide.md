@@ -24,10 +24,10 @@ and [How-to: Self-host with k8s](../user/how-to/self-host-k8s.md).
 
 ```bash
 # Option A: npx (no install)
-npx goli-cli --help
+npx @goli-cli/cli --help
 
 # Option B: global install
-npm install -g goli-cli
+npm install -g @goli-cli/cli
 
 # Option C: from source (for development)
 git clone https://github.com/goli-cli/goli-cli
@@ -163,7 +163,7 @@ Summary:
 
 ```yaml
 # .github/workflows/ai-review.yml
-- run: npm install -g goli-cli
+- run: npm install -g @goli-cli/cli
 - run: |
     goli -p "Review this PR for bugs." \
       --headless-output json \
@@ -238,7 +238,7 @@ upgrade instructions. General process:
 
 1. Read the migration guide for the target version.
 2. Back up `~/.goli/` (sessions, config, registry).
-3. `npm update -g goli-cli` (or `git pull && npm install` if from
+3. `npm update -g @goli-cli/cli` (or `git pull && npm install` if from
    source).
 4. `goli doctor` to verify.
 5. Run a small test prompt: `goli -p "hello" --headless-output json`.
@@ -250,7 +250,7 @@ For self-hosted stacks, see `infra/UPGRADE.md` (planned).
 
 ```bash
 # Remove the global install
-npm uninstall -g goli-cli
+npm uninstall -g @goli-cli/cli
 
 # (Optional) remove user data
 rm -rf ~/.goli/

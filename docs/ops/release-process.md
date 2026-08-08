@@ -49,7 +49,7 @@ before cutting the release:
 
 ```bash
 # Install the release candidate
-npm install -g goli-cli@<version-tag>
+npm install -g @goli-cli/cli@<version-tag>
 
 # Smoke test
 goli --version              # prints <version>
@@ -119,13 +119,25 @@ git log -1 v0.3.1
 
 ### 4.3 Publish to npm
 
-The release is published automatically by GitHub Actions when the
-tag is pushed. Verify:
+**Normal release (GitHub Actions):** push a `vX.Y.Z` tag and the
+[`.github/workflows/release.yml`](../../.github/workflows/release.yml)
+workflow takes over — it builds, publishes every `@goli-cli/*` package
+(CLI last, via `npm run release:cli`), and creates the GitHub Release.
 
 ```bash
+# Tag + push triggers the publish
+git push origin v0.3.1
+
 # Wait ~5 minutes for the publish action to complete.
-npm view goli-cli@0.3.1
+npm view @goli-cli/cli@0.3.1
 # Should show the new version.
+```
+
+**Manual CLI-only publish:** when intentionally publishing just the
+CLI package outside the full release workflow:
+
+```bash
+npm run release:cli   # = npm publish -w @goli-cli/cli --provenance --access public
 ```
 
 If the publish failed, do **not** re-tag. Fix the issue, bump the
@@ -159,8 +171,8 @@ Attach:
 
 Within 1 hour of release:
 
-- [ ] `npm install -g goli-cli@<version>` works.
-- [ ] `npx goli-cli@<version> --version` prints the new version.
+- [ ] `npm install -g @goli-cli/cli@<version>` works.
+- [ ] `npx @goli-cli/cli@<version> --version` prints the new version.
 - [ ] `goli --version` on a fresh install prints the new version.
 - [ ] The GitHub Release page shows the new release.
 - [ ] The npm page shows the new version.
@@ -174,7 +186,7 @@ Within 24 hours:
       for feedback.
 - [ ] If a P0 regression is found, yank the release:
   ```bash
-  npm deprecate goli-cli@<version> "Use <previous-version> instead; see issue #NNNN"
+  npm deprecate @goli-cli/cli@<version> "Use <previous-version> instead; see issue #NNNN"
   ```
   And cut a patch release within 72 hours.
 
@@ -184,7 +196,7 @@ If a release has a serious regression:
 
 1. **Yank on npm**:
    ```bash
-   npm deprecate goli-cli@<version> "Use <previous-version> instead; see issue #NNNN"
+   npm deprecate @goli-cli/cli@<version> "Use <previous-version> instead; see issue #NNNN"
    ```
    (We can't un-publish — npm doesn't allow it after 24 hours, and
    even within 24 hours it's discouraged because users may have
