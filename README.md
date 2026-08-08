@@ -272,8 +272,7 @@ codebase pattern/gotcha notes and `CODE-MAP.md` for the source map.
 
 Most of the features described above work at least partially, but not all
 of them are complete or reliable yet. Some features are ahead of the current
-implementation. See the [Roadmap](#roadmap-honest) and the known-gap data in
-[`bench/scores.json`](bench/scores.json) for more detail.
+implementation.
 
 I'm actively working through these gaps and rough edges. Expect fixes,
 improvements, and honest corrections as the project evolves.
