@@ -41,7 +41,7 @@ import {
 } from './mode-config.js';
 import type { AppMode } from '../theme/agents.js';
 import { existsSync, statSync, readdirSync, readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { homedir } from 'node:os';
 
 // ─── Command interface ─────────────────────────────────────────────────
@@ -513,7 +513,7 @@ export function registerDefaultCommands(force?: boolean): void {
     description: 'Manually compact context to save tokens',
     usage: '/compact',
     altNames: ['compress'],
-    handler: () => {
+    handler: async () => {
       // Reset the TUI's token counter (visual feedback in TokenBar).
       AppStateStore.resetTokens();
       AppStateStore.setCompactHint(false);
@@ -523,7 +523,7 @@ export function registerDefaultCommands(force?: boolean): void {
       // useAgentLoop ← CommandRegistry).
       try {
          
-        const { getCliLoop } = require('../hooks/useAgentLoop.js') as {
+        const { getCliLoop } = await import('../hooks/useAgentLoop.js') as {
           getCliLoop?: () => { requestCompaction?: () => void } | null;
         };
         const loop = getCliLoop?.();
@@ -674,11 +674,9 @@ export function registerDefaultCommands(force?: boolean): void {
         description: 'Archive skills not improved in 90 days (SkillArchiver.archiveStale)',
         usage: '/skills archive',
         isSafeConcurrent: true,
-        handler: () => {
+        handler: async () => {
           try {
-            const { SkillArchiver, AUTO_ARCHIVE_DAYS } = require('@goli-cli/memory-engine') as typeof import('@goli-cli/memory-engine');
-            const { existsSync } = require('node:fs') as typeof import('node:fs');
-            const { join } = require('node:path') as typeof import('node:path');
+            const { SkillArchiver, AUTO_ARCHIVE_DAYS } = await import('@goli-cli/memory-engine');
             const skillsDir = join(process.cwd(), '.goli', 'skills');
             if (!existsSync(skillsDir)) {
               AppStateStore.pushSystemMessage(
@@ -709,10 +707,9 @@ export function registerDefaultCommands(force?: boolean): void {
         },
       },
     ],
-    handler: () => {
+    handler: async () => {
       try {
-        const { SEED_SKILLS } = require('@goli-cli/memory-engine') as typeof import('@goli-cli/memory-engine');
-        const { getSkillsForMode, MODE_SKILLS } = require('./mode-config.js') as typeof import('./mode-config.js');
+        const { SEED_SKILLS } = await import('@goli-cli/memory-engine');
         const appMode = AppStateStore.getAppMode();
         const activeForMode = getSkillsForMode(appMode);
         const lines: string[] = [
@@ -761,7 +758,7 @@ export function registerDefaultCommands(force?: boolean): void {
     handler: async () => {
       AppStateStore.pushSystemMessage('Verifying audit log integrity...', 'info');
       try {
-        const { verifyAuditLog, getAuditLogPath, getAuditLogSummary } = require('@goli-cli/sandbox') as typeof import('@goli-cli/sandbox');
+        const { verifyAuditLog, getAuditLogPath, getAuditLogSummary } = await import('@goli-cli/sandbox');
         const logPath = getAuditLogPath();
         const result = await verifyAuditLog(logPath);
         const summary = await getAuditLogSummary(logPath, 1000);
@@ -855,7 +852,7 @@ export function registerDefaultCommands(force?: boolean): void {
       const subcommand = args[0] ?? 'status';
       try {
         // Lazy-load so `goli --help` doesn't pull in the SICA module graph.
-        const { SicaLoop, SicaRateLimiter, SicaArchive } = require('@goli-cli/memory-engine') as typeof import('@goli-cli/memory-engine');
+        const { SicaLoop, SicaRateLimiter, SicaArchive } = await import('@goli-cli/memory-engine');
         if (subcommand === 'enable') {
           sicaEnabled = true;
         }
@@ -913,8 +910,6 @@ export function registerDefaultCommands(force?: boolean): void {
             );
             return;
           }
-          const { existsSync, readFileSync } = require('node:fs') as typeof import('node:fs');
-          const { resolve } = require('node:path') as typeof import('node:path');
           const proposalPath = resolve(process.cwd(), proposalFile);
           if (!existsSync(proposalPath)) {
             AppStateStore.pushSystemMessage(

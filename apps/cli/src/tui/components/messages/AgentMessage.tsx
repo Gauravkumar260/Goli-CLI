@@ -100,6 +100,19 @@ export function AgentMessage({ message }: Props): React.ReactElement {
     // only routes agent messages here.
     return <Text color={T.red}>[AgentMessage: non-agent message]</Text>;
   }
+
+  // Empty placeholder: a COMMITTED agent message with no content, no tool
+  // calls, and no token count (e.g. a pre-stream stub that settled empty)
+  // renders nothing — prevents a stray bare `Goli · ` gap. A streaming
+  // message with empty content still renders its header (live placeholder).
+  if (
+    !message.streaming &&
+    message.content.length === 0 &&
+    message.toolCalls.length === 0 &&
+    message.tok === undefined
+  ) {
+    return <></>;
+  }
   const agentId = message.agentId ?? 'orchestrator';
   const ag = getAgent(agentId);
   const tok = message.tok;
@@ -107,7 +120,7 @@ export function AgentMessage({ message }: Props): React.ReactElement {
   return (
     <Box flexDirection="column" marginY={1} paddingLeft={1}>
       <Box>
-        <Text color={ag?.c ?? T.blue}>{ag?.id ?? agentId}</Text>
+        <Text color={ag?.c ?? T.blue}>Goli</Text>
         <Text color={T.border}> · </Text>
         {tok !== undefined && <Text color={T.gray}>{tok} tokens</Text>}
       </Box>

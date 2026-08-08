@@ -1,15 +1,10 @@
 /**
- * components/HeaderBar.tsx — Compact one-line header.
+ * components/HeaderBar.tsx — Header with the session + status lines on the
+ * right side.
  *
- * Replaces the giant InfoBox for the post-launch state. Shows:
- *   Goli-CLI v1.0.0 · gpt-oss:120b · build · T1 · 0/200K [bar] · ⏱ 0.0s
- *
- * The mode chip displays the canonical AppMode (read-only / plan / build /
- * god) with the appropriate color. "read-only" is the SAFE mode — same
- * tool filtering, same tier (T0), the label difference is cosmetic.
- *
- * On wide terminals (>100 cols) it adds a soft separator and model
- * info. On narrow (<60) it drops tokens and elapsed.
+ * Left: brand (Goli-CLI v0.2.0 · tier). Right, two stacked lines:
+ *   line 1: workspace · branch ─ sessionId
+ *   line 2: ⚕ model │ tokens/limit [bar] │ mode │ ⏱ elapsed
  */
 import React from 'react';
 // P3-30 fix: consolidate version string
@@ -31,9 +26,11 @@ interface Props {
   /** T-MODE: The current permission mode (read-only/plan/build/god). */
   appMode?: AppMode;
   branch?: string;
+  workspace: string;
+  sessionId: string;
 }
 
-function HeaderBarImpl({ cols, model, tokens, tokenLimit, mode, tier, appMode, branch }: Props): React.ReactElement {
+function HeaderBarImpl({ cols, model, tokens, tokenLimit, mode, tier, appMode, branch, workspace, sessionId }: Props): React.ReactElement {
   const [secs] = useSecsTick();
   const narrow = cols < 60;
 
@@ -41,39 +38,45 @@ function HeaderBarImpl({ cols, model, tokens, tokenLimit, mode, tier, appMode, b
   const effectiveAppMode: AppMode = appMode ?? (mode === 'GOD' ? 'god' : 'build');
   const modeColor = getModeColor(effectiveAppMode);
   const limitStr = formatTokenLimit(tokenLimit);
-  const modelShort = narrow ? model.split('-').slice(0, 2).join('-') : model;
 
   return (
-    <Box borderStyle={getBorderStyle() as 'round'} borderColor={T.border} paddingX={1} flexWrap="wrap">
-      <Text color={T.teal} bold>Goli-CLI</Text>
-      <Text> </Text>
-      <Text color={T.green}>v{APP_VERSION}</Text>
-      {!narrow && (
-        <>
-          <Text color={T.border}> · </Text>
-          <Text color={T.purple}>{modelShort}</Text>
-        </>
-      )}
-      <Text color={T.border}> │ </Text>
-      <Text color={modeColor}>{effectiveAppMode}</Text>
-      <Text color={T.border}> │ </Text>
-      <Text color={T.teal}>{tier}</Text>
-      {!narrow && (
-        <>
+    <Box borderStyle={getBorderStyle() as 'round'} borderColor={T.border} paddingX={1}>
+      <Box flexDirection="row" width={cols - 2}>
+        {/* Left: brand */}
+        <Box flexDirection="row" flexGrow={1} alignItems="center">
+          <Text color={T.teal} bold>Goli-CLI</Text>
+          <Text> </Text>
+          <Text color={T.green}>v{APP_VERSION}</Text>
           <Text color={T.border}> │ </Text>
-          <Text>{tokens.toLocaleString()}/{limitStr}</Text>
-          <Text color={T.border}> │ </Text>
-          <TokenBar tokens={tokens} tokenLimit={tokenLimit} />
-        </>
-      )}
-      <Text color={T.border}> │ </Text>
-      <Text>⏱ {secs.toFixed(1)}s</Text>
-      {!narrow && branch && (
-        <>
-          <Text color={T.border}> │ </Text>
-          <Text color={T.gray}>{branch}</Text>
-        </>
-      )}
+          <Text color={T.teal}>{tier}</Text>
+        </Box>
+
+        {/* Right: session strip + status strip */}
+        <Box flexDirection="column">
+          <Box flexDirection="row" justifyContent="space-between">
+            <Text color={T.gray} dimColor>
+              {workspace}{branch && branch !== 'no-git' ? ` · ${branch}` : ''}
+            </Text>
+            {!narrow && (
+              <Text color={T.gray} dimColor>{sessionId.slice(0, 8)}</Text>
+            )}
+          </Box>
+          <Box flexDirection="row" alignItems="center" flexWrap="wrap">
+            <Text color={T.purple}>⚕</Text>
+            <Text> </Text>
+            <Text color={T.purple}>{model}</Text>
+            <Text color={T.border}> │ </Text>
+            <Text>{tokens.toLocaleString('en-US')}</Text>
+            <Text color={T.gray}>/{limitStr}</Text>
+            <Text color={T.border}> │ </Text>
+            <TokenBar tokens={tokens} tokenLimit={tokenLimit} />
+            <Box flexGrow={1} />
+            <Text color={modeColor}>{effectiveAppMode}</Text>
+            <Text color={T.border}> │ </Text>
+            <Text>⏱ {secs.toFixed(1)}s</Text>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   );
 }

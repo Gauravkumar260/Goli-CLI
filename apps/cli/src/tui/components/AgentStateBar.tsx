@@ -136,7 +136,6 @@ function AgentStateBarImpl({
       <Box
         {...(bordered ? { borderStyle: getBorderStyle() as 'round', borderColor: T.border } : {})}
         paddingX={1}
-        {...(bordered ? { marginBottom: 1 } : {})}
         width={cols}
         flexWrap="wrap"
       >
@@ -158,7 +157,6 @@ function AgentStateBarImpl({
     <Box
       {...(bordered ? { borderStyle: getBorderStyle() as 'round', borderColor: T.border } : {})}
       paddingX={1}
-      {...(bordered ? { marginBottom: 1 } : {})}
       width={cols}
       flexWrap="wrap"
     >

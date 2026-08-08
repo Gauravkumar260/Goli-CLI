@@ -74,7 +74,7 @@ describe('T-045: ThinkingMessage (AC #4)', () => {
 
   it('renders the agent id', () => {
     const { lastFrame } = render(<ThinkingMessage message={thinkingMessage} />);
-    expect(lastFrame() ?? '').toContain('orchestrator');
+    expect(lastFrame() ?? '').toContain('Goli');
   });
 
   it('renders "(thinking)" label to distinguish from final answer', () => {
@@ -90,7 +90,7 @@ describe('T-045: ThinkingMessage (AC #4)', () => {
       timestamp: Date.now(),
     };
     const { lastFrame } = render(<ThinkingMessage message={noAgent} />);
-    expect(lastFrame() ?? '').toContain('orchestrator');
+    expect(lastFrame() ?? '').toContain('Goli');
   });
 
   it('handles empty content', () => {

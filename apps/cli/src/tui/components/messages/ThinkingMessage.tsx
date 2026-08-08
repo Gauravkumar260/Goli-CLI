@@ -37,7 +37,6 @@
 import React, { useState, useCallback } from 'react';
 import { Box, Text } from 'ink';
 import { T } from '../../theme/tokens.js';
-import { getAgent } from '../../theme/agents.js';
 import type { Message } from '../../state/types.js';
 
 interface Props {
@@ -133,8 +132,6 @@ export function ThinkingMessage({
     return <Text color={T.red}>[ThinkingMessage: non-thinking message]</Text>;
   }
 
-  const agentId = message.agentId ?? 'orchestrator';
-  const ag = getAgent(agentId);
   // Kind is still inferred (kept for future use / data attributes) but
   // the icon and label are fixed per the T-045 contract.
   const kind = inferKind(message.content);
@@ -150,7 +147,7 @@ export function ThinkingMessage({
     <Box flexDirection="column" marginY={0} paddingLeft={1}>
       <Box>
         <Text color={T.gray} dimColor>
-          {icon} {ag?.id ?? agentId} ({label}){' '}
+          {icon} Goli ({label}){' '}
           {showToggleHint ? (expanded ? '▾' : '▸') : ''}{' '}
           {!expanded && preview ? preview : ''}
         </Text>

@@ -1,33 +1,17 @@
 /**
  * components/SplashBox.tsx — Full design splash (matches docs/GoliCLI.jsx).
  *
- * Layout:
- *   ┌─ Goli-CLI v1.0.0 ─────────────────── 312ms ┐
- *   │                                              │
- *   │  ┌─ left col (28w) ─┬─ right col ─────────┐ │
- *   │  │  GOLI art        │ Available Agents    │ │
- *   │  │  Multi-Agent AI Coding │ TypeScript + Bun │ claude-sonnet-4-6   │ │
- *   │  │  🛡 SAFE MODE │ (Ctrl+G to toggle)                              │ │
- *   │  │  Permission Tier │ T0 [T1] T2 T3 BLK │ read + write │ (/tier ...)   │ │
- *   │  │                  │ ai: ...             │ │
- *   │  │                  │ fullstack: ...      │ │
- *   │  │                  │ research: ...       │ │
- *   │  │                  │ (and 2 more...)     │ │
- *   │  │                  │ 8 agents · 6 skills │ │
- *   │  │                  │ ⚠ update available  │ │
- *   │  └──────────────────┴─────────────────────┘ │
- *   │                                              │
- *   │  F:\Desktop\project\Goli-CLI-updates\...     │
- *   │  Session: 20260628_141911_g0l1c1              │
- *   │                                              │
- *   │  ⚕ claude-sonnet-4-6:cloud │ 0/200K │       │
- *   │  [bar] 0% │ SAFE │ T1 │ ⏱ 0.0s              │
- *   └──────────────────────────────────────────────┘
- *
- * Responsive:
- *   cols ≥ 100 → 2-column body (left + right side-by-side)
- *   cols ≥ 60  → stacked (left on top, right below)
- *   cols <  60 → minimal: header + path + token bar (left/right hidden)
+ * Single-column, centered layout:
+ *   ┌─ Goli-CLI v0.2.0 ────────────────── 57ms startup ─┐
+ *   │                                                  │
+ *   │           ╔══════════════════════════╗            │  
+ *   │           ║       G O L I - C L I    ║            │
+ *   │           ║  Multi-Agent Software Swarm ║        │
+ *   │           ╚══════════════════════════╝            │
+ *   │                                                  │
+ *   │  F:\...\goli-cli · main               59de24a7   │
+ *   │  ⚕ model │ 0/200K │ [bar] 0%  build │ ⏱ 0.0s   │
+ *   └───────────────────────────────────────────────────┘
  *
  * When the conversation starts, App.tsx unmounts this and
  * shows the compact HeaderBar instead — see App.tsx's
@@ -37,13 +21,9 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import { T, getBorderStyle } from '../theme/tokens.js';
 import { APP_VERSION } from '../../constants.js';
-import {
-  ART, AGENTS, SKILLS,
-  MODES, getModeColor, getModeDesc,
-  type AppMode,
-} from '../theme/agents.js';
+import { getModeColor, ART, type AppMode } from '../theme/agents.js';
 import { useSecsTick } from '../hooks/useSecsTick.js';
-import { TokenBar, tokPct, formatTokenLimit } from './TokenBar.js';
+import { TokenBar, formatTokenLimit } from './TokenBar.js';
 
 /**
  *
@@ -63,7 +43,7 @@ interface Props {
   tokens: number;
   tokenLimit: number;
   bootstrapMs?: number;
-  /** When false, suppress the "⚠ update available" indicator. */
+  /** When true, shows the "⚠ update available" indicator. */
   updateAvailable?: boolean;
   /** When false, render content only — caller supplies the outer border. */
   bordered?: boolean;
@@ -71,8 +51,6 @@ interface Props {
 
 // Pre-computed static data (module-scope, allocated once)
 const ART_LINES = ART.split('\n');
-const SEP = T.border;
-const Sep = (): React.ReactElement => <Text color={SEP}> │ </Text>;
 
 function SplashBoxImpl(props: Props): React.ReactElement | null {
   const {
@@ -82,13 +60,9 @@ function SplashBoxImpl(props: Props): React.ReactElement | null {
   } = props;
   const [secs] = useSecsTick();
 
-  const wide = cols >= 100;
   const narrow = cols < 60;
 
-  const tc = getModeColor(appMode ?? 'build');
-  const sessionShort = sessionId.slice(0, 8);
-  const tokenLimitStr = formatTokenLimit(tokenLimit);
-  const secsStr = secs.toFixed(1);
+  const effectiveAppMode: AppMode = appMode ?? (mode === 'GOD' ? 'god' : 'build');
 
   return (
     <Box
@@ -98,8 +72,7 @@ function SplashBoxImpl(props: Props): React.ReactElement | null {
         : {})}
       paddingX={1}
     >
-      {/* ── Header strip ─────────────────────────────────────────────
-          Left: Goli-CLI v1.0.0     Right: bootstrap ms */}
+      {/* ── Header strip: left brand, right startup ms ───────────────── */}
       <Box flexDirection="row" justifyContent="space-between">
         <Box>
           <Text color={T.teal} bold>Goli-CLI</Text>
@@ -111,52 +84,48 @@ function SplashBoxImpl(props: Props): React.ReactElement | null {
         )}
       </Box>
 
-      {/* ── Body ─────────────────────────────────────────────────── */}
+      {/* ── Centered art ────────────────────────────────────────────── */}
       {!narrow && (
-        <Box flexDirection={wide ? 'row' : 'column'} marginTop={1}>
-          {wide && <LeftCol />}
-          <Box flexDirection="column" flexGrow={1} marginLeft={wide ? 2 : 0}>
-            {wide ? (
-              <RightCol model={model} mode={mode} tier={tier} appMode={appMode} updateAvailable={updateAvailable} />
-            ) : (
-              <>
-                <LeftCol />
-                <Box marginTop={1}><RightCol model={model} mode={mode} tier={tier} appMode={appMode} updateAvailable={updateAvailable} /></Box>
-              </>
+        <Box flexDirection="row" justifyContent="center" marginTop={1}>
+          <Box flexDirection="column">
+            {ART_LINES.map((line, i) => (
+              <Text key={i} wrap="truncate-end" color={i % 2 === 0 ? T.teal : T.purple}>
+                {line}
+              </Text>
+            ))}
+            {updateAvailable !== false && (
+              <Box flexDirection="row" justifyContent="center" marginTop={1}>
+                <Text color={T.yellow}>⚠ update available</Text>
+              </Box>
             )}
           </Box>
         </Box>
       )}
 
-      {/* ── Path / session strip ──────────────────────────────────── */}
-      <Box flexDirection="row" justifyContent="space-between" marginTop={narrow ? 1 : 0}>
-        <Text color={T.yellow}>
-          {workspace}{branch ? ` · ${branch}` : ''}
+      {/* ── Session line: workspace · branch ─ sessionId ────────────── */}
+      <Box flexDirection="row" justifyContent="space-between" width={cols ? cols - 2 : undefined} marginTop={1}>
+        <Text color={T.gray} dimColor>
+          {workspace}{branch && branch !== 'no-git' ? ` · ${branch}` : ''}
         </Text>
-        {!narrow && (
-          <Text>
-            <Text color={T.gray}>Session: </Text>
-            <Text color={T.gray}>{sessionShort}</Text>
-          </Text>
-        )}
+        {!narrow && <Text color={T.gray} dimColor>{sessionId.slice(0, 8)}</Text>}
       </Box>
 
-      {/* ── Token / status bar ────────────────────────────────────── */}
-      <Box flexWrap="wrap" marginTop={0}>
-        <Text color={T.purple}>{String.fromCharCode(0x2695)}</Text>
+      {/* ── Status line: model ─ tokens ─ mode ─ elapsed ────────────── */}
+      <Box flexDirection="row" alignItems="center" flexWrap="wrap">
+        <Text color={T.purple}>⚕</Text>
         <Text> </Text>
         <Text color={T.purple}>{model}</Text>
-        <Sep />
-        <Text>{tokens.toLocaleString()}/{tokenLimitStr}</Text>
-        <Sep />
+        <Text color={T.border}> │ </Text>
+        <Text>{tokens.toLocaleString('en-US')}</Text>
+        <Text color={T.gray}>/{formatTokenLimit(tokenLimit)}</Text>
+        <Text color={T.border}> │ </Text>
         <TokenBar tokens={tokens} tokenLimit={tokenLimit} />
-        <Sep />
-        <Text color={mode === 'GOD' ? T.red : T.green}>{tier}</Text>
-        <Sep />
-        <Text color={tc}>{appMode ?? 'build'}</Text>
-        <Sep />
-        <Text>⏱ {secsStr}s</Text>
-        {/* '⚠ update available' is shown in the right-column footer above */}
+        <Text color={T.border}> │ </Text>
+        <Text color={T.teal}>{tier}</Text>
+        <Box flexGrow={1} />
+        <Text color={getModeColor(effectiveAppMode)}>{effectiveAppMode}</Text>
+        <Text color={T.border}> │ </Text>
+        <Text>⏱ {secs.toFixed(1)}s</Text>
       </Box>
     </Box>
   );
@@ -178,107 +147,5 @@ export const SplashBox = React.memo(SplashBoxImpl, (prev, next) => {
     prev.tokens === next.tokens &&
     prev.tokenLimit === next.tokenLimit &&
     prev.updateAvailable === next.updateAvailable
-  );
-});
-
-// ─── Left column: GOLI art only (sub-labels, mode toggle, and tier picker
-//                              all live in RightCol now)
-const LeftCol = React.memo(function LeftCol(): React.ReactElement {
-  return (
-    <Box flexDirection="column" width={56} flexShrink={0}>
-      {/* GOLI art at full width — no labels next to it so nothing truncates */}
-      <Box flexDirection="column">
-        {ART_LINES.map((line, i) => (
-          <Text key={i} wrap="truncate-end" color={i % 2 === 0 ? T.teal : T.purple}>
-            {line}
-          </Text>
-        ))}
-      </Box>
-    </Box>
-  );
-});
-
-// ─── Right column: agents line + sub-labels + mode toggle + tier picker ────
-const RightCol = React.memo(function RightCol({
-  model, mode, tier, appMode, updateAvailable,
-}: {
-  model: string;
-  mode: Mode;
-  tier: string;
-  /** T-MODE: The current permission mode. */
-  appMode?: AppMode;
-  updateAvailable?: boolean;
-}): React.ReactElement {
-  // Strip the ":cloud" suffix and any ":<provider>" tail so the badge stays short
-  const shortModel = model.split(':')[0] ?? model;
-  return (
-    <Box flexDirection="column">
-      {/* Agents / skills / help line */}
-      <Box flexDirection="row" justifyContent="space-between">
-        <Text>
-          <Text color={T.teal}>{AGENTS.length} agents · {SKILLS.length} skills</Text>
-          <Text color={T.gray}> · /help for commands</Text>
-        </Text>
-      </Box>
-
-      {/* Sub-labels row — directly under the agents/skills line */}
-      <Box flexDirection="row" marginTop={1} flexWrap="wrap">
-        <Text color={T.gray}>Multi-Agent AI Coding</Text>
-        <Sep />
-        <Text color={T.gray}>TypeScript + Bun</Text>
-        <Sep />
-        <Text color={T.gray}>{shortModel}</Text>
-      </Box>
-
-      {/* Mode toggle row — show the current AppMode prominently.
-          The 4 AppModes are: read-only (SAFE), plan, build, god.
-          `read-only` is displayed as "🛡 SAFE MODE" because SAFE is the
-          familiar label users see in ApprovalModeIndicator and /safemode.
-          The legacy `mode` prop ('SAFE'|'GOD') is still accepted for
-          backward compat but is no longer the source of truth here. */}
-      <Box flexDirection="row" marginTop={1}>
-        <Text color={getModeColor(appMode ?? 'build')}>
-          {' '}{((): string => {
-            const m = appMode ?? 'build';
-            switch (m) {
-              case 'god':        return '⚡ GOD MODE';
-              case 'plan':       return '📋 PLAN MODE';
-              case 'read-only':  return '🛡 SAFE MODE';
-              case 'build':      return '🔧 BUILD MODE';
-              case 'local-llms': return '🧠 LOCAL-LLMS MODE';
-              default:           return '🛡 SAFE MODE';
-            }
-          })()}{' '}
-        </Text>
-        <Sep />
-        <Text color={T.gray} dimColor>(Shift+Tab to cycle · /mode &lt;mode&gt;)</Text>
-      </Box>
-
-      {/* T-MODE: Mode picker row — label + chips + description + hint */}
-      <Box flexDirection="row" marginTop={1} flexWrap="wrap">
-        <Text color={T.gray} dimColor>Mode</Text>
-        <Sep />
-        <Box flexDirection="row">
-          {MODES.map((m) => {
-            const active = m.id === (appMode ?? 'build');
-            return (
-              <Text key={m.id} color={active ? m.c : T.gray}>
-                {active ? '[' : ' '}{m.id}{active ? ']' : ' '}{' '}
-              </Text>
-            );
-          })}
-        </Box>
-        <Sep />
-        <Text color={T.gray}>{getModeDesc(appMode ?? 'build')}</Text>
-        <Sep />
-        <Text color={T.gray} dimColor>(/mode read-only|plan|build|god)</Text>
-      </Box>
-
-      {updateAvailable !== false && (
-        <Box flexDirection="row" justifyContent="flex-end" marginTop={1}>
-          <Text color={T.yellow}>⚠ update available</Text>
-        </Box>
-      )}
-    </Box>
   );
 });

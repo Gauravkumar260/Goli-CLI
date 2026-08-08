@@ -65,7 +65,7 @@ interface Props {
  * returned).
  *
  * Extracted as a pure function so it can be unit-tested independently
- * of the React component (see `tests/unit/history-scroll.test.ts`).
+ * of the React component (see `apps/cli/__tests__/history-scroll.test.ts`).
  */
 export function partitionMessages(
   messages: readonly Message[],

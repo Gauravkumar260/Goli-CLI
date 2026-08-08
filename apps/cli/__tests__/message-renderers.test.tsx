@@ -162,7 +162,7 @@ describe('T-037: UserMessage (AC #2)', () => {
 describe('T-037: AgentMessage (AC #3)', () => {
   it('renders the agent id in the header', () => {
     const { lastFrame } = render(<AgentMessage message={agentMessage} />);
-    expect(lastFrame() ?? '').toContain('orchestrator');
+    expect(lastFrame() ?? '').toContain('Goli');
   });
 
   it('renders the token count in the header', () => {
@@ -212,7 +212,7 @@ describe('T-037: AgentMessage (AC #3)', () => {
     };
     const { lastFrame } = render(<AgentMessage message={empty} />);
     // Should not throw; header still renders.
-    expect(lastFrame() ?? '').toContain('orchestrator');
+    expect(lastFrame() ?? '').toContain('Goli');
   });
 });
 
@@ -310,7 +310,7 @@ describe('T-037: MessageBubble dispatcher (AC #6)', () => {
   it('routes agent messages to AgentMessage', () => {
     const { lastFrame } = render(<MessageBubble message={agentMessage} />);
     const frame = lastFrame() ?? '';
-    expect(frame).toContain('orchestrator');
+    expect(frame).toContain('Goli');
     expect(frame).toContain('I can help with that.');
   });
 
@@ -375,7 +375,7 @@ describe('T-037: Backward compatibility (AC #7)', () => {
   it('agent message still renders the agent id and token count', () => {
     const { lastFrame } = render(<MessageBubble message={agentMessage} />);
     const frame = lastFrame() ?? '';
-    expect(frame).toContain('orchestrator');
+    expect(frame).toContain('Goli');
     expect(frame).toContain('42');
     expect(frame).toContain('tokens');
   });
