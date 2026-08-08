@@ -21,49 +21,49 @@ _goli() {
     local cmd="${COMP_WORDS[1]}"
     case "$cmd" in
         wakeup)
-            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --demo --local-llms --help --interactive"
+            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --local-llms --help --interactive"
             COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
             return 0
             ;;
         doctor)
-            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --demo --local-llms --help"
+            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --local-llms --help"
             COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
             return 0
             ;;
         status)
-            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --demo --local-llms --help"
+            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --local-llms --help"
             COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
             return 0
             ;;
         audit)
-            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --demo --local-llms --help --verbose --json"
+            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --local-llms --help --verbose --json"
             COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
             return 0
             ;;
         usage)
-            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --demo --local-llms --help"
+            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --local-llms --help"
             COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
             return 0
             ;;
         commit)
-            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --demo --local-llms --help"
+            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --local-llms --help"
             COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
             return 0
             ;;
         init)
-            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --demo --local-llms --help"
+            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --local-llms --help"
             COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
             return 0
             ;;
         mcp)
-            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --demo --local-llms --help"
+            opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --local-llms --help"
             COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
             return 0
             ;;
     esac
 
     # Global flags (available for all commands)
-    local global_opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --demo --local-llms --help"
+    local global_opts="--version --print --debug --model --god --auto --sandbox --effort --output-format --spec-mode --diff-review --resume --branch --local-llms --help"
     COMPREPLY=( $(compgen -W "$global_opts" -- "$cur") )
     return 0
 }

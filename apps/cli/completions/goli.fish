@@ -28,8 +28,7 @@ complete -c goli -f -n '__fish_use_subcommand' -l 'spec-mode' -d 'Enable spec-dr
 complete -c goli -f -n '__fish_use_subcommand' -l 'diff-review' -d 'Enable diff-first review in headless mode (H14)'
 complete -c goli -f -n '__fish_use_subcommand' -l 'resume' -r -d 'Resume a previous session by ID (H16)'
 complete -c goli -f -n '__fish_use_subcommand' -l 'branch' -r -d 'Branch a previous session by ID into a new session (H16)'
-complete -c goli -f -n '__fish_use_subcommand' -l 'demo' -d 'Launch the TUI with a mock agent (no LLM required). For onboarding, screenshots, and UI testing.'
-complete -c goli -f -n '__fish_use_subcommand' -l 'local-llms' -d 'Enable local-llms mode: three-axis router across local Ollama workers + cloud tier (sensitivity / complexity / availability)'
+complete -c goli -f -n '__fish_use_subcommand' -l 'local-llms' -d 'Local-LLM three-axis router across local Ollama workers + cloud tier'
 complete -c goli -f -n '__fish_use_subcommand' -l 'help' -d 'Print this help and exit'
 complete -c goli -f -n '__fish_use_subcommand' -s 'h' -d 'Print this help and exit'
 

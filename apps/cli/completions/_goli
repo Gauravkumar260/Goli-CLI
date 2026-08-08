@@ -32,8 +32,7 @@ _goli() {
         '--diff-review[Enable diff-first review in headless mode (H14)]' \
         '--resume[Resume a previous session by ID (H16)]:arg:' \
         '--branch[Branch a previous session by ID into a new session (H16)]:arg:' \
-        '--demo[Launch the TUI with a mock agent (no LLM required). For onboarding, screenshots, and UI testing.]' \
-        '--local-llms[Enable local-llms mode: three-axis router across local Ollama workers + cloud tier (sensitivity / complexity / availability)]' \
+        '--local-llms[Local-LLM three-axis router across local Ollama workers + cloud tier]' \
         '--help[Print this help and exit]' \
         '-h[Print this help and exit]' \
         '*: :->command'

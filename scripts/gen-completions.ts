@@ -64,7 +64,7 @@ const GLOBAL_FLAGS: FlagSpec[] = [
   { long: '--diff-review', takesArg: false, description: 'Enable diff-first review in headless mode (H14)' },
   { long: '--resume', takesArg: true, description: 'Resume a previous session by ID (H16)' },
   { long: '--branch', takesArg: true, description: 'Branch a previous session by ID into a new session (H16)' },
-  { long: '--demo', takesArg: false, description: 'Launch the TUI with a mock agent (no LLM required). For onboarding, screenshots, and UI testing.' },
+  { long: '--local-llms', takesArg: false, description: 'Local-LLM three-axis router across local Ollama workers + cloud tier' },
   { short: '-h', long: '--help', takesArg: false, description: 'Print this help and exit' },
 ];
 
