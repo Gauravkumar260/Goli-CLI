@@ -606,7 +606,14 @@ export function verifyPolicyIntegrityAtStartup(
     // Can't find the safety-critical package dirs — don't block the run,
     // just log. The integrity check is a safety net, not a hard gate
     // when the layout is unfamiliar.
-    log.warn('PolicyIntegrityManager: could not locate safety-critical package dirs — skipping integrity check', {
+    //
+    // Installed-layout note: since the CLI ships as a tsup bundle with
+    // `noExternal` for `@goli-cli/*`, the per-package source/node_modules
+    // dirs below can never resolve for an npm-installed consumer — the
+    // safety code lives inside dist/, which is already guarded by npm's
+    // registry integrity + provenance attestation. Debug is appropriate:
+    // this is the norm for every non-monorepo install, not a condition.
+    log.debug('PolicyIntegrityManager: could not locate safety-critical package dirs — skipping integrity check', {
       candidates: policyDirCandidates.flatMap(([, c]) => c),
     });
     return null;
