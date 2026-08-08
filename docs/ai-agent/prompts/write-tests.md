@@ -33,12 +33,13 @@ You are a test engineer. Generate unit tests for the source file at
 
 ## Output format
 
-Write the test file to `<path>.test.ts` (colocated) or to the
-corresponding `tests/unit/` location, matching the project convention.
+Write the test file to `<path>.test.ts` in the package's `__tests__/`
+directory, matching the project convention (tests are colocated with
+source in `packages/*/__tests__/` and `apps/*/__tests__/`).
 
 The test file should:
 
-- Import from the **barrel** (`@goli/core` or `@goli/cli`), not via
+- Import from the **barrel** (`@goli-cli/agent-core` or `@goli/cli`), not via
   deep imports.
 - Use `describe` / `it` (Vitest style), not `test()`.
 - Have `describe` blocks that mirror the structure of the unit under

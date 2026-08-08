@@ -236,20 +236,20 @@ touching the loop's contract.
 
 | File                                            | Status | Purpose                                                                           |
 | ----------------------------------------------- | ------ | --------------------------------------------------------------------------------- |
-| `packages/core/src/agent/local-llms-router.ts`  | NEW    | Three-axis router + sensitivity detector + complexity scorer + circuit breaker    |
-| `packages/core/src/config/mode-prompts.ts`      | MOD    | Added `'local-llms'` to `AppMode` union + `MODE_PROMPTS` + `isToolAllowedForMode` |
-| `packages/core/src/config/schema.ts`            | MOD    | Added `LocalLlmsConfigSchema` + `localLlms` field on `AppConfigSchema`            |
-| `packages/core/src/agent/loop.ts`               | MOD    | Wired `LocalLlmsRouter` as the loop's client when `appMode === 'local-llms'`      |
-| `packages/core/src/agent/index.ts`              | MOD    | Exported `LocalLlmsRouter` + types                                                |
-| `packages/core/src/index.ts`                    | MOD    | Re-exported `LocalLlmsRouter`, `LocalLlmsConfig`, `isToolAllowedForMode`          |
-| `packages/cli/src/tui/theme/agents.ts`          | MOD    | Added `'local-llms'` to `AppMode`, `MODES`, `modeToTierId/RunMode/PermissionMode` |
-| `packages/cli/src/tui/lib/mode-config.ts`       | MOD    | Added `'local-llms'` to all 5 mode registries                                     |
-| `packages/cli/src/tui/lib/CommandRegistry.ts`   | MOD    | Added `'local-llms'` to `/mode` slash command validation                          |
-| `packages/cli/src/tui/components/SplashBox.tsx` | MOD    | Added `'local-llms'` mode label                                                   |
-| `packages/cli/src/tui/components/App.tsx`       | MOD    | Added `'local-llms'` entry to `APPMODE_TO_INDICATOR`                              |
-| `packages/cli/src/services/CliAgentLoop.ts`     | MOD    | `'local-llms'` permission handling (same as build)                                |
-| `packages/cli/src/index.ts`                     | MOD    | Added `--local-llms` CLI flag, threaded to `runHeadless`                          |
-| `packages/cli/src/commands/types.ts`            | MOD    | Added `localLlms?: boolean` to `GlobalOptions`                                    |
+| `packages/agent-core/src/local-llms-router.ts`  | NEW    | Three-axis router + sensitivity detector + complexity scorer + circuit breaker    |
+| `packages/config/src/mode-prompts.ts`      | MOD    | Added `'local-llms'` to `AppMode` union + `MODE_PROMPTS` + `isToolAllowedForMode` |
+| `packages/config/src/schema.ts`            | MOD    | Added `LocalLlmsConfigSchema` + `localLlms` field on `AppConfigSchema`            |
+| `packages/agent-core/src/loop.ts`               | MOD    | Wired `LocalLlmsRouter` as the loop's client when `appMode === 'local-llms'`      |
+| `packages/agent-core/src/index.ts`              | MOD    | Exported `LocalLlmsRouter` + types                                                |
+| `packages/agent-core/src/index.ts`                    | MOD    | Re-exported `LocalLlmsRouter`, `LocalLlmsConfig`, `isToolAllowedForMode`          |
+| `apps/cli/src/tui/theme/agents.ts`          | MOD    | Added `'local-llms'` to `AppMode`, `MODES`, `modeToTierId/RunMode/PermissionMode` |
+| `apps/cli/src/tui/lib/mode-config.ts`       | MOD    | Added `'local-llms'` to all 5 mode registries                                     |
+| `apps/cli/src/tui/lib/CommandRegistry.ts`   | MOD    | Added `'local-llms'` to `/mode` slash command validation                          |
+| `apps/cli/src/tui/components/SplashBox.tsx` | MOD    | Added `'local-llms'` mode label                                                   |
+| `apps/cli/src/tui/components/App.tsx`       | MOD    | Added `'local-llms'` entry to `APPMODE_TO_INDICATOR`                              |
+| `apps/cli/src/services/CliAgentLoop.ts`     | MOD    | `'local-llms'` permission handling (same as build)                                |
+| `apps/cli/src/index.ts`                     | MOD    | Added `--local-llms` CLI flag, threaded to `runHeadless`                          |
+| `apps/cli/src/commands/types.ts`            | MOD    | Added `localLlms?: boolean` to `GlobalOptions`                                    |
 | `config/default.toml`                           | MOD    | Added `[localLlms]` section                                                       |
-| `tests/unit/local-llms-router.test.ts`          | NEW    | 46 tests covering all three axes + PII redaction + end-to-end routing             |
-| `tests/unit/cli-args.test.ts`                   | MOD    | Added `localLlms` extraction test                                                 |
+| `packages/config/__tests__/local-llms-router.test.ts`          | NEW    | 46 tests covering all three axes + PII redaction + end-to-end routing             |
+| `packages/config/__tests__/cli-args.test.ts`                   | MOD    | Added `localLlms` extraction test                                                 |

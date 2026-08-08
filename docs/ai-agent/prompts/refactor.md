@@ -21,8 +21,8 @@ to achieve the goal: **{{goal}}**.
 2. Read `STYLEGUIDE.md` for the enforced code style.
 3. Read `{{path}}` thoroughly. Understand what the code does and why
    it's structured the way it is — don't refactor blindly.
-4. Read the tests for `{{path}}` (look for `<path>.test.ts` or in
-   `tests/unit/`). The refactor must not break the tests.
+4. Read the tests for `{{path}}` (look for `<path>.test.ts` in the
+   package's `__tests__/` directory). The refactor must not break the tests.
 5. Find callers of the file's exports (use `grep`) to understand the
    blast radius.
 6. Read relevant ADRs in `docs/decisions/` — the current structure may

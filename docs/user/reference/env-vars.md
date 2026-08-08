@@ -21,7 +21,7 @@ are the primary way to configure Goli-CLI in CI / containers.
 
 | Var                            | Default               | Description              |
 | ------------------------------ | --------------------- | ------------------------ |
-| `GOLI_DEFAULT_MODEL`           | `ollama/gpt-oss:120b` | Default model string.    |
+| `GOLI_DEFAULT_MODEL`           | `ollama/gpt-oss:120b-cloud` | Default model string.    |
 | `GOLI_DEFAULT_PROVIDER`        | (auto from model)     | Override the provider.   |
 | `GOLI_DEFAULT_MODE`            | `build`               | Default app mode.        |
 | `GOLI_DEFAULT_PERMISSION_MODE` | `ask`                 | Default permission mode. |
@@ -32,7 +32,7 @@ are the primary way to configure Goli-CLI in CI / containers.
 | ----------------------------------------------------- | ----------------------------- | --------------------------- |
 | `GOLI_LOCAL_LLMS_RESTRICTED_MODEL`                    | `ollama/llama3:70b`           | Model for PII prompts.      |
 | `GOLI_LOCAL_LLMS_SIMPLE_MODEL`                        | `ollama/llama3:8b`            | Model for simple non-PII.   |
-| `GOLI_LOCAL_LLMS_COMPLEX_MODEL`                       | `ollama/gpt-oss:120b`         | Model for complex non-PII.  |
+| `GOLI_LOCAL_LLMS_COMPLEX_MODEL`                       | `ollama/gpt-oss:120b-cloud`         | Model for complex non-PII.  |
 | `GOLI_LOCAL_LLMS_CLOUD_FALLBACK`                      | `anthropic/claude-3-5-sonnet` | Cloud fallback.             |
 | `GOLI_LOCAL_LLMS_PII_REDACT_MODEL`                    | `ollama/llama3:8b`            | Model for redaction pass.   |
 | `GOLI_LOCAL_LLMS_OLLAMA_BASE_URL`                     | `http://localhost:11434`      | Local Ollama URL.           |

@@ -5,233 +5,159 @@
 
 ## Packages
 
-Goli-CLI is an npm workspaces monorepo with 4 packages:
+Goli-CLI is an npm workspaces monorepo with 3 apps + 16 `@goli-cli/*` packages:
 
-| Package           | Path                   | Description                                                                              |
-| ----------------- | ---------------------- | ---------------------------------------------------------------------------------------- |
-| `@goli/core`      | `packages/core/`       | The "Brain": agent loop, tools, safety, context, model providers, 8-agent orchestration |
-| `@goli/cli`       | `packages/cli/`        | User-facing TUI (Ink/React), command parsing, binary distribution                        |
-| `@goli-cli/evals` | `packages/evals/`        | Evaluation harness (SWE-bench harness, semantic evaluator, regression gate, promptfoo red-team) |
-| `goli-vscode-ext` | `packages/vscode-ext/` | Standalone VS Code extension (NOT in npm workspaces — see ADR-0017)                      |
+| Package                | Path                    | Description                                                                              |
+| ---------------------- | ----------------------- | ---------------------------------------------------------------------------------------- |
+| `@goli-cli/agent-core` | `packages/agent-core/`  | The "Brain": agent loop, prompt builder, toolset snapshot, provider adapter, planner, budget, retry, reflexion, effort router, stop/stall/loop detection |
+| `@goli-cli/shared`     | `packages/shared/`      | Constants, logger, errors, json-utils, env-loader                                        |
+| `@goli-cli/config`     | `packages/config/`      | TOML loader, Zod schema, mode prompts, policy-integrity manager                          |
+| `@goli-cli/llm-providers` | `packages/llm-providers/` | Ollama (default), Anthropic, Gemini, Mock (+ OpenAI, legally blocked in the async router) |
+| `@goli-cli/tool-system`| `packages/tool-system/` | 21 registered tools, tool registry, hooks, MCP client, footprint ladder                  |
+| `@goli-cli/sandbox`    | `packages/sandbox/`     | seatbelt (macOS), landlock/bubblewrap (Linux), cgroups, network egress, path validation, audit log |
+| `@goli-cli/context-engine` | `packages/context-engine/` | Hybrid retriever, tree-sitter indexer (regex fallback), symbol graph, compaction engine |
+| `@goli-cli/memory-engine` | `packages/memory-engine/` | SQLite FTS5 session store, SICA registry, skills, trajectory, training data, persistent memory |
+| `@goli-cli/orchestration` | `packages/orchestration/` | 11-agent swarm pipeline, task splitter, worktree isolation, blackboard, E2B sandbox, subagent isolator |
+| `@goli-cli/evals`      | `packages/evals/`       | SWE-bench harness, semantic evaluator, regression gate, promptfoo red-team config        |
+| `@goli-cli/approval`   | `packages/approval/`    | Diff-first approval engine, blast radius, enhanced approval                              |
+| `@goli-cli/observability` | `packages/observability/` | OTel tracing, Langfuse client, alerts manager                                          |
+| `@goli-cli/plugins`    | `packages/plugins/`     | Plugin registry + lifecycle + hooks                                                      |
+| `@goli-cli/i18n`       | `packages/i18n/`        | 5 locales: en, es, zh-CN, ja, de                                                         |
+| `@goli-cli/sdk`        | `packages/sdk/`         | MCP SDK server + gateway (ApiServer, HostProvider)                                       |
+| `@goli-cli/test-utils` | `packages/test-utils/`  | Perf-test harness (source-only, no build)                                                |
+| `@goli/cli`            | `apps/cli/`             | User-facing TUI (Ink/React), command parsing, binary distribution                        |
+| `nextjs_tailwind_shadcn_ts` | `apps/studio/`     | Web console ("Goli Studio")                                                             |
+| `goli-vscode`          | `apps/vscode-ext/`     | Standalone VS Code extension (in npm workspaces since ADR-0047)                          |
 
-## @goli/core Public API
+## API surface by package
 
-The core package exports its public API from `packages/core/src/index.ts`,
-organized by Phase:
+Each `@goli-cli/*` package exposes its public API from its `src/index.ts`
+(`@goli/cli` from `apps/cli/src/index.ts`).
+
+### `@goli-cli/shared` — utils & types
 
 ```typescript
 import {
-  // ——— Utils (Phase 1) ———
-  Logger,
-  createLogger,
-  configureLogger,
-  GoliError,
-  ModelError,
-  ModelTimeoutError,
-  ModelHTTPError,
-  ToolValidationError,
-  ToolExecutionError,
-  SandboxError,
-  SandboxDeniedError,
-  ConfigError,
-  ConfigNotFoundError,
-  ConfigValidationError,
-  isGoliError,
-  wrapUnknown,
-  APP_NAME,
-  APP_VERSION,
-  APP_TAGLINE,
-  CLI_BINARY_NAME,
-
-  // ——— Config (Phase 1) ———
-  loadConfig,
-  AppConfig,
-  AppConfigSchema,
-  MODE_PROMPTS,
-  getPromptForMode,
-  PolicyIntegrityManager,
-
-  // ——— Agent Core Loop (Phase 2) ———
-  AgentLoop,
-  AgentRole,
-  AGENT_ROLES,
-  AGENT_ROLE_LABELS,
-  Message,
-  MessageRole,
-  ToolCall,
-  ConversationState,
-  StopReason,
-  AgentEvent,
-  Todo,
-  ProviderBackedModelClient,
-  createProviderBackedClientSync,
-  createProviderBackedClient,
-  BudgetTracker,
-  StopEngine,
-  StallDetector,
-  LoopDetector,
-  Planner,
-  PLAN_TASK_TOOL,
-  SystemPromptAssembler,
-  applySystemAnd3Strategy,
-  ReflexionEngine,
-  EffortRoutingClient,
-  ToolGuardrailController,
-  AdvancedCompressor,
-  classifyApiError,
-  ClassifiedError,
-  TERMINAL_AUTH_REASONS,
-  CredentialPool,
-  ToolsetSnapshot,
-  ProvenanceTracker,
-  TrustLevel,
-  TRUST_RANK,
-  repairJson,
-  parseToolCallArgs,
-  callWithRetry,
-
-  // ——— Tool Layer (Phase 4) ———
-  Tool,
-  ToolResult,
-  ToolContext,
-  ToolDefinition,
-  ToolInputSchema,
-  PermissionTier,
-  ToolRegistry,
-  createDefaultToolRegistry,
-  executeToolCallsConcurrent,
-  validateToolArgs,
-  truncateResult,
-  MAX_TOOL_RESULT_TOKENS,
-  READ_FILE_TOOL,
-  WRITE_FILE_TOOL,
-  EDIT_FILE_TOOL,
-  LIST_DIRECTORY_TOOL,
-  GREP_TOOL,
-  BASH_TOOL,
-  TODO_WRITE_TOOL,
-  ASK_USER_TOOL,
-  SPAWN_SUBAGENT_TOOL,
-  WEB_FETCH_TOOL,
-  WEB_SEARCH_TOOL,
-  NOTEBOOK_EDIT_TOOL,
-  SPEC_WRITE_TOOL,
-  SPEC_REVIEW_TOOL,
-  SPEC_UPDATE_TOOL,
-  HookEngine,
-  HookEvent,
-  AUTO_FORMAT_HOOK,
-  BLOCK_SECRETS_HOOK,
-  BLOCK_DESTRUCTIVE_HOOK,
-  BLOCK_WRITES_OUTSIDE_WORKSPACE_HOOK,
-  GIT_CHECKPOINT_HOOK,
-  AUDIT_LOG_HOOK,
-  MCPClientManager,
-  MCPServerConfig,
-  MCPTool,
-
-  // ——— Sandbox (Phase 5) ———
-  SandboxMode,
-  ApprovalPolicy,
-  PermissionTier,
-  ApprovalEngine,
-  EnhancedApprovalEngine,
-  computeBlastRadius,
-  NetworkEgressFilter,
-  DEFAULT_NETWORK_ALLOWLIST,
-  isCgroupsV2Available,
-  generateCgroupConfig,
-  isLandlockSupported,
-  generateSeatbeltProfile,
-  buildSeatbeltCommand,
-  generateBubblewrapCommand,
-  isBubblewrapAvailable,
-  validatePath,
-  isSymlink,
-  isSymlinkCreationCommand,
-  appendAuditLog,
-  readAuditLog,
-  verifyAuditLog,
-  getAuditLogSummary,
-  executeInSandbox,
-
-  // ——— Context Engine (Phase 7) ———
-  TreeSitterIndexer,
-  SymbolGraph,
-  HybridRetriever,
-  RetrievalResult,
-  RetrievalStrategy,
-  CompactionEngine,
-  SubagentIsolator,
-  ProjectMapGenerator,
-  createContextEngine,
-  isRealTreeSitterAvailable,
-  extractChunksWithTreeSitter,
-
-  // ——— Memory System (Phases 8–11) ———
-  PersistentMemory,
-  SessionMemory,
-  JsonlSessionStore,
-  MemoryCurator,
-  VectorMemoryPlugin,
-  TrajectoryStore,
-  TrajectoryCurator,
-  DatasetBuilder,
-  computeReward,
-  GRPOScaffold,
-  SicaLoop,
-  ImmutableSafetyRegistry,
-  SafetyOverseer,
-  SicaArchive,
-  OverfitDetector,
-  SicaRateLimiter,
-  createMemorySystem,
-  MEMORY_BUDGETS,
-  TOTAL_MEMORY_BUDGET,
-
-  // ——— Evals & Observability (Phase 12) ———
-  SWEBenchHarness,
-  SemanticErrorEvaluator,
-  RegressionGate,
-  generateRedteamConfig,
-  configToYaml,
-  evaluateRedteamResults,
-  OtelTracer,
-  LangfuseClient,
-  AlertManager,
-
-  // ——— Multi-Agent Orchestration (Phase 13) ———
-  SwarmPipeline,
-  TaskSplitter,
-  WorktreeIsolation,
-  SharedBlackboard,
-  ComplexityClassifier,
-  E2BSandbox,
-  OrchestrationPatterns,
-  BLOCKED_PROVIDERS,
-  ALLOWED_PROVIDERS,
-
-  // ——— API Server (H10) ———
-  ApiServer,
-
-  // ——— Plugin System (H11) ———
-  PluginRegistry,
-  pluginRegistry,
-
-  // ——— Providers ———
-  ModelProvider,
-  OllamaProvider,
-  OpenAIProvider,
-  AnthropicProvider,
-  GeminiProvider,
-  MockProvider,
-  createProvider,
-} from "@goli/core";
+  Logger, createLogger, configureLogger,
+  GoliError, isGoliError, wrapUnknown,
+  APP_NAME, APP_VERSION, APP_TAGLINE, CLI_BINARY_NAME,
+  repairJson, parseJson,
+} from "@goli-cli/shared";
 ```
 
-### Key modules
+### `@goli-cli/config` — configuration
 
-#### `agent/loop.ts` — The agent loop
+```typescript
+import { loadConfig, invalidateConfigCache } from "@goli-cli/config";
+// loadConfig() reads config/default.toml → ~/.goli-cli/config.toml → GOLI_* env vars
+```
+
+### `@goli-cli/agent-core` — the agent loop
+
+```typescript
+import {
+  AgentLoop, AgentRole, AGENT_ROLES, AGENT_ROLE_LABELS,
+  ConversationState, StopReason, AgentEvent, Todo,
+  ProviderBackedModelClient, createProviderBackedClientSync, createProviderBackedClient,
+  BudgetTracker, StopEngine, StallDetector, LoopDetector, Planner, PLAN_TASK_TOOL,
+  SystemPromptAssembler, ReflexionEngine, EffortRoutingClient,
+  ToolsetSnapshot, ProvenanceTracker, TrustLevel, TRUST_RANK,
+  callWithRetry, isRetryableError,
+} from "@goli-cli/agent-core";
+```
+
+### `@goli-cli/llm-providers` — providers
+
+```typescript
+import {
+  ModelProvider, ProviderConfig, Message, ToolCall, ModelResponse,
+  OllamaProvider, AnthropicProvider, GeminiProvider, MockProvider, OpenAIProvider,
+  createProvider, getDefaultModelSpec, isProviderLegallyBlocked,
+} from "@goli-cli/llm-providers";
+```
+
+### `@goli-cli/tool-system` — tools, registry, hooks
+
+```typescript
+import {
+  Tool, ToolRegistry, toToolDefinition,
+  validateToolArgs, truncateResult, MAX_TOOL_RESULT_TOKENS,
+  HookEngine, registerBuiltinHooks,
+} from "@goli-cli/tool-system";
+```
+
+### `@goli-cli/sandbox` — OS-level isolation
+
+```typescript
+import {
+  executeInSandbox, executeInSandboxAsync,
+  NetworkEgressFilter, DEFAULT_NETWORK_ALLOWLIST,
+  generateSeatbeltProfile, buildSeatbeltCommand,
+  validatePath, isSymlink,
+  appendAuditLog, readAuditLog, verifyAuditLog,
+} from "@goli-cli/sandbox";
+```
+
+### `@goli-cli/context-engine` — retrieval & compaction
+
+```typescript
+import {
+  TreeSitterIndexer, SymbolGraph, HybridRetriever,
+  CompactionEngine, ProjectMapGenerator, createContextEngine,
+} from "@goli-cli/context-engine";
+```
+
+### `@goli-cli/memory-engine` — memory & SICA
+
+```typescript
+import {
+  PersistentMemory, SessionMemory, JsonlSessionStore,
+  VectorMemoryPlugin, TFIDFMemoryPlugin, MemoryCurator,
+  TrajectoryStore, TrajectoryCurator, DatasetBuilder, computeReward,
+  SicaLoop, ImmutableSafetyRegistry, SafetyOverseer, SicaArchive,
+  MEMORY_BUDGETS, TOTAL_MEMORY_BUDGET,
+} from "@goli-cli/memory-engine";
+```
+
+### `@goli-cli/orchestration` — 11-agent swarm
+
+```typescript
+import {
+  SwarmPipeline, SWARM_PIPELINE,
+  TaskSplitter, WorktreeIsolation, SharedBlackboard,
+  ComplexityClassifier, E2BSandbox, OrchestrationPatterns,
+  SubagentIsolator, SUBAGENT_CONFIGS,
+  BLOCKED_PROVIDERS, ALLOWED_PROVIDERS,
+} from "@goli-cli/orchestration";
+```
+
+### `@goli-cli/evals` — evaluation harness
+
+```typescript
+import {
+  SWEBenchHarness, SemanticErrorEvaluator, RegressionGate,
+  generateRedteamConfig, evaluateRedteamResults,
+} from "@goli-cli/evals";
+```
+
+### `@goli-cli/approval`, `@goli-cli/observability`, `@goli-cli/plugins`, `@goli-cli/i18n`
+
+```typescript
+import { ApprovalEngine, EnhancedApprovalEngine, computeBlastRadius } from "@goli-cli/approval";
+import { OtelTracer, LangfuseClient, AlertManager } from "@goli-cli/observability";
+import { PluginRegistry } from "@goli-cli/plugins";
+import { initI18n, t, setLocale, getLocale, SUPPORTED_LOCALES } from "@goli-cli/i18n";
+```
+
+### `@goli-cli/sdk` — MCP SDK server & gateway
+
+```typescript
+import { ApiServer, HostProvider, HeadlessHostProvider } from "@goli-cli/sdk";
+```
+
+### Key module walkthrough
+
+#### `AgentLoop` (`packages/agent-core/src/loop.ts`)
 
 The core agent loop: receives user input, calls the model via the provider
 adapter, executes tools, returns the final response. Handles streaming,
@@ -239,15 +165,12 @@ retries, error classification, stall detection, compaction, reflexion,
 and effort routing.
 
 ```typescript
-import {
-  AgentLoop,
-  createProviderBackedClientSync,
-  loadConfig,
-  createDefaultToolRegistry,
-} from "@goli/core";
+import { AgentLoop, createProviderBackedClientSync } from "@goli-cli/agent-core";
+import { loadConfig } from "@goli-cli/config";
+import { createDefaultToolRegistry } from "@goli-cli/tool-system";
 
 const config = loadConfig();
-const client = createProviderBackedClientSync(config); // Ollama default
+const client = createProviderBackedClientSync(); // Ollama default
 const tools = createDefaultToolRegistry({ workspaceRoot: process.cwd() });
 
 const loop = new AgentLoop({
@@ -263,7 +186,7 @@ const result = await loop.run({
 // result: { content, tokens, costUsd, iterations, stopReason, todos }
 ```
 
-#### `agent/provider-adapter.ts` — Provider abstraction
+#### `provider-adapter.ts` — Provider abstraction
 
 Wraps any `ModelProvider` (Ollama / OpenAI / Anthropic / Gemini / Mock)
 as a uniform model client that `AgentLoop` consumes. The provider is
@@ -271,25 +194,25 @@ selected via the `GOLI_DEFAULT_MODEL` env var (format `<provider>/<model>`):
 
 ```typescript
 // Reads GOLI_DEFAULT_MODEL and constructs the right provider
-const client = createProviderBackedClientSync(config);
-// → OllamaProvider('gpt-oss:120b') by default
-// → OpenAIProvider('gpt-4o')        if GOLI_DEFAULT_MODEL=openai/gpt-4o
-// → AnthropicProvider('claude-3-5-sonnet') if GOLI_DEFAULT_MODEL=anthropic/...
-// → GeminiProvider('gemini-1.5-pro')       if GOLI_DEFAULT_MODEL=gemini/...
-// → MockProvider('echo')                   if GOLI_DEFAULT_MODEL=mock/echo
+const client = createProviderBackedClientSync();
+// → OllamaProvider('gpt-oss:120b-cloud')     by default
+// → OpenAIProvider('gpt-4o')                 if GOLI_DEFAULT_MODEL=openai/gpt-4o
+// → AnthropicProvider('claude-3-5-sonnet')   if GOLI_DEFAULT_MODEL=anthropic/...
+// → GeminiProvider('gemini-2.0-flash')       if GOLI_DEFAULT_MODEL=gemini/...
+// → MockProvider('mock')                     if GOLI_DEFAULT_MODEL=mock/...
 ```
 
-#### `tools/registry.ts` — Tool registry
+#### `registry.ts` (`@goli-cli/tool-system`) — Tool registry
 
 Registers all built-in tools (bash, read_file, write_file, edit_file, grep,
 list_directory, web_search, web_fetch, todo_write, ask_user, spawn_subagent,
-notebook_edit, background_shell, spec_write, spec_review, spec_update,
-lsp_hover, lsp_goto_definition, lsp_references, lsp_diagnostics, plan_task)
-plus MCP tools added at runtime. Tools are tiered (T0–T3 + BLK) by their
-blast radius.
+notebook_edit, background_shell → bash_output/kill_shell, spec_write,
+spec_review, spec_update, lsp_hover, lsp_goto_definition, lsp_references,
+lsp_diagnostics) plus MCP tools added at runtime. Tools are tiered
+(T0–T3 + BLK) by their blast radius.
 
 ```typescript
-import { ToolRegistry, createDefaultToolRegistry } from "@goli/core";
+import { ToolRegistry, createDefaultToolRegistry } from "@goli-cli/tool-system";
 
 const registry = createDefaultToolRegistry({
   workspaceRoot: process.cwd(),
@@ -300,7 +223,7 @@ const registry = createDefaultToolRegistry({
 const tool = registry.get("bash");
 ```
 
-#### `sandbox/` — Sandboxing
+#### `@goli-cli/sandbox` — Sandboxing
 
 OS-level sandboxing via bubblewrap (`bwrap`, Linux) and Seatbelt /
 sandbox-exec (macOS), with cgroups v2 resource limits and a
@@ -310,7 +233,8 @@ filesystem path allowlists, network allowlists, and resource caps
 (memory / CPU / PIDs / disk / wallclock).
 
 ```typescript
-import { executeInSandbox, loadConfig } from "@goli/core";
+import { executeInSandbox } from "@goli-cli/sandbox";
+import { loadConfig } from "@goli-cli/config";
 
 const result = await executeInSandbox("npm test", {
   workspaceRoot: process.cwd(),
@@ -319,7 +243,7 @@ const result = await executeInSandbox("npm test", {
 });
 ```
 
-#### `context/` — Context engine
+#### `@goli-cli/context-engine` — Context engine
 
 Manages the LLM context window: hybrid retrieval (structural via SQLite
 symbol graph + lexical via ripgrep + semantic via docstring matching,
@@ -327,15 +251,15 @@ fused via reciprocal rank fusion), 50% in-loop compaction + 85%
 safety-net, project map indexing via tree-sitter (regex fallback or
 optional native bindings per ADR-0046).
 
-#### `memory/` — Memory system
+#### `@goli-cli/memory-engine` — Memory system
 
 3-tier persistent memory:
 
-- **Tier 1 (session):** `SessionMemory` (ephemeral in-process) + `JsonlSessionStore` (crash-safe append-only, supports resume + branch per ADR-0040).
+- **Tier 1 (session):** `SessionMemory` (ephemeral in-process) + `JsonlSessionStore` (SQLite, crash-safe, supports resume + branch per ADR-0040).
 - **Tier 2 (persistent):** `PersistentMemory` (3 markdown files: `MEMORY.md`, `USER.md`, `PROJECT.md` with hard character budgets per ADR-0025).
-- **Tier 3 (external):** `VectorMemoryPlugin` (keyword-matching stub; LanceDB deferred).
+- **Tier 3 (external):** `VectorMemoryPlugin` / `TFIDFMemoryPlugin` (LanceDB deferred).
 
-Plus: `MemoryCurator` (runs at session end), `TrajectoryStore` + `TrajectoryCurator` (training data), `DatasetBuilder` + `computeReward` + `GRPOScaffold` (GRPO + LoRA fine-tuning pipeline), `SicaLoop` + `ImmutableSafetyRegistry` + `SafetyOverseer` (recursive self-improvement with veto).
+Plus: `MemoryCurator` (runs at session end), `TrajectoryStore` + `TrajectoryCurator` (training data), `DatasetBuilder` + `computeReward` (GRPO + LoRA fine-tuning pipeline in `services/ml-pipeline/`), `SicaLoop` + `ImmutableSafetyRegistry` + `SafetyOverseer` (recursive self-improvement with veto).
 
 ## @goli/cli Public API
 
@@ -387,9 +311,17 @@ Lazy-loaded commands keep cold-start under 200ms (measured: 81ms).
 └── <ScreenReaderAppLayout>    (alternative a11y layout — linear, no animations)
 ```
 
+The tree above is the initial **splash layout**. Once the user sends their
+first message, the render tree is pruned for performance: `SplashBox`,
+`AgentStateBar`, `ApprovalModeIndicator`, `ContextSummaryDisplay`,
+`ShortcutsHelp`, and the dialogs unmount, leaving only `HeaderBar` +
+`HistoryScroll` + `PromptInput`/`StatusBar` (~200 nodes per frame instead of
+~500).
+
 ### Theme system
 
-25 built-in themes (skins) — 21 standard + 4 Hermes-inspired additions
+25 built-in themes (skins) — 21 standard (11 original + 10 added in T-043)
+plus 4 Hermes-inspired additions
 (`hermes-gold`, `ares-crimson`, `slate-cool`, `daylight`) — plus a
 special `no-color` accessibility theme and user-defined YAML skins in
 `~/.goli/skins/`:
@@ -419,7 +351,7 @@ const dracula = loadSkin("Dracula");
 // /theme command in the TUI applies the new skin immediately
 ```
 
-The token palette (`packages/cli/src/tui/theme/tokens.ts`) is mutable and
+The token palette (`apps/cli/src/tui/theme/tokens.ts`) is mutable and
 version-tagged. Components subscribe via `useThemeVersion()` so `/theme`
 triggers an immediate re-render.
 
@@ -512,8 +444,8 @@ defaults → `config/default.toml` (project) → `~/.goli-cli/config.toml` (user
 
 ```toml
 [model]
-modelId = "glm-5.2"              # overridden by GOLI_DEFAULT_MODEL env var
-baseUrl = "https://open.bigmodel.cn/api/paas/v4"
+modelId = "gpt-oss:120b-cloud"     # overridden by GOLI_DEFAULT_MODEL env var
+baseUrl = "https://ollama.com"
 apiKey = ""                       # use GOLI_MODEL_API_KEY env var instead
 defaultEffort = "high"            # routine tasks
 complexEffort = "max"             # refactor / debug / architecture
@@ -560,7 +492,7 @@ format = "pretty"
 | Variable                 | Description                                     | Default                    |
 | ------------------------ | ----------------------------------------------- | -------------------------- |
 | `GOLI_HOME`              | Profile directory (overrides `~/.goli/current`) | `~/.goli-cli` (legacy)     |
-| `GOLI_DEFAULT_MODEL`     | Active provider + model (`<provider>/<model>`)  | `ollama/gpt-oss:120b`      |
+| `GOLI_DEFAULT_MODEL`     | Active provider + model (`<provider>/<model>`)  | `ollama/gpt-oss:120b-cloud` |
 | `OLLAMA_API_KEY`         | Ollama Cloud API key (default provider)         | (unset — read from `.env`) |
 | `OPENAI_API_KEY`         | OpenAI API key (opt-in)                         | (unset)                    |
 | `ANTHROPIC_API_KEY`      | Anthropic API key (opt-in)                      | (unset)                    |
@@ -580,9 +512,9 @@ format = "pretty"
 ## See also
 
 - [TUI Architecture](../tui/architecture.md) — component tree, state management, performance
-- [Themes](../cli/themes.md) — all 20 built-in themes with color palettes
-- [Architecture Decisions](../decisions/) — 45 ADRs covering major design choices
+- [Themes](../cli/themes.md) — all 25 built-in themes with color palettes
+- [Architecture Decisions](../decisions/) — 47 ADRs covering major design choices
 - [Getting Started](../getting-started.md) — installation and first-run guide
 - [Architecture](../architecture.md) — module map + agent loop internals
-- [Agents](../agents.md) — 8-agent swarm pipeline (Orchestrator → Data)
+- [Agents](../agents.md) — 11-agent swarm pipeline (Scout → Documenter)
 - [MCP Extensions](../extensions/mcp.md) — how to add custom tools via MCP servers

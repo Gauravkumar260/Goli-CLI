@@ -10,7 +10,7 @@ The Obsidian vault that defines Goli-CLI says, under "Non-goals":
 > terminal-only. A web interface is a future possibility but not a
 > v1.0 goal.
 
-So why does `packages/studio/` exist? This note explains the
+So why does `apps/studio/` exist? This note explains the
 apparent contradiction.
 
 ## The vault's constraint was about the CLI, not the project
@@ -113,7 +113,7 @@ close the option permanently.
 ## What this means for contributors
 
 - **Don't break the CLI to fix the Studio.** If a change is
-  Studio-only, scope it to `packages/studio/`.
+  Studio-only, scope it to `apps/studio/`.
 - **Don't break the contract.** If a change affects the socket
   protocol, update `src/lib/types/socket.ts` first, then update both
   the CLI and the Studio to match.
@@ -123,9 +123,8 @@ close the option permanently.
 
 ## See also
 
-- [`packages/studio/README.md`](../../../packages/studio/README.md) —
+- [`apps/studio/README.md`](../../../apps/studio/README.md) —
   the Studio's README.
-- [docs/studio-worklog.md](../../studio-worklog.md) — the build log.
 - [Tutorial: Running Goli Studio](../tutorials/running-studio.md) —
   how to start it.
 - [Socket protocol](../../design/socket-protocol.md) — the wire

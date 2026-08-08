@@ -105,8 +105,8 @@ Each layer catches different things:
    `sudo` is convenient, but a sufficiently determined agent could
    bypass it (e.g. `command -v sudo`). The sandbox is what actually
    stops the `sudo` call from doing damage.
-3. **Test the sandbox.** `tests/unit/toctou-path-safety.test.ts` and
-   `tests/unit/path-safety.test.ts` are critical. Don't merge changes
+3. **Test the sandbox.** `packages/sandbox/__tests__/toctou-path-safety.test.ts` and
+   `packages/tool-system/__tests__/path-safety.test.ts` are critical. Don't merge changes
    that weaken them.
 4. **Don't trust the agent's output.** Tool results are untrusted
    data. They're truncated (ADR 0025) and the LLM safety overseer

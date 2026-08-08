@@ -1,6 +1,6 @@
 # CLAUDE.md — `@goli-cli/cli`
 
-> **Audience:** Claude Code working in `packages/cli/`.
+> **Audience:** Claude Code working in `apps/cli/`.
 > **Parent:** [`/CLAUDE.md`](../../../CLAUDE.md).
 
 ## Package purpose
@@ -26,7 +26,7 @@ The CLI imports `@goli-cli/core` for all agent IP. It owns:
 | `src/tui/lib/CommandRegistry.ts`  | Unified slash-command registry.                                          |
 | `src/tui/theme/skin-engine.ts`    | Theme engine (20 built-in + user YAML).                                  |
 | `src/tui/state/AppStateStore.ts`  | Zustand store.                                                           |
-| `src/services/CliAgentLoop.ts`    | Bridges the TUI to `@goli/core`'s loop.                                  |
+| `src/services/CliAgentLoop.ts`    | Bridges the TUI to `@goli-cli/agent-core`'s loop.                                  |
 | `src/commands/wakeup.ts`          | The `goli wakeup` subcommand (main TUI entry).                           |
 | `src/commands/headless-output.ts` | The `--headless-output` mode.                                            |
 
@@ -65,11 +65,11 @@ The CLI imports `@goli-cli/core` for all agent IP. It owns:
 - **Forgetting `'use client'`** — N/A for the CLI (Ink is always
   client-side), but applies if you copy code to the Studio.
 - **Deep imports from `core`** — use the barrel
-  (`import { ... } from '@goli/core'`).
+  (`import { ... } from '@goli-cli/agent-core'`).
 
 ## Themes
 
-The TUI ships 20 built-in themes:
+The TUI ships 25 built-in themes:
 
 - 11 dark themes (including 2 colorblind-friendly).
 - 8 light themes (including 2 colorblind-friendly).
@@ -85,7 +85,7 @@ the YAML schema.
   progress bars, no alt-screen).
 - `NO_COLOR` env var switches to the NoColor theme.
 - WCAG 2.1 AA contrast ratios enforced by
-  `tests/unit/a11y-contrast-fixes.test.ts`.
+  `apps/cli/__tests__/a11y-contrast-fixes.test.ts`.
 - See [`docs/a11y-report.md`](../../../docs/a11y-report.md) for the full
   audit.
 

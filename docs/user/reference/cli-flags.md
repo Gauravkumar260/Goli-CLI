@@ -11,7 +11,7 @@ any order. Boolean flags can be negated with `--no-<flag>` (e.g.
 | Flag                                    | Type   | Default                                        | Description                                                  |
 | --------------------------------------- | ------ | ---------------------------------------------- | ------------------------------------------------------------ |
 | `-p, --prompt <text>`                   | string | —                                              | Run headlessly with this prompt and exit.                    |
-| `--model <id>`                          | string | `$GOLI_DEFAULT_MODEL` or `ollama/gpt-oss:120b` | Override the model for this session.                         |
+| `--model <id>`                          | string | `$GOLI_DEFAULT_MODEL` or `ollama/gpt-oss:120b-cloud` | Override the model for this session.                         |
 | `--mode <build\|plan\|god\|local-llms>` | enum   | `build`                                        | App mode. See [modes](#modes).                               |
 | `--permission-mode <ask\|yolo\|plan>`   | enum   | `ask`                                          | Permission mode. See [permissions](#permissions).            |
 | `--workspace <path>`                    | string | cwd                                            | Workspace root (sandbox boundary).                           |

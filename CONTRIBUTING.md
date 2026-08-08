@@ -284,6 +284,6 @@ Source: `packages/tool-system/src/footprint-ladder.ts`
 - **Issues**: <https://github.com/goli-cli/goli-cli/issues>
 - **Discussions**: <https://github.com/goli-cli/goli-cli/discussions>
 - **Security**: `security@goli-cli.dev` (see `SECURITY.md`)
-- **Roadmap**: see `docs/phases/README.md` for the 13-phase plan and current status
+- **Roadmap**: Architecture and module map live in `docs/architecture.md`; see the documentation index in `docs/README.md`.
 
 Thank you for helping build GOLI-CLI.

@@ -163,6 +163,6 @@ Fix: file a P0 issue, fix the bug, release a patch within 72 hours.
 - [`SECURITY.md`](../../../SECURITY.md) — security policy + disclosure.
 - [ADR 0001 — sandbox as trust boundary](../../decisions/0001-sandbox-as-trust-boundary.md)
 - [ADR 0016 — kernel-enforced sandbox](../../decisions/0016-kernel-enforced-sandbox.md)
-- [`tests/unit/toctou-path-safety.test.ts`](../../../tests/unit/toctou-path-safety.test.ts)
-- [`tests/unit/path-safety.test.ts`](../../../tests/unit/path-safety.test.ts)
+- [`packages/sandbox/__tests__/toctou-path-safety.test.ts`](../../../packages/sandbox/__tests__/toctou-path-safety.test.ts)
+- [`packages/tool-system/__tests__/path-safety.test.ts`](../../../packages/tool-system/__tests__/path-safety.test.ts)
 - [Explanation: sandbox is the trust boundary](../../user/explanation/sandbox-trust-boundary.md)

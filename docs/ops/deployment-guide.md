@@ -41,7 +41,7 @@ npm link
 
 ```bash
 # Set your LLM provider
-export GOLI_DEFAULT_MODEL="ollama/gpt-oss:120b"   # default — open-weight
+export GOLI_DEFAULT_MODEL="ollama/gpt-oss:120b-cloud"   # default — open-weight
 export OLLAMA_API_KEY="sk-..."
 
 # Or use a closed-weight provider
@@ -107,7 +107,7 @@ Each team member configures their local Goli-CLI to point at the
 self-hosted stack:
 
 ```bash
-export GOLI_DEFAULT_MODEL="ollama/gpt-oss:120b"
+export GOLI_DEFAULT_MODEL="ollama/gpt-oss:120b-cloud"
 export OPENAI_BASE_URL="https://litellm.your-domain.com/v1"
 export OPENAI_API_KEY="<litellm-master-key>"
 

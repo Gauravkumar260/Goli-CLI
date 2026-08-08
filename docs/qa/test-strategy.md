@@ -211,7 +211,7 @@ endpoints respond correctly.
 
 ## 6. Performance testing
 
-Perf tests live in `tests/unit/perf-baseline.test.ts`. They assert:
+Perf tests live in `tests/integration/perf-baseline.test.ts`. They assert:
 
 - Cold startup ≤ 1.5s wall, ≤ 2.0s CPU.
 - Idle 5s ≤ 50ms CPU.
@@ -231,20 +231,20 @@ contrast ratios. Run with `npm run a11y:audit`.
 
 ### 7.2 Keyboard navigation
 
-`tests/unit/screen-reader-layout.test.tsx` asserts every interactive
+`apps/cli/__tests__/screen-reader-layout.test.tsx` asserts every interactive
 element has a keyboard equivalent.
 
 ### 7.3 Screen reader
 
-`tests/unit/screen-reader-layout.test.tsx` asserts the screen-reader
+`apps/cli/__tests__/screen-reader-layout.test.tsx` asserts the screen-reader
 layout is linear (no spinners, no progress bars, no alt-screen).
 
 ## 8. Security testing
 
 ### 8.1 Sandbox escape
 
-`tests/unit/toctou-path-safety.test.ts` and
-`tests/unit/path-safety.test.ts` assert the sandbox blocks path
+`packages/sandbox/__tests__/toctou-path-safety.test.ts` and
+`packages/tool-system/__tests__/path-safety.test.ts` assert the sandbox blocks path
 traversal and TOCTOU attacks.
 
 ### 8.2 Prompt injection
@@ -255,25 +255,25 @@ instructions") and asserts the agent doesn't comply.
 
 ### 8.3 Network egress
 
-`tests/unit/network-egress.test.ts` asserts the sandbox blocks
+`packages/sandbox/__tests__/network-egress.test.ts` asserts the sandbox blocks
 outbound network from `bash`, and allows it for `web_fetch`.
 
 ## 9. Eval testing
 
 ### 9.1 SWE-bench
 
-`packages/core/src/evals/swebench/harness.ts` runs the agent against
+`packages/evals/src/swebench/harness.ts` runs the agent against
 SWE-bench tasks. Baseline: ≥ 30% solve rate on SWE-bench Lite.
 
 ### 9.2 Semantic error rate
 
-`packages/core/src/evals/semantic-check/evaluator.ts` uses an LLM to
+`packages/evals/src/semantic-check/evaluator.ts` uses an LLM to
 grade agent outputs against a rubric. Baseline: ≤ 5% semantic error
 rate on the regression suite.
 
 ### 9.3 Redteam
 
-`packages/core/src/evals/redteam/promptfoo.ts` runs prompt injection
+`packages/evals/src/redteam/promptfoo.ts` runs prompt injection
 tests. Baseline: 0% successful injections.
 
 ## 10. Test review checklist

@@ -1,6 +1,6 @@
 # CLAUDE.md — `@goli-cli/studio`
 
-> **Audience:** Claude Code working in `packages/studio/`.
+> **Audience:** Claude Code working in `apps/studio/`.
 > **Parent:** [`/CLAUDE.md`](../../../CLAUDE.md).
 > **Status:** Experimental — not part of v1.0 SRS scope.
 
@@ -112,10 +112,8 @@ src/
 
 ## See also
 
-- [packages/studio/README.md](../../../packages/studio/README.md) —
+- [apps/studio/README.md](../../../apps/studio/README.md) —
   full README with architecture diagram.
-- [docs/studio-worklog.md](../../../docs/studio-worklog.md) — build log
-  - handover notes.
 - [docs/design/socket-protocol.md](../../../docs/design/socket-protocol.md)
   — socket protocol contract.
 - [docs/design/openapi/studio-api.yaml](../../../docs/design/openapi/studio-api.yaml)

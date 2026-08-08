@@ -44,7 +44,7 @@ Existing AI coding agents force a tradeoff:
   multi-agent + self-improvement loop.
 
 Goli-CLI resolves the tradeoff with a **provider-agnostic** architecture
-(defaults to open-weight `ollama/gpt-oss:120b`), a **kernel-enforced
+(defaults to open-weight `ollama/gpt-oss:120b-cloud`), a **kernel-enforced
 sandbox** (Landlock / Seatbelt / cgroups), a **deterministic hooks
 layer** (vs. prompt-only safety), and a **memory + self-improvement
 loop** (SICA) that compounds over time.
@@ -53,7 +53,7 @@ loop** (SICA) that compounds over time.
 
 | #   | Goal                                                | Success metric                                                                                          |
 | --- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| G1  | Multi-provider model layer with open-weight default | ≥ 4 providers (Anthropic, OpenAI, Gemini, Ollama); `ollama/gpt-oss:120b` is the default                 |
+| G1  | Multi-provider model layer with open-weight default | ≥ 4 providers (Anthropic, OpenAI, Gemini, Ollama); `ollama/gpt-oss:120b-cloud` is the default                 |
 | G2  | Kernel-enforced sandbox on all 3 OSes               | Landlock (Linux), Seatbelt (macOS), Job Object (Windows); verified by `toctou-path-safety.test.ts`      |
 | G3  | Deterministic tool layer with hooks                 | 12+ built-in tools, 6 hook events, allowlist-first bash (`docs/decisions/0015-allowlist-first-bash.md`) |
 | G4  | 11-agent swarm for complex tasks                    | Scout → Architect → Coder → Reviewer → Tester → ... → Documenter pipeline (`docs/agents.md`)            |
@@ -115,8 +115,8 @@ The short version:
 
 - `goli --export-trajectory run-123.jsonl` — export trajectory for fine-tuning
 - `goli --sica-overseer` — enable the LLM safety overseer loop
-- `python_ml/train_grpo.py` — GRPO fine-tuning pipeline with custom reward
-- `python_ml/evaluate.py` — eval harness with semantic-error-rate metric
+- `services/ml-pipeline/train_grpo.py` — GRPO fine-tuning pipeline with custom reward
+- `services/ml-pipeline/evaluate.py` — eval harness with semantic-error-rate metric
 
 ### 7.4 VS Code power user (experimental)
 

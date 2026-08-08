@@ -4,44 +4,45 @@
 
 ## Module Map
 
-Goli-CLI is an npm workspaces monorepo with 4 packages:
+Goli-CLI is an npm workspaces monorepo with 3 apps + 16 `@goli-cli/*` packages:
 
 ```
 goli-cli/
+├── apps/
+│   ├── cli/          @goli/cli — the TUI + binary
+│   │   ├── commands/   wakeup, doctor, status, audit, usage, commit, init, mcp, cron, profile, hooks
+│   │   ├── services/   CliAgentLoop, MockAgentLoop, IAgentLoop
+│   │   ├── tui/        25+ Ink components + theme engine (25 skins) + 11 hooks + 25+ lib modules + state store
+│   │   ├── completions/ bash/zsh/fish shell completions
+│   │   ├── constants.ts CLI-local constants (lazy-loaded for fast cold-start)
+│   │   └── index.ts     entry point (env-loader + lazy-loaded commands)
+│   ├── studio/       nextjs_tailwind_shadcn_ts — web console ("Goli Studio")
+│   └── vscode-ext/   goli-vscode — standalone VS Code extension (in workspaces since ADR-0047)
 ├── packages/
-│   ├── core/           @goli/core — the "Brain"
-│   │   ├── agent/        ReAct loop, providers, budget, retry, reflexion, planner, effort router
-│   │   ├── api/          OpenAI-compatible HTTP API server (for IDE integrations)
-│   │   ├── approval/     diff-first approval flow + blast radius + enhanced approval
-│   │   ├── config/       TOML config loader + Zod schema + mode prompts + integrity manager
-│   │   ├── context/      hybrid retriever (structural + lexical + semantic) + compaction
-│   │   ├── evals/        SWE-bench evaluation harness + semantic evaluator + regression gate + redteam
-│   │   ├── gateway/      long-running gateway host
-│   │   ├── i18n/         5 locales: en, es, zh-CN, ja, de
-│   │   ├── memory/       JSONL session store, SICA immutable registry, trajectory, training, persistent
-│   │   ├── observability/ audit log, OTel tracing, Langfuse, alerts, error classifier
-│   │   ├── orchestration/ 8-agent swarm pipeline (Orchestrator → Data) + worktree + E2B + classifier
-│   │   ├── plugins/      plugin registry + lifecycle + middleware + hooks
-│   │   ├── providers/    Ollama (default), OpenAI, Anthropic, Gemini, Mock
-│   │   ├── sandbox/      cgroups v2, bubblewrap (Linux), seatbelt (macOS), network, path-validation, audit-log
-│   │   ├── tools/        21 registered tools (core + gap + spec + LSP + subagent) + MCP + hooks
-│   │   ├── types/        ambient declarations for optional deps
-│   │   └── utils/        constants, logger, errors, json-utils
-│   ├── cli/            @goli/cli — the TUI + binary
-│   │   ├── commands/     wakeup, doctor, status, audit, usage, commit, init, mcp, cron, profile
-│   │   ├── services/     CliAgentLoop, MockAgentLoop, IAgentLoop
-│   │   ├── tui/          25+ Ink components + theme engine + 11 hooks + 25+ lib modules + state store
-│   │   ├── constants.ts  CLI-local constants (lazy-loaded for fast cold-start)
-│   │   └── index.ts      Commander entry point (lazy-loaded commands)
-│   ├── evals/          @goli/evals — SWE-bench-style evaluation harness (stub)
-│   └── vscode-ext/     standalone VS Code extension (NOT in workspaces — see ADR-0017)
-├── tests/              root-level vitest (unit + integration + e2e) — 3,053 tests
-├── scripts/            bench, a11y-audit, gen-completions, gen-10k-repo, tti-bench, clean-room-verify
-├── completions/        bash/zsh/fish shell completions
-├── docs/               decisions (45 ADRs), extensions, phases, api, tui, cli
+│   ├── agent-core/     @goli-cli/agent-core — the "Brain": ReAct loop, prompt builder, toolset snapshot, provider adapter, budget, retry, reflexion, planner, effort router, stop engine, stall/loop detection
+│   ├── llm-providers/  @goli-cli/llm-providers — Ollama (default), Anthropic, Gemini, Mock (+ OpenAI, legally blocked)
+│   ├── tool-system/    @goli-cli/tool-system — 21 registered tools + hooks + MCP + footprint ladder
+│   ├── context-engine/ @goli-cli/context-engine — hybrid retriever + tree-sitter indexer (regex fallback) + compaction
+│   ├── memory-engine/  @goli-cli/memory-engine — SQLite FTS5 session store, SICA registry, skills, trajectory
+│   ├── config/         @goli-cli/config — TOML loader + Zod schema + mode prompts + integrity manager
+│   ├── approval/       @goli-cli/approval — diff-first approval + blast radius + enhanced approval
+│   ├── observability/  @goli-cli/observability — audit log, OTel tracing, Langfuse, alerts, error classifier
+│   ├── orchestration/  @goli-cli/orchestration — 11-agent swarm pipeline + worktree + E2B + classifier + blackboard
+│   ├── plugins/        @goli-cli/plugins — plugin registry + lifecycle + hooks
+│   ├── i18n/           @goli-cli/i18n — locale catalogs
+│   ├── sandbox/        @goli-cli/sandbox — seatbelt (macOS), landlock/bubblewrap (Linux), cgroups, network, path-validation, audit-log
+│   ├── sdk/            @goli-cli/sdk — MCP SDK server + gateway
+│   ├── evals/          @goli-cli/evals — SWE-bench harness, semantic evaluator, regression gate, redteam
+│   ├── shared/         @goli-cli/shared — constants, logger, errors, json-utils, env-loader
+│   └── test-utils/     @goli-cli/test-utils — perf harness (source-only, no build)
+├── tests/              root-level vitest (integration + e2e) — 3,376 tests (unit tests are colocated)
+├── perf-tests/         perf harness + baselines (cold-start, module-load)
+├── memory-tests/       heap baseline
+├── scripts/            bench, a11y-audit, gen-completions, gen-10k-repo, tti-bench, run-isolated-tests
+├── services/ml-pipeline/          GRPO + LoRA training pipeline (Module 5 ML side)
+├── docs/               decisions (47 ADRs), extensions, phases, api, tui, cli
 ├── examples/           mcp-hello-world/
 ├── infra/              docker-compose + k8s manifests + LiteLLM router config
-├── python_ml/          GRPO + LoRA training pipeline (Module 5 ML side)
 ├── bench/              baseline.json + fixtures/repo-10k/
 ├── legal/              PRIVACY_POLICY.md, TERMS_OF_SERVICE.md, ai-bom.spdx.json
 └── config/             default.toml
@@ -73,7 +74,7 @@ User Prompt
 Final Output (code + tests + docs)
 ```
 
-The pipeline is implemented in `packages/core/src/orchestration/swarm-pipeline.ts`. Each agent is a role-specialized instance of the same `AgentLoop` class, with a different system prompt and tool subset.
+The pipeline is implemented in `packages/orchestration/src/swarm-pipeline.ts`. Each agent is a role-specialized instance of the same `AgentLoop` class, with a different system prompt and tool subset.
 
 ## The Agent Loop (ReAct Master Loop)
 
@@ -89,8 +90,8 @@ User/Orchestrator Prompt
     │
     ▼
 ┌─── LOOP (max N iterations or budget) ───────────────┐
-│ 1. PLAN: assemble system prompt + context           │
-│ 2. CALL: GLM-5.2 with tools                         │
+│ 1. PLAN: assemble system prompt + context (3-tier, prefix-cache-stable)│
+│ 2. CALL: default model (Ollama, `gpt-oss:120b-cloud`) with tools       │
 │ 3. OBSERVE: execute tool calls (tier-gated)         │
 │ 4. REFLECT: check budget, stall, guardrails         │
 │ 5. COMPACT: if context > 70%, compress              │
@@ -103,18 +104,18 @@ Result (content + tokens + cost + todos)
 
 Key components:
 
-- **`AgentLoop`** (`packages/core/src/agent/loop.ts`) — the loop itself
-- **`ProviderBackedModelClient`** (`packages/core/src/agent/provider-adapter.ts`) — wraps any `ModelProvider` (Ollama default, OpenAI, Anthropic, Gemini, Mock) as a uniform model client
-- **`SystemPromptAssembler`** (`packages/core/src/agent/system-prompt.ts`) — assembles role-specific prompts from 10 ordered, prefix-cache-friendly fragments
-- **`Planner`** (`packages/core/src/agent/planner.ts`) — maintains the TODO list (one `in_progress` at a time)
-- **`BudgetTracker`** (`packages/core/src/agent/budget.ts`) — enforces token + cost + iteration + wall-clock limits
-- **`StopEngine`** (`packages/core/src/agent/stop-engine.ts`) — 4-condition stop: natural completion / budget / stall / parse failures
-- **`StallDetector`** + **`LoopDetector`** + **`ToolGuardrailController`** — three layers of loop detection (prevents the $47K LangChain incident)
-- **`AdvancedCompressor`** — summarizes old context when > 50% full (in-loop trigger); safety-net at 85%
-- **`ReflexionEngine`** — generates natural-language reflection on structural failure (Shinn et al., 2023)
-- **`EffortRoutingClient`** — auto-routes reasoning effort (high for tools, max for planner/architect, max for final answer)
-- **`CredentialPool`** — round-robin through OK credentials; rotates on rate limit / billing
-- **`ProvenanceTracker`** — tags context blocks with TrustLevel (prompt-injection defense)
+- **`AgentLoop`** (`packages/agent-core/src/loop.ts`) — the loop itself
+- **`ProviderBackedModelClient`** (`packages/agent-core/src/provider-adapter.ts`) — wraps any `ModelProvider` (Ollama default, OpenAI, Anthropic, Gemini, Mock) as a uniform model client
+- **`SystemPromptAssembler`** (`packages/agent-core/src/system-prompt.ts`) — assembles role-specific prompts from ordered, prefix-cache-friendly fragments (three-tier prompt structure; see [single-threaded loop](user/explanation/single-threaded-loop.md))
+- **`Planner`** (`packages/agent-core/src/planner.ts`) — maintains the TODO list (one `in_progress` at a time)
+- **`BudgetTracker`** (`packages/agent-core/src/budget.ts`) — enforces token + cost + iteration + wall-clock limits
+- **`StopEngine`** (`packages/agent-core/src/stop-engine.ts`) — 4-condition stop: natural completion / budget / stall / parse failures
+- **`StallDetector`** + **`LoopDetector`** + **`ToolGuardrails`** — three layers of loop detection (prevents the $47K LangChain incident)
+- **`AdvancedCompressor`** (`packages/agent-core/src/advanced-compression.ts`) — summarizes old context when > 50% full (in-loop trigger); safety-net at 85%
+- **`ReflexionEngine`** (`packages/agent-core/src/reflexion.ts`) — generates natural-language reflection on structural failure (Shinn et al., 2023)
+- **`EffortRoutingClient`** (`packages/agent-core/src/effort-router.ts`) — auto-routes reasoning effort (high for tools, max for planner/architect, max for final answer)
+- **`CredentialPool`** (`packages/agent-core/src/credential-pool.ts`) — round-robin through OK credentials; rotates on rate limit / billing
+- **`ProvenanceTracker`** (`packages/agent-core/src/provenance.ts`) — tags context blocks with TrustLevel (prompt-injection defense)
 
 ## Safety Gates
 
@@ -152,9 +153,10 @@ Goli-CLI reads from `config/default.toml` (project) and `~/.goli-cli/config.toml
 
 ```toml
 [model]
-# Default model — overridden by GOLI_DEFAULT_MODEL env var (e.g. ollama/gpt-oss:120b)
-modelId = "glm-5.2"
-baseUrl = "https://open.bigmodel.cn/api/paas/v4"
+# Default model — overridden by GOLI_DEFAULT_MODEL env var (e.g. ollama/gpt-oss:120b-cloud)
+modelId = "gpt-oss:120b-cloud"
+baseUrl = "https://ollama.com"
+apiKey = ""
 defaultEffort = "high"        # routine tasks
 complexEffort = "max"         # refactor / debug / architecture
 complexTriggers = ["refactor", "design", "architecture", "debug", "migrate", "rewrite"]
@@ -167,6 +169,8 @@ maxTokens = 800_000           # 80% of 1M, leaves compaction room
 maxCostUsd = 5.0
 maxIterations = 50
 maxWallclockSeconds = 1800
+costPerMillionInputTokens = 2.5
+costPerMillionOutputTokens = 10.0
 
 [retry]
 maxRetries = 3
@@ -196,29 +200,28 @@ format = "pretty"             # pretty (TTY) | json (pipelines)
 ```
 
 See `config/default.toml` for the full schema. Zod schemas in
-`packages/core/src/config/schema.ts` validate every load; failure is fatal.
+`packages/config/src/schema.ts` validate every load; failure is fatal.
 
 ## Multi-Provider Support
 
-Goli-CLI supports multiple LLM providers via an integrated providers module at `packages/core/src/providers/`. The provider is selected via the `GOLI_DEFAULT_MODEL` env var (format: `provider/model`, e.g. `ollama/gpt-oss:120b`).
+Goli-CLI supports multiple LLM providers via an integrated providers module at `packages/llm-providers/src/`. The provider is selected via the `GOLI_DEFAULT_MODEL` env var (format: `provider/model`, e.g. `ollama/gpt-oss:120b-cloud`).
 
 Supported providers:
 
-- **Ollama** (default) — `ollama/<model>`, uses `OLLAMA_BASE_URL` + `OLLAMA_API_KEY`. Default model: `gpt-oss:120b` (open-weight).
-- **OpenAI** — `openai/<model>`, uses `OPENAI_API_KEY`. Default model: `gpt-4o`. Closed-weight; opt-in only.
-- **Anthropic** — `anthropic/<model>`, uses `ANTHROPIC_API_KEY`. Default model: `claude-3-5-sonnet-20241022`. Closed-weight; opt-in only. Only provider with `supportsCaching() === true`.
-- **Gemini** — `gemini/<model>`, uses `GEMINI_API_KEY`. Default model: `gemini-1.5-pro`. Closed-weight; opt-in only.
-- **Mock** — `mock/echo`, deterministic. Used by `--demo` mode and the test suite.
+- **Ollama** (default) — `ollama/<model>`, uses `OLLAMA_BASE_URL` (default `http://localhost:11434`) + `OLLAMA_API_KEY`. Default model: `gpt-oss:120b-cloud` (open-weight).
+- **Anthropic** — `anthropic/<model>`, requires `ANTHROPIC_API_KEY`. Default model: `claude-3-5-sonnet-20241022`. Only provider with `supportsCaching() === true`.
+- **Gemini** — `gemini/<model>`, requires `GEMINI_API_KEY`. Default model: `gemini-2.0-flash`.
+- **Mock** — `mock/<model>`, deterministic. Used by `--demo` mode and the test suite.
+- **OpenAI** — `openai/<model>`, uses `OPENAI_API_KEY` (+ optional `OPENAI_BASE_URL` for vLLM / LiteLLM). Note: the **async router** (`createProvider`) legally blocks the `openai/` prefix (HIGH-71/MEDIUM-62, see `packages/llm-providers/src/router.ts`), while the **sync adapter** used by `AgentLoop` (see `packages/agent-core/src/provider-adapter.ts`) still constructs `OpenAIProvider` directly — behavior depends on the entry point.
 
-The `ProviderBackedModelClient` adapter (`packages/core/src/agent/provider-adapter.ts`) wraps any provider as a uniform model client, so the existing `AgentLoop` works without modification. The factory `createProviderBackedClientSync` / `createProviderBackedClient` selects the provider via `GOLI_DEFAULT_MODEL`. A `.env` file with the Ollama Cloud config is shipped in the repo root — no external `dotenv` dependency is required (the loader reads `.env` directly).
+The `ProviderBackedModelClient` adapter (`packages/agent-core/src/provider-adapter.ts`) wraps any provider as a uniform model client, so the existing `AgentLoop` works without modification. The factory `createProviderBackedClientSync` / `createProviderBackedClient` selects the provider via `GOLI_DEFAULT_MODEL`. A `.env` file with the Ollama Cloud config is shipped in the repo root — no external `dotenv` dependency is required (the loader reads `.env` directly).
 
 ## See Also
 
 - [Getting Started](getting-started.md) — 5-minute tutorial
 - [Agents](agents.md) — detailed per-agent reference
 - [TUI Architecture](tui/architecture.md) — component tree + state model
-- [Theme Catalog](cli/themes.md) — 20 built-in themes + user YAML skins
+- [Theme Catalog](cli/themes.md) — 25 built-in themes + user YAML skins
 - [MCP Extensions](extensions/mcp.md) — how to add custom tools
-- [ADRs](decisions/) — 45 architectural decision records
-- [Phase Plans](phases/README.md) — 13-phase implementation roadmap
+- [ADRs](decisions/) — 47 architectural decision records
 - [Coverage Report](coverage-report.md) — test coverage + gap analysis

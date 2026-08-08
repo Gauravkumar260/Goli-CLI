@@ -28,7 +28,7 @@ into four kinds based on the user's intent:
 
 | Tutorial                          | File                                                                       | Length |
 | --------------------------------- | -------------------------------------------------------------------------- | ------ |
-| Getting Started (5-minute tour)   | [tutorials/getting-started.md](tutorials/getting-started.md)               | 5 min  |
+| Getting Started (5-minute tour)   | [getting-started.md](../getting-started.md)                               | 5 min  |
 | Your First Multi-Agent Task       | [tutorials/first-multi-agent-task.md](tutorials/first-multi-agent-task.md) | 15 min |
 | Writing a Custom Slash Command    | [tutorials/custom-slash-command.md](tutorials/custom-slash-command.md)     | 10 min |
 | Running Goli Studio (Web Console) | [tutorials/running-studio.md](tutorials/running-studio.md)                 | 10 min |

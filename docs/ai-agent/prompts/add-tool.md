@@ -44,7 +44,7 @@ The tool implementation. Must export a `{{name}}Tool` constant of type
 - Use Zod for the input schema (the registry converts Zod → JSON Schema
   at runtime).
 - Implement `execute(input, ctx)` returning a `ToolResult`.
-- Use the `logger` from `@goli/core/utils/logger` (never `console.*`).
+- Use the `logger` from `@goli-cli/shared/utils/logger` (never `console.*`).
 - Accept an `AbortSignal` via `ctx.signal` and check it in any loop
   that takes >10ms.
 - Use the sandbox (`ctx.sandbox`) for any filesystem or process work.
@@ -70,7 +70,7 @@ The JSON Schema for the tool's input, following the convention in
 ## Also update
 
 - `packages/tool-system/src/registry.ts` — register the new tool.
-- `packages/core/src/index.ts` — re-export the new tool.
+- `packages/agent-core/src/index.ts` — re-export the new tool.
 - `docs/ai-agent/tool-schemas/README.md` — add a row to the index.
 - `docs/ai-agent/mcp/manifest.json` — add the tool to the MCP manifest
   **if** it's safe to expose externally (read-only, no sandbox

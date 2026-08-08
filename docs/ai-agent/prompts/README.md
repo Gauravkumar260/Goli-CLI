@@ -65,7 +65,7 @@ Templates use [Handlebars](https://handlebarsjs.com/) syntax:
 - `{{argument_name | default("fallback")}}` — default value.
 
 The template engine is `handlebars` with the `default` helper registered
-(see `packages/core/src/agent/prompt-builder.ts`).
+(see `packages/agent-core/src/prompt-builder.ts`).
 
 ## Invocation
 
@@ -102,14 +102,14 @@ Content-Type: application/json
   follows steps more reliably than prose.
 - **Output format.** Always specify the output format (Markdown, JSON,
   code, etc.). The agent needs this to produce consistent results.
-- **Tested.** Add a test in `tests/unit/prompt-templates.test.ts` that
+- **Tested.** Add a test in `packages/i18n/__tests__/i18n.test.ts` that
   renders the template with sample arguments and asserts the output
   contains expected substrings.
 
 ## See also
 
 - [MCP Prompts spec](https://modelcontextprotocol.io/docs/concepts/prompts)
-- [packages/core/src/agent/prompt-builder.ts](../../../packages/core/src/agent/prompt-builder.ts)
+- [packages/agent-core/src/prompt-builder.ts](../../../packages/agent-core/src/prompt-builder.ts)
   — the template engine.
 - [docs/decisions/0041-custom-slash-commands.md](../../decisions/0041-custom-slash-commands.md)
   — slash-command system (which uses the same template format).

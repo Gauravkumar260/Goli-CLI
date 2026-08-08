@@ -363,14 +363,13 @@ goli cron <subcommand> [options]
 
 ### Subcommands
 
-| Subcommand                          | Description                      |
-| ----------------------------------- | -------------------------------- |
-| `goli cron list`                    | List scheduled runs.             |
-| `goli cron add <schedule> <prompt>` | Add a scheduled run.             |
-| `goli cron remove <id>`             | Remove a scheduled run.          |
-| `goli cron run <id>`                | Run a scheduled run immediately. |
-| `goli cron pause <id>`              | Pause a scheduled run.           |
-| `goli cron resume <id>`             | Resume a paused run.             |
+| Subcommand                          | Description                                   |
+| ----------------------------------- | --------------------------------------------- |
+| `goli cron list`                    | List scheduled runs (default).                |
+| `goli cron add <schedule> <prompt>` | Add a scheduled run (5-field cron expression).|
+| `goli cron remove <id>`             | Remove a scheduled run (accepts 8-char prefix).|
+| `goli cron enable <id>`             | Enable a disabled scheduled run.              |
+| `goli cron disable <id>`            | Disable a scheduled run without removing it.  |
 
 ### Options for `goli cron add`
 
@@ -385,9 +384,8 @@ goli cron <subcommand> [options]
 ```bash
 goli cron add "0 9 * * 1" "Review the changes from last week and post a summary."
 goli cron list
-goli cron run abc-123
-goli cron pause abc-123
-goli cron resume abc-123
+goli cron disable abc-123
+goli cron enable abc-123
 goli cron remove abc-123
 ```
 
@@ -395,7 +393,10 @@ goli cron remove abc-123
 
 - `0` — Success.
 - `1` — Cron ID not found, or schedule parse error.
-- `2` — Schedule interval < 5 minutes (forbidden; see cron docs).
+
+The execution side (how `goli cron` entries are fired by the
+`goli cron tick` process) enforces four hardening invariants — see
+[cron.md](cron.md).
 
 ---
 
@@ -470,5 +471,4 @@ goli headless-output text
 - [Reference: CLI flags](../user/reference/cli-flags.md)
 - [Reference: Slash commands](../user/reference/slash-commands.md)
 - [Reference: Exit codes](../user/reference/exit-codes.md)
-- [Tutorial: Getting Started](../user/tutorials/getting-started.md)
-- [Man Pages](man-pages.md)
+- [Getting Started](../getting-started.md)

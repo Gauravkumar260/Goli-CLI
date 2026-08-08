@@ -135,7 +135,7 @@ engineers but not required for normal use.
 | ID     | Requirement                                                                                                                                                   | Priority |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | FR-010 | The system SHALL support the following providers: Anthropic, OpenAI, Google Gemini, Ollama (local + cloud), and a Mock provider for tests.                    | Must     |
-| FR-011 | The default model SHALL be `ollama/gpt-oss:120b` (open-weight) unless overridden by `GOLI_DEFAULT_MODEL`.                                                     | Must     |
+| FR-011 | The default model SHALL be `ollama/gpt-oss:120b-cloud` (open-weight) unless overridden by `GOLI_DEFAULT_MODEL`.                                                     | Must     |
 | FR-012 | The system SHALL route prompts to providers based on the configured model string (`anthropic/claude-3-5-sonnet`, `openai/gpt-4o`, `ollama/llama3:70b`, etc.). | Must     |
 | FR-013 | The system SHALL support a local-LLMs router that routes based on (1) PII sensitivity, (2) complexity, (3) availability.                                      | Should   |
 | FR-014 | The system SHALL implement per-deployment circuit breakers (CLOSED → OPEN → HALF_OPEN → CLOSED) for the local-LLMs router.                                    | Should   |
@@ -288,8 +288,8 @@ engineers but not required for normal use.
 | ID      | Requirement                                                                              |
 | ------- | ---------------------------------------------------------------------------------------- |
 | NFR-050 | The codebase SHALL pass `npm run verify` (typecheck + lint + format + test) on every PR. |
-| NFR-051 | Line coverage for `packages/core` and `packages/cli` SHALL be ≥ 80%.                     |
-| NFR-052 | Branch coverage for `packages/core` and `packages/cli` SHALL be ≥ 75%.                   |
+| NFR-051 | Line coverage for `packages/agent-core` and `packages/cli` SHALL be ≥ 80%.                     |
+| NFR-052 | Branch coverage for `packages/agent-core` and `packages/cli` SHALL be ≥ 75%.                   |
 | NFR-053 | Every exported function SHALL have a TSDoc comment with `@param`, `@returns`, `@throws`. |
 | NFR-054 | Every ADR SHALL be referenced by at least one test or source file.                       |
 
@@ -310,51 +310,51 @@ engineers but not required for normal use.
 | Req               | Test                                                                       | Status     |
 | ----------------- | -------------------------------------------------------------------------- | ---------- |
 | FR-001            | `tests/integration/agent-loop-e2e.test.ts`                                 | ✅         |
-| FR-002            | `tests/unit/next-gen-engine.test.ts` (single-threaded invariant)           | ✅         |
+| FR-002            | `packages/agent-core/__tests__/next-gen-engine.test.ts` (single-threaded invariant)           | ✅         |
 | FR-003            | `tests/integration/crash-recovery.test.ts` (SIGINT)                        | ✅         |
-| FR-004            | `tests/unit/loop-detector-t065.test.ts`                                    | ✅         |
-| FR-005            | `tests/unit/stall-detector.test.ts`                                        | ✅         |
-| FR-006            | `tests/unit/retry.test.ts`                                                 | ✅         |
-| FR-007            | `tests/unit/error-classifier.test.ts`                                      | ✅         |
-| FR-008            | `tests/unit/json-repair.test.ts`                                           | ✅         |
-| FR-010            | `tests/unit/provider-integration.test.ts`                                  | ✅         |
-| FR-013            | `tests/unit/local-llms-router.test.ts`                                     | ✅         |
-| FR-015            | `tests/unit/local-llms-router.test.ts` (PII redaction)                     | ✅         |
-| FR-020            | `tests/unit/tool-registry.test.ts`                                         | ✅         |
-| FR-021            | `tests/unit/allowlist-t094.test.ts`                                        | ✅         |
-| FR-022            | `tests/unit/diff-first-editing.test.ts`                                    | ✅         |
-| FR-023            | `tests/unit/truncation.test.ts`                                            | ✅         |
-| FR-024            | `tests/unit/parallel-execution.test.ts`                                    | ✅         |
-| FR-025            | `tests/unit/self-registering-registry.test.ts`                             | ✅         |
-| FR-030            | `tests/unit/hook-engine.test.ts`                                           | ✅         |
-| FR-031            | `tests/unit/builtin-hooks.test.ts`                                         | ✅         |
-| FR-040            | `tests/unit/toctou-path-safety.test.ts` + `tests/unit/path-safety.test.ts` | ✅         |
-| FR-041            | `tests/unit/build-mode-permission.test.ts`                                 | ✅         |
-| FR-042            | `tests/unit/network-egress.test.ts`                                        | ✅         |
-| FR-050            | `tests/unit/memory-system.test.ts`                                         | ✅         |
-| FR-051            | `tests/unit/session-jsonl-store.test.ts`                                   | ✅         |
-| FR-053            | `tests/unit/session-search-store.test.ts`                                  | ✅         |
-| FR-054            | `tests/unit/advanced-compression.test.ts`                                  | ✅         |
-| FR-060            | `tests/unit/sica.test.ts`                                                  | ✅         |
-| FR-070            | `tests/unit/orchestration.test.ts`                                         | ✅         |
-| FR-071            | `tests/unit/parallel-subagents.test.ts`                                    | ✅         |
+| FR-004            | `packages/agent-core/__tests__/loop-detector-t065.test.ts`                                    | ✅         |
+| FR-005            | `packages/config/__tests__/stall-detector.test.ts`                                        | ✅         |
+| FR-006            | `packages/agent-core/__tests__/retry.test.ts`                                                 | ✅         |
+| FR-007            | `packages/agent-core/__tests__/error-classifier.test.ts`                                      | ✅         |
+| FR-008            | `packages/shared/__tests__/json-repair.test.ts`                                           | ✅         |
+| FR-010            | `packages/agent-core/__tests__/provider-integration.test.ts`                                  | ✅         |
+| FR-013            | `packages/config/__tests__/local-llms-router.test.ts`                                     | ✅         |
+| FR-015            | `packages/config/__tests__/local-llms-router.test.ts` (PII redaction)                     | ✅         |
+| FR-020            | `packages/agent-core/__tests__/tool-registry.test.ts`                                         | ✅         |
+| FR-021            | `apps/cli/__tests__/allowlist-t094.test.ts`                                        | ✅         |
+| FR-022            | `packages/tool-system/__tests__/diff-first-editing.test.ts`                                    | ✅         |
+| FR-023            | `packages/tool-system/__tests__/truncation.test.ts`                                            | ✅         |
+| FR-024            | `packages/agent-core/__tests__/parallel-execution.test.ts`                                    | ✅         |
+| FR-025            | `packages/tool-system/__tests__/self-registering-registry.test.ts`                             | ✅         |
+| FR-030            | `packages/tool-system/__tests__/hook-engine.test.ts`                                           | ✅         |
+| FR-031            | `packages/tool-system/__tests__/builtin-hooks.test.ts`                                         | ✅         |
+| FR-040            | `packages/sandbox/__tests__/toctou-path-safety.test.ts` + `packages/tool-system/__tests__/path-safety.test.ts` | ✅         |
+| FR-041            | `apps/cli/__tests__/build-mode-permission.test.ts`                                 | ✅         |
+| FR-042            | `packages/sandbox/__tests__/network-egress.test.ts`                                        | ✅         |
+| FR-050            | `packages/memory-engine/__tests__/memory-system.test.ts`                                         | ✅         |
+| FR-051            | `packages/agent-core/__tests__/session-jsonl-store.test.ts`                                   | ✅         |
+| FR-053            | `packages/memory-engine/__tests__/session-search-store.test.ts`                                  | ✅         |
+| FR-054            | `packages/agent-core/__tests__/advanced-compression.test.ts`                                  | ✅         |
+| FR-060            | `packages/memory-engine/__tests__/sica.test.ts`                                                  | ✅         |
+| FR-070            | `packages/orchestration/__tests__/orchestration.test.ts`                                         | ✅         |
+| FR-071            | `packages/agent-core/__tests__/parallel-subagents.test.ts`                                    | ✅         |
 | FR-080            | `tests/integration/core-tools.test.ts` (subset)                            | ⚠️ Partial |
-| FR-081            | `tests/unit/evals-observability.test.ts`                                   | ✅         |
-| FR-083            | `tests/unit/callback-streaming.test.ts`                                    | ✅         |
-| FR-090            | `tests/unit/tui-smoke.test.tsx`                                            | ✅         |
-| FR-091            | `tests/unit/skin-themes-t043.test.ts`                                      | ✅         |
-| FR-092            | `tests/unit/screen-reader-layout.test.tsx`                                 | ✅         |
-| FR-095            | `tests/unit/headless-output.test.ts`                                       | ✅         |
-| FR-096            | `tests/unit/headless-output.test.ts`                                       | ✅         |
-| FR-100            | `scripts/check-sbom.sh` + `tests/unit/lint-enforcement.test.ts`            | ✅         |
-| FR-101            | `tests/unit/audit-log.test.ts`                                             | ✅         |
-| FR-102            | `tests/unit/policy-integrity-t064.test.tsx`                                | ✅         |
-| NFR-001 / NFR-002 | `tests/unit/perf-baseline.test.ts`                                         | ✅         |
-| NFR-030           | `tests/unit/screen-reader-layout.test.tsx`                                 | ✅         |
-| NFR-031           | `tests/unit/a11y-contrast-fixes.test.ts` + `scripts/a11y-audit.ts`         | ✅         |
-| NFR-034           | `tests/unit/cli-args.test.ts`                                              | ✅         |
+| FR-081            | `packages/observability/__tests__/evals-observability.test.ts`                                   | ✅         |
+| FR-083            | `packages/agent-core/__tests__/callback-streaming.test.ts`                                    | ✅         |
+| FR-090            | `apps/cli/__tests__/tui-smoke.test.tsx`                                            | ✅         |
+| FR-091            | `apps/cli/__tests__/skin-themes-t043.test.ts`                                      | ✅         |
+| FR-092            | `apps/cli/__tests__/screen-reader-layout.test.tsx`                                 | ✅         |
+| FR-095            | `apps/cli/__tests__/headless-output.test.ts`                                       | ✅         |
+| FR-096            | `apps/cli/__tests__/headless-output.test.ts`                                       | ✅         |
+| FR-100            | `scripts/check-sbom.sh` + `tests/integration/lint-enforcement.test.ts`            | ✅         |
+| FR-101            | `packages/sandbox/__tests__/audit-log.test.ts`                                             | ✅         |
+| FR-102            | `packages/config/__tests__/policy-integrity-t064.test.tsx`                                | ✅         |
+| NFR-001 / NFR-002 | `tests/integration/perf-baseline.test.ts`                                         | ✅         |
+| NFR-030           | `apps/cli/__tests__/screen-reader-layout.test.tsx`                                 | ✅         |
+| NFR-031           | `apps/cli/__tests__/a11y-contrast-fixes.test.ts` + `scripts/a11y-audit.ts`         | ✅         |
+| NFR-034           | `packages/config/__tests__/cli-args.test.ts`                                              | ✅         |
 | NFR-050           | CI pipeline (`npm run verify`)                                             | ✅         |
-| NFR-060           | `tests/unit/i18n.test.ts`                                                  | ✅         |
+| NFR-060           | `packages/i18n/__tests__/i18n.test.ts`                                                  | ✅         |
 
 ## 6. Revision history
 

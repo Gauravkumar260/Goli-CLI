@@ -10,12 +10,12 @@ Goli-CLI.
 
 ## Quick links
 
-- [Tutorial: Getting Started](../user/tutorials/getting-started.md) —
+- [Getting Started](../getting-started.md) —
   for new _users_ (not contributors).
 - [`CONTRIBUTING.md`](../../CONTRIBUTING.md) — contribution process.
 - [`STYLEGUIDE.md`](../../STYLEGUIDE.md) — enforced code style.
 - [`AGENTS.md`](../../AGENTS.md) — living-patterns doc (read this!).
-- [`docs/decisions/`](../decisions/) — 46 ADRs (architectural
+- [`docs/decisions/`](../decisions/) — 47 ADRs (architectural
   decisions).
 - [`docs/design/sdd.md`](../design/sdd.md) — Software Design
   Document.

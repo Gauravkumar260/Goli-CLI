@@ -43,7 +43,7 @@ goli-cli/
 ├── scripts/          # build / bench / SBOM scripts
 ├── infra/            # k8s / docker-compose for self-hosting
 ├── config/           # default TOML config
-├── python_ml/        # GRPO training + eval scripts
+├── services/ml-pipeline/        # GRPO training + eval scripts
 └── bin/              # the `goli` executable
 ```
 
@@ -263,8 +263,7 @@ custom command works identically in both surfaces.
 
 The studio is a **separate implementation** of the agent contract, not a
 thin wrapper around `@goli-cli/core`. See
-[`packages/studio/README.md`](../../packages/studio/README.md) and
-[`docs/studio-worklog.md`](../studio-worklog.md) for the full design.
+[`apps/studio/README.md`](../../apps/studio/README.md) for the full design.
 
 The 30-second version:
 
@@ -334,4 +333,4 @@ load-bearing decisions:
 | ---------- | ------- | --------------- | ------------------------------------------------------------------ |
 | 2026-07-07 | v0.1    | Lead Maintainer | Initial SDD for 0.1.0                                              |
 | 2026-07-13 | v0.2    | Lead Maintainer | Updated for 0.2.0 (Phase 2); added §3.6 SICA, §3.5 sandbox details |
-| 2026-07-25 | v0.3    | Lead Maintainer | Added §6 Goli Studio; refreshed ADR list (now 46 ADRs)             |
+| 2026-07-25 | v0.3    | Lead Maintainer | Added §6 Goli Studio; refreshed ADR list (now 47 ADRs)             |

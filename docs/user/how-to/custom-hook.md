@@ -31,7 +31,7 @@ Don't use a hook for:
 Create `~/.goli/hooks/no-sudo.ts`:
 
 ```typescript
-import { defineHook } from "@goli/core";
+import { defineHook } from "@goli-cli/agent-core";
 
 export default defineHook("BeforeTool", {
   // Only run for the bash tool

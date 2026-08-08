@@ -1,6 +1,6 @@
 # CLAUDE.md — `@goli-cli/core`
 
-> **Audience:** Claude Code working in `packages/core/`.
+> **Audience:** Claude Code working in `packages/agent-core/`.
 > **Parent:** [`/CLAUDE.md`](../../../CLAUDE.md).
 
 ## Package purpose
@@ -12,7 +12,7 @@ clean public API consumed by `@goli-cli/cli`, `@goli-cli/evals`, and
 `@goli-cli/vscode-ext`.
 
 The Studio does **not** import `core` — it re-implements the agent loop
-in `packages/studio/src/lib/agent/` to keep the web bundle web-native.
+in `apps/studio/src/lib/agent/` to keep the web bundle web-native.
 
 ## Critical files
 
@@ -66,7 +66,7 @@ in `packages/studio/src/lib/agent/` to keep the web bundle web-native.
   must accept an `AbortSignal` and check it. The signal flows from the
   user's Ctrl-C.
 - **Deep imports** — never `import { ... } from
-'@goli/core/agent/loop'`. Use the barrel.
+'@goli-cli/agent-core/loop'`. Use the barrel.
 - **Adding a new tool without a hook** — every tool that can write to
   disk or execute code needs at least one hook (e.g.
   `block-writes-outside-workspace`).
@@ -83,6 +83,6 @@ in `packages/studio/src/lib/agent/` to keep the web bundle web-native.
 ## See also
 
 - [docs/design/sdd.md#3-package-goliclicore](../../../docs/design/sdd.md)
-- [docs/decisions/](../../../docs/decisions/) — 46 ADRs back every
+- [docs/decisions/](../../../docs/decisions/) — 47 ADRs back every
   architectural choice.
 - [AGENTS.md](../../../AGENTS.md) — the canonical living-patterns doc.

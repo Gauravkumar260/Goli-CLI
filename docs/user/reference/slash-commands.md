@@ -5,7 +5,7 @@
 
 Slash commands are typed in the TUI composer (they start with `/`).
 They are processed by the unified `CommandRegistry`
-(`packages/cli/src/tui/lib/CommandRegistry.ts`), which is the same
+(`apps/cli/src/tui/lib/CommandRegistry.ts`), which is the same
 registry used by the headless runner.
 
 ## Session commands

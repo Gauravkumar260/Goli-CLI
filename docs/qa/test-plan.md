@@ -33,11 +33,11 @@ experimental; their test coverage targets are lower (see §5).
 
 | Item                   | Path                         | Test type                |
 | ---------------------- | ---------------------------- | ------------------------ |
-| `@goli-cli/core`       | `packages/core/src/`         | Unit + integration       |
-| `@goli-cli/cli`        | `packages/cli/src/`          | Unit + integration + e2e |
+| `@goli-cli/core`       | `packages/agent-core/src/`         | Unit + integration       |
+| `@goli-cli/cli`        | `apps/cli/src/`          | Unit + integration + e2e |
 | `@goli-cli/evals`      | `packages/evals/src/`        | Unit + integration       |
-| `@goli-cli/vscode-ext` | `packages/vscode-ext/src/`   | Unit (smoke)             |
-| `@goli-cli/studio`     | `packages/studio/src/`       | Smoke + manual           |
+| `@goli-cli/vscode-ext` | `apps/vscode-ext/src/`   | Unit (smoke)             |
+| `@goli-cli/studio`     | `apps/studio/src/`       | Smoke + manual           |
 | Perf baselines         | `bench/baseline.json`        | Perf                     |
 | A11y                   | TUI + Studio                 | A11y                     |
 | Security               | Sandbox, hooks, allowlist    | Security                 |
@@ -122,7 +122,7 @@ npm run test:perf       # perf baselines
 ### 4.3 Mocking
 
 - **Mock provider** — a deterministic LLM provider for unit tests
-  (`packages/core/src/providers/mock.ts`). Never call a real LLM in a
+  (`packages/llm-providers/src/mock.ts`). Never call a real LLM in a
   unit test.
 - **`vitest-mock-extended`** — for mocking interfaces.
 - **`ink-testing-library`** — for TUI component tests.
@@ -184,7 +184,7 @@ Project-wide numbers are informational.
 
 ## 8. Deliverables
 
-- `tests/unit/*.test.ts` — unit tests.
+- `packages/*/__tests__/*.test.ts` and `apps/*/__tests__/*.test.ts` — unit tests (colocated with source).
 - `tests/integration/*.test.ts` — integration tests.
 - `tests/e2e-docker/` — e2e tests.
 - `bench/baseline.json` — perf baselines.

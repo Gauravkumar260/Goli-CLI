@@ -43,7 +43,7 @@ message. `Ctrl+\` toggles between them at any time.
 Overlays (rendered above the layout when active) ───────────────────
     ├── <HelpPanel>                    ? — keymap reference
     ├── <CommandPalette>               Ctrl+P — fuzzy command search
-    ├── <ThemeDialog>                  /theme — 20-theme picker
+    ├── <ThemeDialog>                  /theme — 25-theme picker
     ├── <AboutDialog>                  /about
     ├── <PermissionDialog>             Per-tool approval prompt
     ├── <DiffReviewDialog>             Per-edit unified diff (a)ccept / (r)eject
@@ -112,7 +112,7 @@ Goli-CLI uses a hybrid state architecture:
 
 ### `AppStateStore` (singleton)
 
-`packages/cli/src/tui/state/AppStateStore.ts` — a singleton store that
+`apps/cli/src/tui/state/AppStateStore.ts` — a singleton store that
 holds the global app state: session, model, tokens, mode, tier, active
 agents, permission mode, queued messages, paste placeholder, compact
 hint, pending permission, total cost, input/output token counts.
@@ -167,7 +167,7 @@ never re-render when new tokens stream in.
 
 ### 200ms stream batching
 
-`useAgentLoop` (`packages/cli/src/tui/hooks/useAgentLoop.ts`) does not
+`useAgentLoop` (`apps/cli/src/tui/hooks/useAgentLoop.ts`) does not
 push a `setMessages` call per LLM token. Incoming text deltas are
 accumulated into a `pendingText` buffer and flushed on a throttled
 schedule:
@@ -229,14 +229,14 @@ unnecessary `setInterval` slot.
 
 ## Provider integration (`provider-adapter.ts`)
 
-The agent loop expects a `GLMClient`-shaped object. The
-`ModelProvider` interface (`packages/core/src/providers/ModelProvider.ts`)
+The agent loop expects a `ProviderBackedModelClient`-shaped object. The
+`ModelProvider` interface (`packages/llm-providers/src/ModelProvider.ts`)
 exposes a different surface (`complete()`, `modelId()`,
-`supportsCaching()`). `packages/core/src/agent/provider-adapter.ts`
+`supportsCaching()`). `packages/agent-core/src/provider-adapter.ts`
 bridges the two:
 
 ```
-GOLI_DEFAULT_MODEL=ollama/gpt-oss:120b
+GOLI_DEFAULT_MODEL=ollama/gpt-oss:120b-cloud
         │
         ▼
 createProviderBackedClientSync()    (sync; supports ollama/openai/anthropic)
@@ -247,22 +247,22 @@ createProviderBackedClient()        (async; also supports gemini)
 new OllamaProvider / OpenAIProvider / AnthropicProvider / GeminiProvider
         │
         ▼
-new ProviderBackedGLMClient(provider)
+new ProviderBackedModelClient(provider)
         │
         ▼
 new AgentLoop({ client, ... })
 ```
 
-`ProviderBackedGLMClient.call()` translates the GLM-style `Message[]`
+`ProviderBackedModelClient.call()` translates the provider-style `Message[]`
 and tool definitions into the provider's format, invokes
-`provider.complete()`, then maps the `ModelResponse` back to a
-`GLMResponse` (content, toolCalls, inputTokens, outputTokens,
+`provider.complete()`, then maps the `ModelResponse` back to the agent's
+response shape (content, toolCalls, inputTokens, outputTokens,
 finishReason). Streaming tokens are forwarded through `onToken` →
 `onChunk({ contentDelta })`.
 
 `getProviderTypeFromEnv()` reads `GOLI_DEFAULT_MODEL` and returns the
 provider prefix (`ollama`, `openai`, `anthropic`, `gemini`) or `null`
-if the value points at a GLM model. This is what lets the same
+if no model is configured. This is what lets the same
 `AgentLoop` work with Ollama, OpenAI, Anthropic, and Gemini without
 code changes — see [Getting Started](../getting-started.md) for the
 provider switch matrix.
@@ -325,7 +325,7 @@ headers.
 
 ## Input history
 
-`InputHistory` (`packages/cli/src/tui/lib/InputHistory.ts`) persists
+`InputHistory` (`apps/cli/src/tui/lib/InputHistory.ts`) persists
 submitted prompts to `~/.goli/history`. Up arrow navigates to previous
 prompts; Down arrow navigates forward. History is capped at 100
 entries. `Ctrl+R` activates reverse-search mode for fuzzy filtering
@@ -334,7 +334,7 @@ match.
 
 ## Vim mode
 
-`vimMode.ts` (`packages/cli/src/tui/lib/vimMode.ts`) implements a pure
+`vimMode.ts` (`apps/cli/src/tui/lib/vimMode.ts`) implements a pure
 state machine for vim-style editing:
 
 - **INSERT mode** (default): normal typing.
@@ -367,7 +367,7 @@ system message confirms the swap. If a paste is currently compacted,
 
 ## Toast notifications
 
-`ToastDisplay` (`packages/cli/src/tui/components/ToastDisplay.tsx`)
+`ToastDisplay` (`apps/cli/src/tui/components/ToastDisplay.tsx`)
 shows transient UI feedback:
 
 - **Ctrl+C twice**: "Press Ctrl+C again to exit."
@@ -381,16 +381,16 @@ Priority: Ctrl+C > Ctrl+D > error > escape > toast.
 ### `tokens.ts` — mutable Tokyo Night Dark palette
 
 The default color palette is defined in
-`packages/cli/src/tui/theme/tokens.ts`. The exported `T` object is
+`apps/cli/src/tui/theme/tokens.ts`. The exported `T` object is
 **mutable** — `applySkinToTokens()` writes new hex values into `T.red`,
 `T.blue`, etc. in place so every component that reads `T.red` on
 render picks up the new color. The active border style is held in a
 parallel mutable `B.borderStyle` token.
 
-### `skin-engine.ts` — 20 built-in skins + user YAML
+### `skin-engine.ts` — 25 built-in skins + user YAML
 
-The skin engine (`packages/cli/src/tui/theme/skin-engine.ts`) provides
-20 built-in skins plus user-defined YAML skins in
+The skin engine (`apps/cli/src/tui/theme/skin-engine.ts`) provides
+25 built-in skins plus user-defined YAML skins in
 `~/.goli/skins/<name>.yaml`. Active skin resolution:
 `--skin` CLI flag → `GOLI_SKIN` env var → `NO_COLOR` env var →
 `default`. See [Themes](../cli/themes.md) for the full list.
@@ -427,7 +427,7 @@ which checks `--accessibility` / `--screen-reader` flags,
 
 ### WCAG AA compliance
 
-All 20 built-in themes pass WCAG 2.1 AA for foreground text (≥4.5:1
+All 25 built-in themes pass WCAG 2.1 AA for foreground text (≥4.5:1
 contrast on the intended background). The `high-contrast` theme
 passes AAA (≥7:1). See `docs/a11y-report.md` for the full audit.
 
@@ -464,8 +464,8 @@ screen-reader compatibility.
 ## See also
 
 - [Getting Started](../getting-started.md) — install + first run.
-- [Themes](../cli/themes.md) — 20 built-in themes + custom YAML skins +
+- [Themes](../cli/themes.md) — 25 built-in themes + custom YAML skins +
   live hot-reload + color downsampling.
 - [API Reference](../api/README.md)
-- [Architecture Decisions](../decisions/) — 45 ADRs.
+- [Architecture Decisions](../decisions/) — 47 ADRs.
 - [A11y Report](../a11y-report.md)

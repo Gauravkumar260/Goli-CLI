@@ -15,14 +15,14 @@ earlier):
 ## Schema
 
 The full schema is defined in Zod at
-`packages/core/src/config/schema.ts`. Below is a human-readable
+`packages/config/src/schema.ts`. Below is a human-readable
 summary.
 
 ### `[model]`
 
 ```toml
 [model]
-default = "ollama/gpt-oss:120b"           # default model string
+default = "ollama/gpt-oss:120b-cloud"           # default model string
 provider = "ollama"                        # default provider (auto from model)
 mode = "build"                             # build | plan | god | local-llms
 permission_mode = "ask"                    # ask | yolo | plan
@@ -65,7 +65,7 @@ tamper_check = true                         # verify chained hashes on load
 [local_llms]
 restricted_model = "ollama/llama3:70b"      # for PII prompts
 simple_model = "ollama/llama3:8b"           # for simple non-PII
-complex_model = "ollama/gpt-oss:120b"       # for complex non-PII (cloud)
+complex_model = "ollama/gpt-oss:120b-cloud"       # for complex non-PII (cloud)
 cloud_fallback = "anthropic/claude-3-5-sonnet"
 pii_redact_model = "ollama/llama3:8b"
 
@@ -166,13 +166,13 @@ If the env var is not set, the value is empty (not an error). Use
 
 ```toml
 [model]
-default = "${GOLI_DEFAULT_MODEL:-ollama/gpt-oss:120b}"
+default = "${GOLI_DEFAULT_MODEL:-ollama/gpt-oss:120b-cloud}"
 ```
 
 ## Validation
 
 The config is validated against a Zod schema on load
-(`packages/core/src/config/schema.ts`). Invalid configs fail fast
+(`packages/config/src/schema.ts`). Invalid configs fail fast
 with a clear error:
 
 ```
@@ -187,7 +187,7 @@ If a `policy.toml` is loaded via `--policy path/to/policy.toml`,
 Goli-CLI computes its SHA-256 hash and stores it. On subsequent loads,
 the hash is verified; a mismatch is a `POLICY_VIOLATION` (exit 5).
 See [ADR for policy integrity](../../decisions/) and
-[`tests/unit/policy-integrity-t064.test.tsx`](../../../tests/unit/policy-integrity-t064.test.tsx).
+[`packages/config/__tests__/policy-integrity-t064.test.tsx`](../../../packages/config/__tests__/policy-integrity-t064.test.tsx).
 
 ## See also
 

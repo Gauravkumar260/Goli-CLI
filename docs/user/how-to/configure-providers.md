@@ -12,7 +12,7 @@ variable.
 
 ```bash
 # Ollama Cloud (default — open-weight)
-export GOLI_DEFAULT_MODEL="ollama/gpt-oss:120b"
+export GOLI_DEFAULT_MODEL="ollama/gpt-oss:120b-cloud"
 export OLLAMA_API_KEY="sk-..."
 
 # Anthropic

@@ -23,9 +23,9 @@ my-repo/
 ├── AGENTS.md              ← root (always loaded)
 ├── packages/
 │   ├── core/
-│   │   └── AGENTS.md      ← loaded when working in packages/core/
+│   │   └── AGENTS.md      ← loaded when working in packages/agent-core/
 │   └── cli/
-│       └── AGENTS.md      ← loaded when working in packages/cli/
+│       └── AGENTS.md      ← loaded when working in apps/cli/
 └── tests/
     └── AGENTS.md          ← loaded when working in tests/
 ```

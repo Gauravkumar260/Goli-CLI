@@ -1,6 +1,6 @@
 # Goli-CLI Themes
 
-Goli-CLI ships with **20 built-in themes** (skins) plus a special
+Goli-CLI ships with **25 built-in themes** (skins) plus a special
 `no-color` accessibility theme and full support for user-defined YAML
 skins. Themes control colors, box border styles, and the prompt character
 across the entire TUI.
@@ -54,13 +54,13 @@ When the TUI launches, the active skin is resolved in this order:
 3. `NO_COLOR` env var (any value) → forces `no-color` skin
 4. `default` (Tokyo Night Dark)
 
-## Built-in themes (20)
+## Built-in themes (25)
 
-The 20 built-in themes are defined as constants in
-`packages/cli/src/tui/theme/skin-engine.ts` and exported via
+The 25 built-in themes are defined as constants in
+`apps/cli/src/tui/theme/skin-engine.ts` and exported via
 `BUILTIN_SKIN_NAMES`.
 
-### Dark themes (12)
+### Dark themes (15)
 
 | Name                    | Foreground | Background | Style            | Description                                      |
 | ----------------------- | ---------- | ---------- | ---------------- | ------------------------------------------------ |
@@ -76,8 +76,11 @@ The 20 built-in themes are defined as constants in
 | `ayu-dark`              | `#aeaca6`  | `#0b0e14`  | Ayu Dark         | Soft warm dark palette with pastel accents       |
 | `shades-of-purple-dark` | `#e3dfff`  | `#1e1e3f`  | Shades of Purple | Vibrant purple-heavy dark theme                  |
 | `holiday-dark`          | `#f0f8ff`  | `#00210e`  | Holiday Dark     | Festive green-and-red holiday theme              |
+| `hermes-gold`           | `#f5e6c8`  | `#2b2318`  | Hermes Gold      | Warm gold/kawaii with parchment + goldenrod accents |
+| `ares-crimson`          | `#f5d6cf`  | `#2a0e0a`  | Ares Crimson     | Crimson/bronze war-god theme with bold warm reds |
+| `slate-cool`            | `#e2e8f0`  | `#0f172a`  | Slate Cool       | Cool blue palette (sky-on-snow light, ocean dark) |
 
-### Light themes (5)
+### Light themes (6)
 
 | Name               | Foreground | Background | Style            | Description                              |
 | ------------------ | ---------- | ---------- | ---------------- | ---------------------------------------- |
@@ -86,6 +89,7 @@ The 20 built-in themes are defined as constants in
 | `ayu-light`        | `#5c6166`  | `#f8f9fa`  | Ayu Light        | Warm light palette with muted accents    |
 | `googlecode-light` | `#444444`  | `#ffffff`  | Googlecode Light | Minimal light theme with high contrast   |
 | `xcode-light`      | `#444444`  | `#ffffff`  | Xcode Light      | Classic Mac IDE light theme              |
+| `daylight`         | `#000000`  | `#ffffff`  | Daylight         | High-contrast print-friendly light theme |
 
 > `ansi-light` is intentionally excluded from this table — it belongs
 > to the ANSI themes family below (uses the terminal's native 16-color
@@ -104,12 +108,10 @@ rather than override it.
 | `ansi-dark`  | `#ffffff`  | `#000000`  | Uses the terminal's native 16-color ANSI palette |
 | `ansi-light` | `#000000`  | `#ffffff`  | Native ANSI palette on light background          |
 
-> **Note on theme count:** Some docs reference "21 built-in themes"
-> (which counts `ansi-light` twice — once under Light themes and once
-> under ANSI themes). The canonical count is **20 built-in themes + 1
-> special `no-color` accessibility theme**. The two ANSI themes are
-> listed in their own section above and are not double-counted in the
-> Light themes total.
+> **Note on theme count:** The canonical count is **25 built-in themes**:
+> 21 standard (11 original + 10 added in T-043) + 4 Hermes-inspired
+> additions (`hermes-gold`, `ares-crimson`, `slate-cool`, `daylight`).
+> Plus a 26th special entry — the `no-color` accessibility theme.
 
 ### Colorblind-accessible themes (2)
 
@@ -120,7 +122,7 @@ rather than override it.
 
 ### `no-color` (special accessibility theme)
 
-Beyond the 20 built-ins, a 21st entry — `no-color` — is available via
+Beyond the 25 built-ins, a 26th entry — `no-color` — is available via
 `/theme no-color` or by setting the `NO_COLOR` environment variable. It
 empties every color token so Ink falls back to the terminal's default
 foreground, satisfying the [NO_COLOR convention](https://no-color.org/).
@@ -134,7 +136,7 @@ overlay applies the new palette **immediately** — there is no restart,
 no flicker, no broken render. This is implemented by three pieces working
 together:
 
-1. **Mutable token map** (`packages/cli/src/tui/theme/tokens.ts`):
+1. **Mutable token map** (`apps/cli/src/tui/theme/tokens.ts`):
    the exported `T` object is mutated in place by `applySkinToTokens()`
    so every component that reads `T.red` / `T.blue` / etc. on render
    picks up the new colors automatically.
@@ -143,7 +145,7 @@ together:
    `applySkinToTokens()` call increments the counter and notifies all
    subscribers.
 
-3. **`useThemeVersion()` hook** (`packages/cli/src/tui/hooks/useThemeVersion.ts`):
+3. **`useThemeVersion()` hook** (`apps/cli/src/tui/hooks/useThemeVersion.ts`):
    the top-level `App` component subscribes; the counter bump triggers
    a re-render that propagates the new `T` values down the tree.
 
@@ -154,10 +156,10 @@ borders switch in the same render pass as colors.
 ## The `/theme` command and `ThemeDialog` overlay
 
 Typing `/theme` (no argument) inside the TUI opens the `ThemeDialog`
-overlay (`packages/cli/src/tui/components/dialogs/ThemeDialog.tsx`):
+overlay (`apps/cli/src/tui/components/dialogs/ThemeDialog.tsx`):
 
 ```
-┌─ Themes (21) ─────────────────────────────────────────┐
+┌─ Themes (26) ─────────────────────────────────────────┐
 │ ▶ default            (active)                          │
 │   dark                                                │
 │   high-contrast                                       │
@@ -299,7 +301,7 @@ terminal can render, so themes look correct everywhere:
 | Dumb / no color     | Falls back to the original hex; the terminal does its own match.                             |
 
 Terminal capability is detected once at startup by
-`detectCapabilities()` in `packages/cli/src/tui/lib/capabilities.ts`
+`detectCapabilities()` in `apps/cli/src/tui/lib/capabilities.ts`
 and cached for the process lifetime. The detection logic inspects
 `$COLORTERM`, `$TERM`, `$TERM_PROGRAM`, and a handful of known
 terminal-specific env vars to decide between truecolor / 256 / 16.
@@ -310,7 +312,7 @@ blue/teal/green and the warning hue of yellow/orange/red is preserved.
 
 ## WCAG AA compliance
 
-All 20 built-in themes pass WCAG 2.1 AA for foreground text (≥4.5:1
+All 25 built-in themes pass WCAG 2.1 AA for foreground text (≥4.5:1
 contrast on the intended background). The `high-contrast` theme passes
 AAA (≥7:1).
 

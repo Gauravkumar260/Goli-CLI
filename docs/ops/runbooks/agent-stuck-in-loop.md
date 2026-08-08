@@ -150,6 +150,6 @@ with the `loop-detector` label.
 ## References
 
 - [ADR for loop detection](../../decisions/) (see worklog for context)
-- [`tests/unit/loop-detector-t065.test.ts`](../../../tests/unit/loop-detector-t065.test.ts)
+- [`packages/agent-core/__tests__/loop-detector-t065.test.ts`](../../../packages/agent-core/__tests__/loop-detector-t065.test.ts)
 - [Reference: Exit codes](../../user/reference/exit-codes.md) —
   exit 11 is `LOOP_DETECTED`.

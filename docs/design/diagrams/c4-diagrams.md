@@ -68,7 +68,7 @@ C4Context
 
 ### Context notes
 
-- The **default** backend is Ollama Cloud (`ollama/gpt-oss:120b`); the
+- The **default** backend is Ollama Cloud (`ollama/gpt-oss:120b-cloud`); the
   other providers are opt-in via `GOLI_DEFAULT_MODEL`.
 - **Local-LLMs mode** (ADR: PII gating + complexity routing) is for
   users who cannot send any prompt to a cloud provider.
@@ -251,10 +251,10 @@ flowchart TD
 - **Parallel tool execution** (ADR: 0039) uses `Promise.all` with a
   shared `AbortSignal`. If one tool fails, the others are cancelled.
 - **Loop detection** (ADR: not formally numbered; see
-  `tests/unit/loop-detector-t065.test.ts`) keeps a sliding window of
+  `packages/agent-core/__tests__/loop-detector-t065.test.ts`) keeps a sliding window of
   the last 5 tool calls per run; if a hash of (tool name, args) repeats
   5×, the loop is broken.
-- **Stall detection** (ADR: see `tests/unit/stall-detector.test.ts`)
+- **Stall detection** (ADR: see `packages/config/__tests__/stall-detector.test.ts`)
   fires when no token arrives for 30s; it emits a stall event that the
   TUI renders as a "stalled — Ctrl-C to cancel" indicator.
 - **Checkpoint** writes the session JSONL + a git checkpoint after every

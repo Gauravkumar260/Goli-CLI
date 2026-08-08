@@ -48,10 +48,10 @@ environment.
 
 **Goal:** Understand the agent loop end-to-end.
 
-- [ ] Read `packages/core/src/agent/loop.ts` end-to-end.
+- [ ] Read `packages/agent-core/src/loop.ts` end-to-end.
 - [ ] Read `tests/integration/agent-loop-e2e.test.ts` — see how the
       loop is tested.
-- [ ] Read the providers (`packages/core/src/providers/`).
+- [ ] Read the providers (`packages/llm-providers/src/`).
 - [ ] Read the tool registry (`packages/tool-system/src/registry.ts`).
 - [ ] Read the hooks engine (`packages/tool-system/src/hooks/`).
 - [ ] Read the sandbox (`packages/sandbox/src/`).
@@ -66,17 +66,17 @@ prompt and presses Enter?" in detail.
 
 **Goal:** Understand the TUI architecture.
 
-- [ ] Read `packages/cli/src/tui/App.tsx` — the root.
-- [ ] Read `packages/cli/src/tui/state/AppStateStore.ts` — the
+- [ ] Read `apps/cli/src/tui/App.tsx` — the root.
+- [ ] Read `apps/cli/src/tui/state/AppStateStore.ts` — the
       Zustand store.
-- [ ] Read `packages/cli/src/tui/hooks/useAgentLoop.ts` — the bridge
+- [ ] Read `apps/cli/src/tui/hooks/useAgentLoop.ts` — the bridge
       to the agent loop.
-- [ ] Read `packages/cli/src/tui/lib/TurnStateMachine.ts` — the
+- [ ] Read `apps/cli/src/tui/lib/TurnStateMachine.ts` — the
       per-turn state machine.
-- [ ] Read `packages/cli/src/tui/lib/CommandRegistry.ts` — the
+- [ ] Read `apps/cli/src/tui/lib/CommandRegistry.ts` — the
       slash-command system.
-- [ ] Read 3-5 components in `packages/cli/src/tui/components/`.
-- [ ] Read the theme engine (`packages/cli/src/tui/theme/`).
+- [ ] Read 3-5 components in `apps/cli/src/tui/components/`.
+- [ ] Read the theme engine (`apps/cli/src/tui/theme/`).
 
 **Output:** You can add a new TUI component without asking for help.
 

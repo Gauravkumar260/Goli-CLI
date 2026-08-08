@@ -4,6 +4,8 @@
 **Phase:** P3
 **Date:** 2026-07-03
 
+> **Note (2026-08-07):** Still current — the TUI remains Ink/React in `apps/cli/src/tui/`. References to `@goli/core`'s `AgentLoop` in this record predate the package split; the agent loop now lives in `@goli-cli/agent-core` (`AgentLoop` in `packages/agent-core/src/loop.ts`), wrapped by `CliAgentLoop` in `apps/cli/src/services/`.
+
 ## Context
 
 GOLI-CLI needs a terminal UI framework for the interactive mode

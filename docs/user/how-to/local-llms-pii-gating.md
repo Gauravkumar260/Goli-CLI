@@ -32,7 +32,7 @@ Edit `config/default.toml` (or create `~/.goli/config.toml`):
 # The 5 models in the chain (in priority order)
 restricted_model = "ollama/llama3:70b"        # for PII prompts
 simple_model = "ollama/llama3:8b"              # for simple non-PII
-complex_model = "ollama/gpt-oss:120b"          # for complex non-PII (cloud)
+complex_model = "ollama/gpt-oss:120b-cloud"          # for complex non-PII (cloud)
 cloud_fallback = "anthropic/claude-3-5-sonnet" # if complex is down
 pii_redact_model = "ollama/llama3:8b"          # for redaction pass
 

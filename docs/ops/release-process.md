@@ -66,7 +66,7 @@ goli status                 # shows recent sessions
 goli wakeup --resume <id>   # resumes a session
 ```
 
-### Studio (for releases that touch `packages/studio/`)
+### Studio (for releases that touch `apps/studio/`)
 
 ```bash
 npm run studio:db:push

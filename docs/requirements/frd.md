@@ -90,7 +90,7 @@ have Goli-CLI use it
 **Acceptance criteria:**
 
 - Given no `GOLI_DEFAULT_MODEL` is set, when I run `goli -p "hello"`,
-  then the request goes to `ollama/gpt-oss:120b`.
+  then the request goes to `ollama/gpt-oss:120b-cloud`.
 - Given the Ollama Cloud endpoint is unreachable, when the request fails,
   then the CLI prints "Ollama Cloud is unreachable; set
   GOLI_DEFAULT_MODEL to use a different provider".

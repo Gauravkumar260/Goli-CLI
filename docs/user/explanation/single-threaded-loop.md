@@ -156,7 +156,7 @@ the event loop:
 
 - **Tree-sitter indexing** — parsing a 10k-file repo takes ~5s on the
   main thread. We move it to a worker pool
-  (`packages/core/src/utils/worker-pool.ts`).
+  (`packages/shared/src/worker-pool.ts`).
 - **Vector search** — sqlite-vec queries are fast but synchronous;
   we run them in a worker to avoid blocking.
 - **Prettier formatting** (in the `auto-format` hook) — for large
@@ -187,5 +187,5 @@ subagent design.
   streaming.
 - [Explanation: SICA loop](sica-loop.md) — the overseer runs as a
   separate LLM call, not a separate thread.
-- [`packages/core/src/agent/loop.ts`](../../../packages/core/src/agent/loop.ts)
+- [`packages/agent-core/src/loop.ts`](../../../packages/agent-core/src/loop.ts)
   — the implementation.

@@ -79,7 +79,7 @@ type OverseerOutput = {
 
 ### Immutable registry
 
-The immutable registry (`packages/core/src/memory/sica/immutable-registry.ts`)
+The immutable registry (`packages/memory-engine/src/sica/immutable-registry.ts`)
 is an **append-only** list of behavior patterns that have been flagged
 as unsafe. Once a pattern is in the registry, the agent is permanently
 blocked from exhibiting it.
@@ -100,7 +100,7 @@ forever, even if the overseer later changes its mind.
 
 If the overseer gives the same critique every turn, the agent will
 thrash — it'll keep trying to fix the same thing, possibly making it
-worse. The overfit detector (`packages/core/src/memory/sica/overfit-detector.ts`)
+worse. The overfit detector (`packages/memory-engine/src/sica/overfit-detector.ts`)
 notices this and suppresses the critique.
 
 Concretely: if the last 3 critiques have a hash within
@@ -160,7 +160,7 @@ This prevents the overseer from taking over the agent's attention.
   overseer.
 - [ADR 0027](../../decisions/0027-grpo-over-ppo.md) — GRPO for
   trajectory fine-tuning (the next stage after SICA).
-- [`packages/core/src/memory/sica/`](../../../packages/core/src/memory/sica/)
+- [`packages/memory-engine/src/sica/`](../../../packages/memory-engine/src/sica/)
   — the implementation.
 - [Explanation: Hooks vs. prompts](hooks-vs-prompts.md) — the per-call
   counterpart to SICA's per-turn oversight.

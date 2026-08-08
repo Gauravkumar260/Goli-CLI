@@ -9,7 +9,7 @@
 This document is the canonical reference for the 11 agents: their roles,
 budgets, toolsets, parallel-execution rules, and how they compose into
 the swarm pipeline. The runtime definitions live in
-`packages/core/src/orchestration/{types.ts,swarm-pipeline.ts}`.
+`packages/orchestration/src/{types.ts,swarm-pipeline.ts}`.
 
 ---
 
@@ -205,5 +205,5 @@ their completion, and hands the final artifact set to the Documenter.
 - [docs/architecture.md](architecture.md) — module map and pipeline overview
 - [docs/decisions/0039-parallel-subagents.md](decisions/0039-parallel-subagents.md) — ADR for parallel subagent execution
 - [docs/decisions/0036-worktree-concurrency-not-security.md](decisions/0036-worktree-concurrency-not-security.md) — worktree isolation rationale
-- [packages/core/src/orchestration/types.ts](../packages/core/src/orchestration/types.ts) — runtime type definitions
-- [packages/core/src/orchestration/swarm-pipeline.ts](../packages/core/src/orchestration/swarm-pipeline.ts) — pipeline implementation
+- [packages/orchestration/src/types.ts](../packages/orchestration/src/types.ts) — runtime type definitions
+- [packages/orchestration/src/swarm-pipeline.ts](../packages/orchestration/src/swarm-pipeline.ts) — pipeline implementation

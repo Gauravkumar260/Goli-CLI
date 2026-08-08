@@ -4,6 +4,8 @@
 **Phase:** P7
 **Date:** 2026-07-03
 
+> **Correction (2026-08-07):** This record references `tree-sitter-language-pack`, which **does not exist on npm** (the package 404s; the real package is `tree-sitter-languages`, plural). The production indexer therefore relies on the regex fallback in `packages/context-engine/src/indexer/tree-sitter.ts`. See [ADR-0046](0046-real-tree-sitter.md) for the follow-up.
+
 ## Context
 
 The context engine needs to parse source files into semantic chunks

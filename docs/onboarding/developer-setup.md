@@ -127,7 +127,7 @@ them locally before pushing.
 # TUI
 npm run dev
 # OR
-node packages/cli/dist/index.js wakeup
+node apps/cli/dist/index.js wakeup
 
 # Headless
 npm run dev -- -p "hello" --headless-output json
@@ -179,13 +179,13 @@ Comment on the issue to claim it. A maintainer will assign you.
 git checkout -b feat/my-feature
 
 # Make your changes
-$EDITOR packages/core/src/agent/loop.ts
+$EDITOR packages/agent-core/src/loop.ts
 
 # Run tests + lint + typecheck
 npm run verify
 
 # Commit (use Conventional Commits)
-git add packages/core/src/agent/loop.ts
+git add packages/agent-core/src/loop.ts
 git commit -m "feat(core): add loop-break message customization"
 # Note: --signoff is required (DCO)
 # git commit --signoff -m "..."
@@ -259,5 +259,5 @@ git push origin feat/my-feature --force-with-lease
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) — full contribution guide.
 - [STYLEGUIDE.md](../../STYLEGUIDE.md) — enforced code style.
 - [30-60-90 Day Plan](30-60-90-day-plan.md) — for core contributors.
-- [Tutorial: Getting Started](../user/tutorials/getting-started.md) —
+- [Getting Started](../getting-started.md) —
   for _users_ (not contributors).

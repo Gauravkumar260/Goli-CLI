@@ -5,6 +5,8 @@
 **Hermes Item:** H22 — Real Tree-Sitter
 **Extends:** ADR-0022 (tree-sitter over LSP)
 
+> **Correction (2026-08-07):** Like ADR-0022, this record cites `tree-sitter-language-pack`, which **does not exist on npm** (`npm view tree-sitter-language-pack` 404s). The real package is **`tree-sitter-languages`** (plural), loaded via optional dynamic `import()`. Because that import is not guaranteed to resolve, the **regex fallback in `packages/context-engine/src/indexer/tree-sitter.ts` is the production code path**; `TreeSitterIndexer` tries the native binding and falls back gracefully.
+
 ## Context
 
 ADR-0022 chose tree-sitter for the context engine's indexer, but the

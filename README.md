@@ -5,12 +5,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node: 20+](https://img.shields.io/badge/node-%E2%89%A520.18-brightgreen)](package.json)
 [![TypeScript: 5.7+](https://img.shields.io/badge/TypeScript-%E2%89%A55.7-blue)](package.json)
-[![Phase: 2](https://img.shields.io/badge/Phase-2%20Agent%20Loop-blue)](PLAN.md)
-[![Tests: 3053](https://img.shields.io/badge/tests-3053%20passing-brightgreen)](tests/)
+[![Phase: 2](https://img.shields.io/badge/Phase-2%20Agent%20Loop-blue)](docs/README.md)
+[![Tests: 3376](https://img.shields.io/badge/tests-3376%20passing-brightgreen)](tests/)
 [![Version: 0.3.0-phase2-studio](https://img.shields.io/badge/version-0.3.0--phase2--studio-blueviolet)](package.json)
-[![Studio: experimental](https://img.shields.io/badge/studio-experimental-orange)](packages/studio/README.md)
+[![Studio: experimental](https://img.shields.io/badge/studio-experimental-orange)](apps/studio/README.md)
 
-> **Documentation:** [CHANGELOG.md](CHANGELOG.md) · [API Reference](docs/api/_generated/index.html) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Agent Guide](AGENTS.md) · [MCP Extensions](docs/extensions/mcp.md) · [Goli Studio](packages/studio/README.md) · [Docs Index](docs/README.md)
+> **Documentation:** [CHANGELOG.md](CHANGELOG.md) · [API Reference](docs/api/README.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Agent Guide](AGENTS.md) · [MCP Extensions](docs/extensions/mcp.md) · [Goli Studio](apps/studio/README.md) · [Docs Index](docs/README.md)
 
 GOLI-CLI is an enterprise-grade AI coding agent — a CLI/TUI autonomous
 coding assistant — with a pluggable multi-provider model layer. The
@@ -37,12 +37,12 @@ a mature TUI polished across **35+ iterations** with **3,053 tests
 passing** and **0 regressions**. Phases 3–7 are also fully shipped (TUI,
 tools, sandbox, MCP+hooks, context engine). Phases 8–13 are substantially
 complete (memory, SICA, evals, orchestration) — see
-[docs/phases/README.md](docs/phases/README.md) for per-phase status.
+[docs/README.md](docs/README.md) for the documentation index.
 
 ### Provider System
 
 Goli-CLI ships an integrated providers module
-([`packages/core/src/providers/`](packages/core/src/providers/)) that
+([`packages/llm-providers/src/`](packages/llm-providers/src/)) that
 abstracts LLM access behind a single `ModelProvider` interface. The
 runtime selects the backend from the `GOLI_DEFAULT_MODEL` env var (set
 in `.env`):
@@ -133,7 +133,7 @@ cd goli-cli
 # Install dependencies
 npm install
 
-# Build all workspaces (packages/core, packages/cli, packages/evals)
+# Build all workspaces (apps/*, packages/*)
 npm run build
 
 # A .env file with Ollama Cloud config is already included.
@@ -186,8 +186,7 @@ npm run verify
 | [docs/tui/architecture.md](docs/tui/architecture.md)   | TUI component tree + state model                      |
 | [docs/cli/themes.md](docs/cli/themes.md)               | Theme catalog (20 built-in + user YAML skins)         |
 | [docs/extensions/mcp.md](docs/extensions/mcp.md)       | MCP extension API + hello-world example (A8)          |
-| [docs/api/README.md](docs/api/README.md)               | API reference for @goli/core, @goli/cli, @goli/evals  |
-| [docs/phases/README.md](docs/phases/README.md)         | 13-phase implementation roadmap + status              |
+| [docs/api/README.md](docs/api/README.md)               | API reference for @goli-cli/agent-core, @goli/cli, @goli-cli/evals |
 | [docs/decisions/](docs/decisions/)                     | 45 Architectural Decision Records (ADRs)              |
 | [docs/coverage-report.md](docs/coverage-report.md)     | Test coverage report + gap analysis                   |
 | [docs/a11y-report.md](docs/a11y-report.md)             | Accessibility audit (color contrast)                  |
@@ -198,8 +197,7 @@ npm run verify
 | [legal/TERMS_OF_SERVICE.md](legal/TERMS_OF_SERVICE.md) | ToS (open-weight routing, liability)                  |
 | [legal/PRIVACY_POLICY.md](legal/PRIVACY_POLICY.md)     | Privacy policy (GDPR + EU AI Act)                     |
 | [docs/README.md](docs/README.md)                       | Documentation master index (17 categories / 39 items) |
-| [packages/studio/README.md](packages/studio/README.md) | **Goli Studio** — optional Next.js 16 web console     |
-| [docs/studio-worklog.md](docs/studio-worklog.md)       | Goli Studio build log + handover notes                |
+| [apps/studio/README.md](apps/studio/README.md)         | **Goli Studio** — optional Next.js 16 web console     |
 
 ---
 
@@ -223,7 +221,7 @@ npm run studio:dev       # Next.js app on :3000  →  http://localhost:3000
 
 If the runtime is not running, the UI auto-falls back to **Demo mode**
 (mock agent stream) so you can explore the surface without a backend. See
-[`packages/studio/README.md`](packages/studio/README.md) for architecture,
+[`apps/studio/README.md`](apps/studio/README.md) for architecture,
 folder layout, and the full socket protocol.
 
 ---

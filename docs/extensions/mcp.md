@@ -145,7 +145,7 @@ Goli-CLI satisfies this via:
 
 1. **`packages/tool-system/src/mcp/client.ts`** — `MCPClientManager` connects to MCP servers via stdio or HTTP, lists their tools, and forwards `tools/call` requests. Core code never imports from the MCP server's source; it only speaks JSON-RPC over the configured transport.
 
-2. **`packages/cli/src/commands/mcp-config.ts`** — `addMcpServer`, `removeMcpServer`, `listMcpServers`, `scanMcpServers` operate on `~/.goli-cli/mcp-servers.toml`. Adding a server is a TOML edit, not a code change.
+2. **`apps/cli/src/commands/mcp-config.ts`** — `addMcpServer`, `removeMcpServer`, `listMcpServers`, `scanMcpServers` operate on `~/.goli-cli/mcp-servers.toml`. Adding a server is a TOML edit, not a code change.
 
 3. **`packages/tool-system/src/mcp/index.ts`** — `REFERENCE_MCP_SERVERS` is a static list of well-known servers (filesystem, git, github, ...) that `goli mcp scan` surfaces. New reference servers can be added by editing this array, but user-installed servers don't need to be in this list.
 

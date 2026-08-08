@@ -16,7 +16,7 @@ surface. The Studio is for users who want:
 - Richer rendering for Markdown, code blocks, and file trees.
 - A sharable URL for pair-programming.
 
-See [`packages/studio/README.md`](../../../packages/studio/README.md)
+See [`apps/studio/README.md`](../../../apps/studio/README.md)
 for the architecture.
 
 ## Prerequisites
@@ -47,7 +47,7 @@ npm run studio:db:generate
 npm run studio:db:push
 ```
 
-This creates `packages/studio/db/custom.db` (a SQLite file).
+This creates `apps/studio/db/custom.db` (a SQLite file).
 
 ## Step 3: Start the agent runtime
 
@@ -171,7 +171,7 @@ The Studio is **experimental**. Known limitations in v0.3:
 
 ## Where to go next
 
-- **[`packages/studio/README.md`](../../../packages/studio/README.md)**
+- **[`apps/studio/README.md`](../../../apps/studio/README.md)**
   — full architecture and folder layout.
 - **[Socket protocol](../../design/socket-protocol.md)** — the wire
   format between the frontend and the runtime.

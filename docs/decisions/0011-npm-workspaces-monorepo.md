@@ -1,6 +1,6 @@
 # ADR-0011: npm Workspaces Monorepo Structure
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0047](0047-apps-packages-restructuring.md) and [ADR-0048](0048-monorepo-structure.md) — the 3-package layout described here (`@goli/core` + `@goli/cli` + `@goli/evals`) has since been replaced by the current layout: 3 apps (`apps/{cli,studio,vscode-ext}`) + 16 `@goli-cli/*` packages. `@goli/core` is deleted; its modules now live in the canonical packages (`@goli-cli/agent-core`, `@goli-cli/llm-providers`, etc.). Kept as a historical record of the original workspaces decision.
 **Phase:** P2
 **Date:** 2026-07-03
 

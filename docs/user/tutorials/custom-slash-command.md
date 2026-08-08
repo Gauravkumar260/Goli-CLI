@@ -36,7 +36,7 @@ You are a senior software engineer. Propose a refactor of the file at
 1. Read `AGENTS.md` for project context.
 2. Read `STYLEGUIDE.md` for the project's conventions.
 3. Read the file at `$1`.
-4. Read the tests for `$1` (look for `$1.test.ts` or in `tests/unit/`).
+4. Read the tests for `$1` (look for `$1.test.ts` in the package's `__tests__/` directory).
 5. Find callers of the file's exports (use `grep`).
 6. Read relevant ADRs in `docs/decisions/`.
 

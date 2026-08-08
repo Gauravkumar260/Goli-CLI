@@ -2,7 +2,7 @@
 
 > **Status:** v0.1 (experimental)
 > **Last updated:** 2026-07-25
-> **Source of truth:** [`packages/studio/src/lib/types/socket.ts`](../../packages/studio/src/lib/types/socket.ts)
+> **Source of truth:** [`apps/studio/src/lib/types/socket.ts`](../../apps/studio/src/lib/types/socket.ts)
 
 This document describes the socket.io protocol that the Goli Studio
 frontend (browser) uses to talk to the agent runtime mini-service. The
@@ -22,7 +22,7 @@ const socket = io("/?XTransformPort=3003", {
 ```
 
 The `?XTransformPort=3003` query parameter is consumed by the Caddy
-reverse proxy (`packages/studio/Caddyfile`) to route the WebSocket
+reverse proxy (`apps/studio/Caddyfile`) to route the WebSocket
 upgrade to the agent runtime on port 3003 instead of the Next.js app on
 port 3000. This is a Caddy-specific trick — the browser sees a single
 origin (`http://localhost:3000`) but the WebSocket is transparently

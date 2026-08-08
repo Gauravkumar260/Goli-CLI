@@ -18,7 +18,7 @@ providers (Ollama, OpenAI, Anthropic, Gemini).
 - **git** _(optional)_ — used by worktree isolation and the `commit`
   command. Install from <https://git-scm.com>.
 - **An LLM endpoint** — the default is [Ollama](https://ollama.com) Cloud
-  (`ollama/gpt-oss:120b`). Any OpenAI-compatible endpoint works too
+  (`ollama/gpt-oss:120b-cloud`). Any OpenAI-compatible endpoint works too
   (OpenAI, Anthropic, Gemini, vLLM, LM Studio, etc.).
 
 ## Step 1: Install
@@ -30,8 +30,8 @@ npm install
 npm run build
 ```
 
-The build compiles the `@goli/core` and `@goli/cli` workspaces to
-`packages/*/dist/`. The `npm run goli` script wires `node packages/cli/dist/index.js`
+The build (via Turborepo) compiles every app and package to its own
+`dist/`. The `npm run goli` script wires `node apps/cli/dist/index.js`
 to a local `goli` invocation.
 
 Verify the install:
@@ -47,7 +47,7 @@ npm run goli -- --version
 
 ## Step 2: Configure `.env`
 
-Goli-CLI auto-loads `.env` from your CWD and from the `packages/cli/`
+Goli-CLI auto-loads `.env` from your CWD and from the `apps/cli/`
 directory on startup (existing process env vars take precedence). The
 repository ships with a working `.env` pointed at Ollama Cloud — open it
 and tweak as needed:
@@ -55,12 +55,12 @@ and tweak as needed:
 ```bash
 # .env — Goli-CLI API configuration
 
-# Default model: "ollama/gpt-oss:120b" (gpt-oss via Ollama Cloud)
+# Default model: "ollama/gpt-oss:120b-cloud" (gpt-oss via Ollama Cloud)
 # Other supported providers:
 #   openai/gpt-4o
 #   anthropic/claude-3-5-sonnet
 #   gemini/gemini-2.0-flash
-GOLI_DEFAULT_MODEL=ollama/gpt-oss:120b
+GOLI_DEFAULT_MODEL=ollama/gpt-oss:120b-cloud
 
 # Ollama endpoint + API key (used when GOLI_DEFAULT_MODEL starts with ollama/)
 OLLAMA_BASE_URL=https://ollama.com
@@ -84,13 +84,13 @@ name passed to that provider.
 
 | `GOLI_DEFAULT_MODEL`            | Required env var(s)                 |
 | ------------------------------- | ----------------------------------- |
-| `ollama/gpt-oss:120b` (default) | `OLLAMA_BASE_URL`, `OLLAMA_API_KEY` |
+| `ollama/gpt-oss:120b-cloud` (default) | `OLLAMA_BASE_URL`, `OLLAMA_API_KEY` |
 | `openai/gpt-4o`                 | `OPENAI_API_KEY`                    |
 | `anthropic/claude-3-5-sonnet`   | `ANTHROPIC_API_KEY`                 |
 | `gemini/gemini-2.0-flash`       | `GEMINI_API_KEY`                    |
 
-The provider is wired through `packages/core/src/agent/provider-adapter.ts`,
-which wraps the `ModelProvider` interface as a `GLMClient` so the agent
+The provider is wired through `packages/agent-core/src/provider-adapter.ts`,
+which wraps the `ModelProvider` interface as a `ProviderBackedModelClient` so the agent
 loop can use any provider without code changes.
 
 ## Step 3: Run a health check
@@ -173,7 +173,7 @@ Once the TUI is open, try this sequence:
    `/doctor`, etc.).
 
 3. **Type `/theme`** — opens the `ThemeDialog` overlay. Pick any of the
-   20 built-in themes (Dracula, Nord, Solarized, GitHub, Atom One Dark,
+   25 built-in themes (Dracula, Nord, Solarized, GitHub, Atom One Dark,
    Monokai, etc.). Themes hot-reload instantly — no restart needed.
 
 4. **Type `/tips`** — cycles through a curated list of productivity tips
@@ -240,7 +240,7 @@ See [MCP Extensions](extensions/mcp.md) for the full guide.
 ### "Fix a bug"
 
 ```bash
-npm run goli -- -p "Fix the failing test in tests/unit/parser.test.ts. \
+npm run goli -- -p "Fix the failing test in packages/context-engine/__tests__/tree-sitter-indexer.test.ts. \
 The test expects 'hello world' but gets 'hello  world' (double space)."
 ```
 
@@ -282,20 +282,20 @@ stdout are not a TTY"_, use headless mode (`-p "<prompt>"`) instead.
 ### Cold-start is slow (> 200ms)
 
 Run `npm run bench:quick` to diagnose. The lazy-loading optimization in
-`packages/cli/src/index.ts` should keep cold-start under 200ms — if it's
-slow, check that `@goli/core` isn't being eagerly imported at the top
+`apps/cli/src/index.ts` should keep cold-start under 200ms — if it's
+slow, check that `@goli-cli/agent-core` isn't being eagerly imported at the top
 of any CLI entry file.
 
-### Tests fail with "Cannot find module '@goli/core'"
+### Tests fail with "Cannot find module '@goli-cli/agent-core'"
 
-Run `npm run build` first — the CLI depends on `@goli/core/dist/`, which
-is built from `packages/core/src/`. See `AGENTS.md` for build-chain gotchas.
+Run `npm run build` first — the CLI depends on `@goli-cli/agent-core/dist/`, which
+is built from `packages/agent-core/src/`. See `AGENTS.md` for build-chain gotchas.
 
 ## Next steps
 
 - [TUI Architecture](tui/architecture.md) — component tree, performance,
   state management.
-- [Themes](cli/themes.md) — the 20 built-in themes + custom YAML skins.
+- [Themes](cli/themes.md) — the 25 built-in themes + custom YAML skins.
 - [Agents](agents.md) — per-agent reference.
 - [MCP Extensions](extensions/mcp.md) — write your own tools.
 - [Contributing](../CONTRIBUTING.md) — how to contribute to Goli-CLI.

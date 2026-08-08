@@ -12,7 +12,7 @@ docs.
 
 | Audience            | Start here                                                           |
 | ------------------- | -------------------------------------------------------------------- |
-| New user            | [Tutorial: Getting Started](user/tutorials/getting-started.md)       |
+| New user            | [Getting Started](getting-started.md)                   |
 | Contributor         | [Developer Setup Guide](onboarding/developer-setup.md)               |
 | Maintainer          | [Release Process](ops/release-process.md)                            |
 | Architect           | [SDD](design/sdd.md) + [C4 Diagrams](design/diagrams/c4-diagrams.md) |
@@ -111,42 +111,19 @@ docs.
 | Document          | File                                                   |
 | ----------------- | ------------------------------------------------------ |
 | Command Reference | [`cli/command-reference.md`](cli/command-reference.md) |
-| Man Pages         | [`cli/man-pages.md`](cli/man-pages.md)                 |
 | Themes catalog    | [`cli/themes.md`](cli/themes.md)                       |
+| Cron scheduling   | [`cli/cron.md`](cli/cron.md)                           |
 
-### 10. Phase docs (implementation roadmap)
-
-| Document                 | File                                                                       |
-| ------------------------ | -------------------------------------------------------------------------- |
-| Phases overview          | [`phases/README.md`](phases/README.md)                                     |
-| 01-foundation            | [`phases/01-foundation.md`](phases/01-foundation.md)                       |
-| 02-agent-core-loop       | [`phases/02-agent-core-loop.md`](phases/02-agent-core-loop.md)             |
-| 03-tui-foundation        | [`phases/03-tui-foundation.md`](phases/03-tui-foundation.md)               |
-| 04-tools-core            | [`phases/04-tools-core.md`](phases/04-tools-core.md)                       |
-| 05-sandboxing            | [`phases/05-sandboxing.md`](phases/05-sandboxing.md)                       |
-| 06-mcp-hooks             | [`phases/06-mcp-hooks.md`](phases/06-mcp-hooks.md)                         |
-| 07-context-engine        | [`phases/07-context-engine.md`](phases/07-context-engine.md)               |
-| 08-memory                | [`phases/08-memory.md`](phases/08-memory.md)                               |
-| 09-skills                | [`phases/09-skills.md`](phases/09-skills.md)                               |
-| 10-trajectory-finetuning | [`phases/10-trajectory-finetuning.md`](phases/10-trajectory-finetuning.md) |
-| 11-sica                  | [`phases/11-sica.md`](phases/11-sica.md)                                   |
-| 12-evals-observability   | [`phases/12-evals-observability.md`](phases/12-evals-observability.md)     |
-| 13-orchestration         | [`phases/13-orchestration.md`](phases/13-orchestration.md)                 |
-
-### 11. Other docs
+### 10. Other docs
 
 | Document              | File                                         |
 | --------------------- | -------------------------------------------- |
 | Architecture overview | [`architecture.md`](architecture.md)         |
 | Getting started       | [`getting-started.md`](getting-started.md)   |
-| Setup guide           | [`user/tutorials/setup-guide.md`](user/tutorials/setup-guide.md) |
 | Local LLMs mode       | [`local-llms-mode.md`](local-llms-mode.md)   |
 | TUI architecture      | [`tui/architecture.md`](tui/architecture.md) |
 | MCP extensions        | [`extensions/mcp.md`](extensions/mcp.md)     |
 | API reference         | [`api/README.md`](api/README.md)             |
-| Progress Log          | [`progress.md`](progress.md)                 |
-| Goli CLI worklog      | [`worklog.md`](worklog.md)                   |
-| Goli Studio worklog   | [`studio-worklog.md`](studio-worklog.md)     |
 
 ## Documentation principles
 
@@ -159,7 +136,7 @@ Goli-CLI's documentation follows these principles:
    [`user/README.md`](user/README.md).
 3. **Living patterns in AGENTS.md.** The agent mutates `AGENTS.md`
    as it learns. See [`ai-agent/agents-md-spec.md`](ai-agent/agents-md-spec.md).
-4. **ADRs for hard-to-reverse decisions.** 46 ADRs and counting. See
+4. **ADRs for hard-to-reverse decisions.** 47 ADRs and counting. See
    [`design/decision-log.md`](design/decision-log.md).
 5. **CI checks for docs.** Every PR touching `src/tools/` must also
    touch `docs/ai-agent/tool-schemas/`. TypeDoc must build without

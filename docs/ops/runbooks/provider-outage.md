@@ -126,7 +126,7 @@ curl -sS https://api.anthropic.com/v1/messages \
 ```
 
 If the curl works but Goli-CLI doesn't, there's a bug in
-`packages/core/src/providers/anthropic.ts`. File an issue.
+`packages/llm-providers/src/anthropic.ts`. File an issue.
 
 ### Case D: Goli-CLI bug
 

@@ -1,6 +1,6 @@
 # ADR 0017: VS Code Extension Isolation
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0047](0047-apps-packages-restructuring.md) — the extension moved from `packages/vscode-ext/` to `apps/vscode-ext/` (package name `goli-vscode`) and is now listed in the root `package.json` `workspaces` array. `@goli/core` (referenced throughout this record) was deleted; the agent modules it described now live in `@goli-cli/*` packages. Kept as a historical record of the isolation rationale.
 **Date:** 2026-07-05 (iteration 14, originally numbered 0010 — renumbered to 0017 to resolve a collision with `0010-defensive-json-parsing.md` and to fill the gap left by the reserved 0017 slot)
 **Task:** T-010
 

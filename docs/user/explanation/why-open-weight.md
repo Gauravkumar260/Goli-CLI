@@ -3,7 +3,7 @@
 > **Explanation** — why Goli-CLI defaults to open-weight models, and
 > what that means in practice.
 
-Goli-CLI's default model is `ollama/gpt-oss:120b` — an **open-weight**
+Goli-CLI's default model is `ollama/gpt-oss:120b-cloud` — an **open-weight**
 model hosted on Ollama Cloud. This is a deliberate architectural
 choice, not a default-default. This note explains why.
 
@@ -47,7 +47,7 @@ Closed-weight models are updated silently. OpenAI ships a new
 different model. There's no way to pin a version.
 
 Open-weight models are files. You can pin a specific release
-(`ollama/gpt-oss:120b@2026-07-01`) and get bit-identical behavior
+(`ollama/gpt-oss:120b-cloud@2026-07-01`) and get bit-identical behavior
 forever. This is critical for:
 
 - **Evals** — if the model changes mid-eval-run, your numbers are
@@ -107,7 +107,7 @@ Goli-CLI's answer to these trade-offs:
 
 ## What this means in practice
 
-If you're a casual user: just use the default (`ollama/gpt-oss:120b`
+If you're a casual user: just use the default (`ollama/gpt-oss:120b-cloud`
 on Ollama Cloud). It's open-weight, reasonably priced, and good enough
 for most coding tasks.
 
@@ -115,11 +115,11 @@ If you're a regulated industry: self-host vLLM with `gpt-oss:120b` or
 `llama3:70b` on your own GPUs. Use `--local-llms` mode for PII gating.
 
 If you're pushing the quality frontier: use `anthropic/claude-3-5-sonnet`
-for the hardest tasks and `ollama/gpt-oss:120b` for everything else.
+for the hardest tasks and `ollama/gpt-oss:120b-cloud` for everything else.
 The `LocalLlmsRouter` automates this routing.
 
 If you're an ML engineer: fine-tune `gpt-oss:120b` on your
-trajectories via the SICA loop and `python_ml/train_grpo.py`. Pin the
+trajectories via the SICA loop and `services/ml-pipeline/train_grpo.py`. Pin the
 fine-tuned version and use it as your default.
 
 ## See also
