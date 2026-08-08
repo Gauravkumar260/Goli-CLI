@@ -2,14 +2,11 @@
 
 /**
  * useAgentStream — drives the chat transcript by consuming the SSE stream
- * from POST /api/chat, dispatching permission decisions to
- * POST /api/chat/decision, and gracefully falling back to a local mock
- * simulator when the backend is unreachable.
+ * from POST /api/chat and dispatching permission decisions to
+ * POST /api/chat/decision.
  *
  * Public API mirrors the old socket.io hook so the UI stays unchanged:
  *   status: ConnectionStatus
- *   mockMode: boolean
- *   setMockMode(v): void
  *   transcript: TranscriptItem[]
  *   isRunning: boolean
  *   activeRunId: string | null
@@ -45,8 +42,6 @@ export interface UseAgentStreamOptions {
  */
 export interface UseAgentStream {
   status: ConnectionStatus;
-  mockMode: boolean;
-  setMockMode: (v: boolean) => void;
   transcript: TranscriptItem[];
   isRunning: boolean;
   activeRunId: string | null;
@@ -74,7 +69,6 @@ export function useAgentStream(opts: UseAgentStreamOptions): UseAgentStream {
   const [transcript, setTranscript] = React.useState<TranscriptItem[]>([]);
   const [isRunning, setIsRunning] = React.useState(false);
   const [activeRunId, setActiveRunId] = React.useState<string | null>(null);
-  const [mockMode, setMockMode] = React.useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
   const [status, setStatus] = React.useState<ConnectionStatus>('connecting');
 
@@ -88,7 +82,6 @@ export function useAgentStream(opts: UseAgentStreamOptions): UseAgentStream {
   preambleRef.current = systemPreamble;
   const workspaceRef = React.useRef(workspaceDir);
   workspaceRef.current = workspaceDir;
-  const mockTimersRef = React.useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   // ---------------- lifecycle: connectivity probe ----------------
   React.useEffect(() => {
@@ -113,17 +106,6 @@ export function useAgentStream(opts: UseAgentStreamOptions): UseAgentStream {
       cancelled = true;
     };
   }, []);
-
-  // Auto-enable mock mode if disconnected after a brief delay.
-  React.useEffect(() => {
-    if (status === 'disconnected' && !mockMode) {
-      const t = setTimeout(() => {
-        setMockMode(true);
-        toast.info('Demo mode is on — backend unreachable. Showing a simulated agent.');
-      }, 1200);
-      return () => clearTimeout(t);
-    }
-  }, [status, mockMode]);
 
   // ---------------- transcript helpers ----------------
   const patch = React.useCallback(
@@ -438,124 +420,15 @@ export function useAgentStream(opts: UseAgentStreamOptions): UseAgentStream {
     [appendItem, appendToLastAssistant, patch, updateByToolCallId],
   );
 
-  // ---------------- send (mock mode) ----------------
-  const sendMock = React.useCallback(
-    (prompt: string) => {
-      const mode = modeRef.current;
-      const runId = `mock-${Date.now().toString(36)}`;
-      appendItem({
-        id: uid(),
-        kind: 'user',
-        text: prompt,
-        at: Date.now(),
-      });
-      setIsRunning(true);
-      setActiveRunId(runId);
-
-      // Helper to schedule a timeout we can cancel.
-      const schedule = (delay: number, fn: () => void) => {
-        const t = setTimeout(fn, delay);
-        mockTimersRef.current.add(t);
-        return t;
-      };
-
-      // 1. Stream a fake assistant answer.
-      const tokens = mockAnswerFor(prompt);
-      tokens.forEach((tok, i) => {
-        schedule(180 + i * 35, () => {
-          appendToLastAssistant(tok);
-        });
-      });
-
-      const totalTokenTime = 180 + tokens.length * 35 + 100;
-
-      // 2. If the prompt looks like a write, simulate a write_file tool + permission.
-      if (/\b(create|write|edit|update|fix|refactor)\b/i.test(prompt) && mode !== 'plan') {
-        const toolCallId = `tcall-${Date.now().toString(36)}`;
-        const targetRel = prompt.match(/([\w./-]+\.[a-zA-Z]{1,8})\b/)?.[1] ?? 'notes/new-file.md';
-
-        schedule(totalTokenTime + 200, () => {
-          appendItem({
-            id: uid(),
-            kind: 'tool',
-            toolCallId,
-            toolName: 'write_file',
-            toolInput: { path: targetRel, content: '…' },
-            toolState: 'running',
-            runId,
-            at: Date.now(),
-          });
-        });
-
-        if (mode === 'ask') {
-          // Permission request — wait for the user.
-          schedule(totalTokenTime + 500, () => {
-            appendItem({
-              id: uid(),
-              kind: 'permission',
-              toolCallId,
-              toolName: 'write_file',
-              toolInput: { path: targetRel },
-              summary: `Write ${targetRel}`,
-              decision: 'pending',
-              runId,
-              at: Date.now(),
-            });
-          });
-        } else {
-          // Yolo mode — auto-allow.
-          schedule(totalTokenTime + 900, () => {
-            updateByToolCallId(toolCallId, (it) => ({
-              ...it,
-              toolResult: {
-                ok: true,
-                content: `Wrote 142 chars to ${targetRel}.`,
-              },
-              toolState: 'done',
-            }));
-            schedule(150, () => {
-              patch((cur) =>
-                cur.map((it) =>
-                  it.kind === 'assistant' && it.streaming
-                    ? { ...it, streaming: false }
-                    : it,
-                ),
-              );
-              setIsRunning(false);
-              setActiveRunId(null);
-            });
-          });
-        }
-        return;
-      }
-
-      // 3. Otherwise just end.
-      schedule(totalTokenTime + 200, () => {
-        patch((cur) =>
-          cur.map((it) =>
-            it.kind === 'assistant' && it.streaming ? { ...it, streaming: false } : it,
-          ),
-        );
-        setIsRunning(false);
-        setActiveRunId(null);
-      });
-    },
-    [appendItem, appendToLastAssistant, patch, updateByToolCallId],
-  );
-
   // ---------------- public send ----------------
   const send = React.useCallback(
     (prompt: string) => {
       const trimmed = prompt.trim();
       if (!trimmed) return;
       if (isRunning) return;
-      if (mockMode) {
-        sendMock(trimmed);
-      } else {
-        void sendReal(trimmed);
-      }
+      void sendReal(trimmed);
     },
-    [isRunning, mockMode, sendMock, sendReal],
+    [isRunning, sendReal],
   );
 
   // ---------------- respondToPermission ----------------
@@ -569,48 +442,6 @@ export function useAgentStream(opts: UseAgentStreamOptions): UseAgentStream {
           ? it
           : { ...it, toolState: 'running' },
       );
-
-      if (mockMode) {
-        // Simulate the tool result after a short delay.
-        const t = setTimeout(() => {
-          updateByToolCallId(toolCallId, (it) => {
-            if (it.kind !== 'tool') return it;
-            if (decision === 'allow') {
-              return {
-                ...it,
-                toolState: 'done',
-                toolResult: {
-                  ok: true,
-                  content: 'Wrote 142 chars to the file.',
-                },
-              };
-            }
-            return {
-              ...it,
-              toolState: 'error',
-              toolResult: {
-                ok: false,
-                isError: true,
-                content: 'User denied the write.',
-              },
-            };
-          });
-          // End the run shortly after.
-          setTimeout(() => {
-            patch((cur) =>
-              cur.map((it2) =>
-                it2.kind === 'assistant' && it2.streaming
-                  ? { ...it2, streaming: false }
-                  : it2,
-              ),
-            );
-            setIsRunning(false);
-            setActiveRunId(null);
-          }, 200);
-        }, 350);
-        mockTimersRef.current.add(t);
-        return;
-      }
 
       try {
         await fetch('/api/chat/decision', {
@@ -626,7 +457,7 @@ export function useAgentStream(opts: UseAgentStreamOptions): UseAgentStream {
         );
       }
     },
-    [mockMode, patch, updateByToolCallId],
+    [updateByToolCallId],
   );
 
   // ---------------- cancel ----------------
@@ -635,9 +466,6 @@ export function useAgentStream(opts: UseAgentStreamOptions): UseAgentStream {
       abortRef.current.abort();
       abortRef.current = null;
     }
-    // Cancel any pending mock timers.
-    for (const t of mockTimersRef.current) clearTimeout(t);
-    mockTimersRef.current.clear();
     patch((cur) =>
       cur.map((it) =>
         it.streaming ? { ...it, streaming: false } : it,
@@ -653,8 +481,6 @@ export function useAgentStream(opts: UseAgentStreamOptions): UseAgentStream {
       abortRef.current.abort();
       abortRef.current = null;
     }
-    for (const t of mockTimersRef.current) clearTimeout(t);
-    mockTimersRef.current.clear();
     setTranscript([]);
     setIsRunning(false);
     setActiveRunId(null);
@@ -664,15 +490,11 @@ export function useAgentStream(opts: UseAgentStreamOptions): UseAgentStream {
   React.useEffect(() => {
     return () => {
       if (abortRef.current) abortRef.current.abort();
-      for (const t of mockTimersRef.current) clearTimeout(t);
-      mockTimersRef.current.clear();
     };
   }, []);
 
   return {
     status,
-    mockMode,
-    setMockMode,
     transcript,
     isRunning,
     activeRunId,
@@ -683,30 +505,4 @@ export function useAgentStream(opts: UseAgentStreamOptions): UseAgentStream {
     clear,
     loadHistory,
   };
-}
-
-// ---------------- helpers ----------------
-
-// Mock answer generator — token-by-token (preserves whitespace breaks).
-function mockAnswerFor(prompt: string): string[] {
-  const text = `Here's a quick take on **"${prompt.trim().slice(0, 80)}"**:
-
-1. I'll first read the relevant file(s) to understand the current state.
-2. Then propose a minimal diff that keeps the change scoped.
-3. Finally run a quick check to make sure nothing else broke.
-
-\`\`\`ts
-// Example sketch
-export function refine(input: string): string {
-  return input.trim().toLowerCase();
-}
-\`\`\`
-
-Want me to apply this? In \`ask\` mode I'll wait for your approval before writing anything.`;
-  // Split into ~3-char chunks to look like token streaming.
-  const tokens: string[] = [];
-  for (let i = 0; i < text.length; i += 3) {
-    tokens.push(text.slice(i, i + 3));
-  }
-  return tokens;
 }

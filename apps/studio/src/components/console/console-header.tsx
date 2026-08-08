@@ -24,7 +24,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 
 interface ConsoleHeaderProps {
   status: ConnectionStatus;
-  mockMode: boolean;
   onOpenSidebar: () => void;
   onNewSession: () => void;
   onToggleSidebar: () => void;
@@ -40,7 +39,6 @@ interface ConsoleHeaderProps {
  */
 export function ConsoleHeader({
   status,
-  mockMode,
   onOpenSidebar,
   onNewSession,
   onToggleSidebar,
@@ -122,7 +120,7 @@ export function ConsoleHeader({
 
       <div className="ml-auto flex items-center gap-1">
         {/* Connection status */}
-        <ConnectionBadge status={status} mockMode={mockMode} className="hidden sm:inline-flex" />
+        <ConnectionBadge status={status} className="hidden sm:inline-flex" />
 
         {/* Theme toggle */}
         {mounted && (

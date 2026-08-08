@@ -8,7 +8,6 @@ import {
   Hash,
   Wifi,
   WifiOff,
-  FlaskConical,
 } from 'lucide-react';
 import * as React from 'react';
 
@@ -19,7 +18,6 @@ import { cn } from '@/lib/utils';
 
 interface ConsoleFooterProps {
   status: ConnectionStatus;
-  mockMode: boolean;
   workspaceDir: string;
   permissionMode: PermissionMode;
   transcriptTokens: number;
@@ -48,7 +46,6 @@ const PERM_LABEL: Record<PermissionMode, { label: string; icon: React.ReactNode;
  */
 export function ConsoleFooter({
   status,
-  mockMode,
   workspaceDir,
   permissionMode,
   transcriptTokens,
@@ -57,12 +54,7 @@ export function ConsoleFooter({
   return (
     <footer className="flex h-6 items-center gap-3 border-t border-border bg-background/80 px-3 text-[10px] text-muted-foreground backdrop-blur">
       <span className="inline-flex items-center gap-1">
-        {mockMode ? (
-          <>
-            <FlaskConical className="size-3 text-amber-500" aria-hidden />
-            <span className="hidden sm:inline">Demo mode</span>
-          </>
-        ) : status === 'connected' ? (
+        {status === 'connected' ? (
           <>
             <Wifi className="size-3 text-emerald-500" aria-hidden />
             <span className="hidden sm:inline">Live</span>

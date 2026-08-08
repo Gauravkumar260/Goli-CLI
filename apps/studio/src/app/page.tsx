@@ -69,9 +69,8 @@ export default function Home() {
     }
   }, [agent.transcript]);
 
-  // Composer can send when connected (or in mock mode) and not currently running.
-  const canSend =
-    (agent.status === 'connected' || agent.mockMode) && !agent.isRunning;
+  // Composer can send when connected and not currently running.
+  const canSend = agent.status === 'connected' && !agent.isRunning;
 
   const handleSend = () => {
     const trimmed = composer.trim();
@@ -225,7 +224,6 @@ export default function Home() {
           <div className="flex min-w-0 flex-1 flex-col">
             <ConsoleHeader
               status={agent.status}
-              mockMode={agent.mockMode}
               onOpenSidebar={() => setMobileSidebarOpen(true)}
               onNewSession={handleNewSession}
               onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
@@ -248,12 +246,12 @@ export default function Home() {
                 isLoadingHistory={agent.isLoadingHistory}
               />
 
-              {!agent.mockMode && agent.status !== 'connected' ? (
+              {agent.status !== 'connected' ? (
                 <div className="border-t border-border bg-muted/30 px-4 py-2.5 text-center sm:px-6">
                   <p className="text-xs text-muted-foreground">
                     {agent.status === 'connecting'
                       ? 'Connecting to the agent runtime…'
-                      : 'Not connected. Open Settings and enable Demo Mode to explore the UI, or wait for the runtime to come back online.'}
+                      : 'Not connected. Wait for the runtime to come back online.'}
                   </p>
                 </div>
               ) : null}
@@ -293,7 +291,6 @@ export default function Home() {
 
       <ConsoleFooter
         status={agent.status}
-        mockMode={agent.mockMode}
         workspaceDir={workspaceDir}
         permissionMode={permissionMode}
         transcriptTokens={React.useMemo(
@@ -316,15 +313,6 @@ export default function Home() {
         trigger={<></>}
         permissionMode={permissionMode}
         onPermissionModeChange={setPermissionMode}
-        mockMode={agent.mockMode}
-        onMockModeChange={(v) => {
-          agent.setMockMode(v);
-          if (v) {
-            toast.info('Demo mode is on. Prompts run a local simulator.');
-          } else {
-            toast.info('Demo mode is off. Reconnecting to the live runtime…');
-          }
-        }}
         workspaceDir={workspaceDir}
         onClear={agent.clear}
       />
@@ -342,7 +330,6 @@ export default function Home() {
           );
         }}
         onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        onToggleDemoMode={() => agent.setMockMode(!agent.mockMode)}
         onFocusComposer={() => {
           const ta = document.querySelector<HTMLTextAreaElement>(
             '[data-composer-input]',
@@ -350,7 +337,6 @@ export default function Home() {
           ta?.focus();
         }}
         permissionMode={permissionMode}
-        demoMode={agent.mockMode}
         fileBrowserOpen={fileBrowserOpen}
       />
     </div>

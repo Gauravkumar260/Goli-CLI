@@ -7,7 +7,6 @@ import {
   Map,
   Sun,
   Moon,
-  FlaskConical,
   Trash2,
   FolderOpen,
 } from 'lucide-react';
@@ -36,8 +35,6 @@ interface SettingsDrawerProps {
   trigger?: React.ReactNode;
   permissionMode: PermissionMode;
   onPermissionModeChange: (m: PermissionMode) => void;
-  mockMode: boolean;
-  onMockModeChange: (v: boolean) => void;
   workspaceDir: string;
   onClear: () => void;
 }
@@ -77,8 +74,6 @@ export function SettingsDrawer({
   trigger,
   permissionMode,
   onPermissionModeChange,
-  mockMode,
-  onMockModeChange,
   workspaceDir,
   onClear,
 }: SettingsDrawerProps) {
@@ -172,38 +167,6 @@ export function SettingsDrawer({
                 checked={mounted && theme === 'dark'}
                 onCheckedChange={(v) => setTheme(v ? 'dark' : 'light')}
                 aria-label="Toggle dark mode"
-              />
-            </div>
-          </section>
-
-          <Separator />
-
-          {/* Demo mode */}
-          <section>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Demo mode
-            </h3>
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
-              <div className="flex items-center gap-2">
-                <FlaskConical className="size-4 text-amber-500" />
-                <div>
-                  <div className="text-sm font-medium">Run local simulator</div>
-                  <div className="text-[11px] text-muted-foreground">
-                    Use when the runtime is offline. Prompts run a mock agent.
-                  </div>
-                </div>
-              </div>
-              <Switch
-                checked={mockMode}
-                onCheckedChange={(v) => {
-                  onMockModeChange(v);
-                  if (v) {
-                    toast.info('Demo mode is on. Prompts run a local simulator.');
-                  } else {
-                    toast.info('Demo mode is off. Reconnecting to the live runtime…');
-                  }
-                }}
-                aria-label="Toggle demo mode"
               />
             </div>
           </section>

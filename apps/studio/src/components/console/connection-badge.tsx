@@ -1,13 +1,12 @@
 'use client';
 
-import { Loader2, Wifi, WifiOff, FlaskConical } from 'lucide-react';
+import { Loader2, Wifi, WifiOff } from 'lucide-react';
 import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
 interface ConnectionBadgeProps {
   status: 'connecting' | 'connected' | 'disconnected';
-  mockMode?: boolean;
   className?: string;
 }
 
@@ -16,23 +15,8 @@ interface ConnectionBadgeProps {
  */
 export function ConnectionBadge({
   status,
-  mockMode,
   className,
 }: ConnectionBadgeProps) {
-  if (mockMode) {
-    return (
-      <span
-        className={cn(
-          'inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400',
-          className,
-        )}
-        title="Demo mode — running a local simulator"
-      >
-        <FlaskConical className="size-3" aria-hidden />
-        Demo
-      </span>
-    );
-  }
   if (status === 'connected') {
     return (
       <span

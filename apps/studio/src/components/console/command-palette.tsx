@@ -6,11 +6,11 @@
  * A cmdk-powered quick-action menu. Opens with ⌘P (or ⌘K, which also fires
  * new-session for backward compat with the existing shortcut). Fuzzy-filtered
  * list of actions: new session, export, toggle file browser, open settings,
- * cycle permission mode, toggle theme, toggle demo mode, focus composer.
+ * cycle permission mode, toggle theme, focus composer.
  */
 import {
   Plus, Download, PanelRight, Settings as SettingsIcon, ShieldQuestion,
-  Sun, Beaker, MessageSquare, Keyboard, CornerDownLeft,
+  Sun, MessageSquare, Keyboard, CornerDownLeft,
 } from 'lucide-react';
 import * as React from 'react';
 
@@ -40,10 +40,8 @@ export interface CommandPaletteProps {
   onOpenSettings: () => void;
   onCyclePermissionMode: () => void;
   onToggleTheme: () => void;
-  onToggleDemoMode: () => void;
   onFocusComposer: () => void;
   permissionMode: PermissionMode;
-  demoMode: boolean;
   fileBrowserOpen: boolean;
 }
 
@@ -59,10 +57,8 @@ export function CommandPalette({
   onOpenSettings,
   onCyclePermissionMode,
   onToggleTheme,
-  onToggleDemoMode,
   onFocusComposer,
   permissionMode,
-  demoMode,
   fileBrowserOpen,
 }: CommandPaletteProps) {
   const run = (fn: () => void) => () => {
@@ -173,19 +169,6 @@ export function CommandPalette({
                 <div className="flex-1">
                   <div>Toggle theme</div>
                   <div className="text-[10px] text-muted-foreground">Light / dark / system</div>
-                </div>
-              </CommandItem>
-              <CommandItem
-                value="toggle demo mode"
-                onSelect={run(onToggleDemoMode)}
-                keywords={['mock', 'simulator', 'offline']}
-              >
-                <Beaker aria-hidden />
-                <div className="flex-1">
-                  <div>{demoMode ? 'Disable' : 'Enable'} demo mode</div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {demoMode ? 'Reconnect to live runtime' : 'Run the local simulator'}
-                  </div>
                 </div>
               </CommandItem>
             </CommandGroup>
