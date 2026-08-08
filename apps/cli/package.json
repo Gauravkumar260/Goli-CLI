@@ -5,6 +5,14 @@
   "type": "module",
   "license": "MIT",
   "author": "GOLI-CLI Contributors <contrib@goli-cli.dev>",
+  "homepage": "https://github.com/Gauravkumar260/Goli-CLI",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Gauravkumar260/Goli-CLI.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Gauravkumar260/Goli-CLI/issues"
+  },
   "bin": {
     "goli": "./dist/index.js"
   },

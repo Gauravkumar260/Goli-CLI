@@ -30,22 +30,33 @@ jobs:
 
       - name: Publish packages
         run: |
-          npm publish --workspace packages/shared --access public
-          npm publish --workspace packages/sandbox --access public
-          npm publish --workspace packages/config --access public
-          npm publish --workspace packages/agent-core --access public
-          npm publish --workspace packages/tool-system --access public
-          npm publish --workspace packages/memory-engine --access public
-          npm publish --workspace packages/context-engine --access public
-          npm publish --workspace packages/llm-providers --access public
-          npm publish --workspace packages/orchestration --access public
-          npm publish --workspace packages/approval --access public
-          npm publish --workspace packages/observability --access public
-          npm publish --workspace packages/i18n --access public
-          npm publish --workspace packages/plugins --access public
-          npm publish --workspace packages/sdk --access public
-          npm publish --workspace packages/evals --access public
-          npm run release:cli
+          pub() {
+            if npm view "@goli-cli/$1" version >/dev/null 2>&1; then
+              echo "skip $1 (already published)"
+            else
+              npm publish --workspace "packages/$1" --access public
+            fi
+          }
+          pub shared
+          pub sandbox
+          pub config
+          pub agent-core
+          pub tool-system
+          pub memory-engine
+          pub context-engine
+          pub llm-providers
+          pub orchestration
+          pub approval
+          pub observability
+          pub i18n
+          pub plugins
+          pub sdk
+          pub evals
+          if npm view "@goli-cli/cli" version >/dev/null 2>&1; then
+            echo "skip cli (already published)"
+          else
+            npm run release:cli
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
