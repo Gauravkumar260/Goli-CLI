@@ -39,7 +39,6 @@ import { useFlickerDetector } from './hooks/useFlickerDetector.js';
 import { useIsScreenReaderEnabled } from './hooks/useIsScreenReaderEnabled.js';
 import { AppStateStore } from './state/AppStateStore.js';
 import { useAppState } from './state/useAppState.js';
-import { isFpsEnabled } from './lib/fpsStore.js';
 import type { AgentPhase, Message } from './state/types.js';
 import { globalCommands, registerDefaultCommands, setExpandToggleCallback } from './lib/CommandRegistry.js';
 import { toggleLastToolExpand } from './lib/expandedTools.js';
@@ -61,26 +60,18 @@ import { AboutDialog } from './components/dialogs/AboutDialog.js';
 //     so the queue is centralized and priority-ordered.
 //   - PolicyUpdateDialog: rendered when PolicyIntegrityManager detects
 //     a MISMATCH (wired via the integrity check in runWakeup).
-import { HeaderBar } from './components/HeaderBar.js';
-import { StatusBar } from './components/StatusBar.js';
 import { DialogManager, type DialogEntry } from './components/DialogManager.js';
 import { PolicyUpdateDialog } from './components/PolicyUpdateDialog.js';
 import type { IntegrityResult } from '@goli-cli/config';
 import { loadSkin, BUILTIN_SKIN_NAMES } from './theme/skin-engine.js';
 import { LoadingIndicator } from './components/LoadingIndicator.js';
-import { ApprovalModeIndicator } from './components/ApprovalModeIndicator.js';
-import { ContextSummaryDisplay } from './components/ContextSummaryDisplay.js';
-import { ShortcutsHelp } from './components/ShortcutsHelp.js';
 import { CommandPalette } from './components/CommandPalette.js';
 import { QueuedMessagesTray } from './components/QueuedMessagesTray.js';
 import { openInEditor } from './lib/editor.js';
 import { applySkinToTokens, getBorderStyle } from './theme/tokens.js';
 import { useThemeVersion } from './hooks/useThemeVersion.js';
-import { useMouseScroll } from './hooks/useMouseScroll.js';
-import { useContextCounts } from './hooks/useContextCounts.js';
 import { HelpPanel } from './components/HelpPanel.js';
 import { ToastDisplay } from './components/ToastDisplay.js';
-import type { AppMode } from './theme/agents.js';
 import { getModeColor } from './theme/agents.js';
 
 
@@ -88,30 +79,6 @@ import { getModeColor } from './theme/agents.js';
  *
  */
 export type LaunchMode = 'interactive' | 'wakeup';
-
-/**
- * T-MODE: Map the canonical AppMode (read-only/plan/build/god) to the
- * ApprovalModeIndicator's display-mode vocabulary (default/plan/safe/god).
- *
- *   read-only  → 'safe'   (label: SAFE — read-only, no writes, no exec)
- *   plan       → 'plan'   (label: PLAN — read-only, no edits)
- *   build      → 'default'(label: BUILD — full permissions per tier)
- *   god        → 'god'    (label: GOD  — maximum autonomy)
- *
- * Before this map existed, App.tsx derived the indicator mode from the
- * legacy `permissionMode` + `mode` (RunMode) fields, which collapsed
- * read-only and build to the same 'safe' label because both have
- * `permissionMode='default'` and `mode='SAFE'`. Routing through
- * `appMode` directly makes all 4 modes visually distinct.
- */
-const APPMODE_TO_INDICATOR: Record<AppMode, 'default' | 'plan' | 'safe' | 'god'> = {
-  'build': 'default',
-  'plan': 'plan',
-  'read-only': 'safe',
-  'god': 'god',
-  // local-llms behaves like build for permission display purposes.
-  'local-llms': 'default',
-};
 
 interface Props {
   bootstrapMs: number;
@@ -145,6 +112,10 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
   const isWin = process.platform === 'win32';
   const [cols, setCols] = useState<number>((stdout?.columns ?? 80) - (isWin ? 1 : 0));
   const [rows, setRows] = useState<number>(stdout?.rows ?? 24);
+  // Last size actually applied, tracked via a ref so the resize handler
+  // (registered once inside a `[stdout]` effect) can compare against the
+  // CURRENT applied size instead of the stale mount-time closure values.
+  const lastSizeRef = useRef<{ cols: number; rows: number }>({ cols, rows });
 
   // T-066: Root UI ref for flicker detection (only active when GOLI_TUI_DEBUG=1).
   const rootUiRef = useRef<import('ink').DOMElement | null>(null);
@@ -222,27 +193,22 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
   const _themeVersion = useThemeVersion();
   void _themeVersion; // referenced to avoid unused-var lint
 
-  // T-099: Mouse scroll support. Toggle with Ctrl+S.
-  const [mouseEnabled, setMouseEnabled] = useState(false);
-  const scrollOffsetRef = useRef(0);
-  useMouseScroll({
-    enabled: mouseEnabled,
-    onScroll: (delta) => {
-      scrollOffsetRef.current = Math.max(0, scrollOffsetRef.current + delta);
-    },
-  });
-
-  // T-100: Real context source counts (memory files, MCP, skills).
-  const contextCounts = useContextCounts();
-
-
   useEffect(() => {
     if (!stdout) return;
     const onResize = (): void => {
       const nextCols = (stdout.columns ?? 80) - (process.platform === 'win32' ? 1 : 0);
       const nextRows = stdout.rows ?? 24;
-      setCols((prev) => (prev === nextCols ? prev : nextCols));
-      setRows((prev) => (prev === nextRows ? prev : nextRows));
+      if (lastSizeRef.current.cols === nextCols && lastSizeRef.current.rows === nextRows) return;
+      lastSizeRef.current = { cols: nextCols, rows: nextRows };
+      // Clear the screen buffer + cursor home before re-rendering. Ink
+      // redraws by diffing against the PREVIOUS frame via cursor moves
+      // proportional to its height; when the window shrinks or is
+      // minimized, those moves overflow the visible area and old splash
+      // frames stay painted below (stacked boxes). A clean erase first
+      // makes the new frame paint over an empty slate.
+      process.stdout.write('\x1B[2J\x1B[3J\x1B[H');
+      setCols(nextCols);
+      setRows(nextRows);
     };
 
     // P1-9 fix: sync activeDialog → dialogQueue so the DialogManager
@@ -266,7 +232,6 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
   const snap = useAppState();
 
   useFpsTracker();
-  const fpsActive = isFpsEnabled();
 
   const [messages, setMessages] = useState<Message[]>([]);
   // T-091: Ref mirror of messages for the /expand callback (avoids stale closure).
@@ -561,18 +526,6 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
       setShowDesign((v) => !v);
       return;
     }
-    // T-099: Ctrl+S — toggle mouse scroll mode.
-    if (key.ctrl && input === 's') {
-      setMouseEnabled((v) => {
-        const next = !v;
-        AppStateStore.pushSystemMessage(
-          `Mouse scroll: ${next ? 'ON — use wheel to scroll history' : 'OFF'}`,
-          'info',
-        );
-        return next;
-      });
-      return;
-    }
     // §5.1 Shift+Tab: cycle build → read-only → plan → god
     if (key.shift && key.tab) {
       AppStateStore.cyclePermissionMode();
@@ -632,7 +585,7 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
         <Box
           flexDirection="column"
           borderStyle={getBorderStyle() as 'round'}
-          borderColor={modeColor}
+          borderColor={T.border}
           width={cols}
         >
           <SplashBox
@@ -653,50 +606,10 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
         </Box>
       )}
 
-      {/* P1-9 fix (verification report deferred item #1): HeaderBar —
-          compact one-line header shown when the splash design is hidden
-          (i.e., after the first user message). Was previously dead code. */}
-      {!showDesign && (
-        <HeaderBar
-          cols={cols}
-          model={snap.model}
-          tokens={snap.tokens}
-          tokenLimit={snap.tokenLimit}
-          mode={snap.mode}
-          tier={snap.tier}
-          appMode={snap.appMode ?? undefined}
-          branch={snap.branch}
-        />
-      )}
-
-      {/* ── Agent state bar — ALWAYS visible ─────────────────────────── */}
-      <Box
-        flexDirection="column"
-        borderStyle={getBorderStyle() as 'round'}
-        borderColor={modeColor}
-        width={cols}
-      >
-        <AgentStateBar
-          cols={cols}
-          activeAgents={snap.activeAgents}
-          mode={snap.mode}
-          tier={snap.tier}
-          appMode={snap.appMode ?? undefined}
-          busy={isBusy}
-          // P1-10 fix (remediation plan Phase 10): pass the current
-          // AgentPhase so the bar can render the 7-phase state model
-          // (IDLE/INIT/PLAN/TOOL/GEN/ERROR/DONE) instead of the binary
-          // `busy: boolean` indicator.
-          phase={agentPhase}
-          bordered={false}
-        />
-      </Box>
-
-      {/* P2-9: PipelineTrace + CostBreakdownPanel — previously dead code.
-          PipelineTrace shows the 3-step thinking trace (PLAN → TOOL → GEN)
-          when the agent is busy. CostBreakdownPanel shows the live
-          token/cost breakdown when usage has accrued. Both are rendered
-          only when relevant to avoid cluttering idle sessions. */}
+      {/* P2-9: PipelineTrace — the 3-step thinking trace (PLAN → TOOL → GEN)
+          shown when the agent is busy. CostBreakdownPanel lives at the
+          bottom of the layout (see below) so usage figures sit under the
+          prompt input. Rendered only when relevant to avoid clutter. */}
       {isBusy && snap.activeAgents[0] && (
         <Box flexDirection="row" marginY={0}>
           <PipelineTrace
@@ -705,22 +618,6 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
           />
         </Box>
       )}
-      {(snap.totalInputTokens > 0 || snap.totalOutputTokens > 0 || snap.totalCostUsd > 0) && (
-        <CostBreakdownPanel
-          inputTokens={snap.totalInputTokens}
-          outputTokens={snap.totalOutputTokens}
-          totalCostUsd={snap.totalCostUsd}
-          turnCount={snap.turn}
-          cols={cols}
-          // P1-12 fix (remediation plan Phase 12): per-model breakdown
-          // is rendered when 2+ models have been used. For single-model
-          // sessions, the panel omits the breakdown section (the totals
-          // above already cover it).
-          perModelCosts={snap.perModelCosts}
-          perModelTokens={snap.perModelTokens}
-        />
-      )}
-
       {/* P1-11 fix (remediation plan Phase 11): transient banner
           showing the most recent compaction. Auto-hides after 5s.
           Returns null when there's no compaction to show, so this
@@ -839,10 +736,10 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
             result={policyIntegrityResult.result}
             scope={policyIntegrityResult.scope}
             identifier={policyIntegrityResult.identifier}
-            onAccept={() => {
+            onAccept={async () => {
               // Persist the new hash via PolicyIntegrityManager.acceptIntegrity.
               try {
-                const { PolicyIntegrityManager } = require('@goli-cli/config') as typeof import('@goli-cli/config');
+                const { PolicyIntegrityManager } = await import('@goli-cli/config');
                 const mgr = new PolicyIntegrityManager({
                   storagePath: `${process.cwd()}/.goli/policy.hash`,
                 });
@@ -925,25 +822,6 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
         </Box>
       )}
 
-      {/* T-070: Approval mode + context summary info row — always visible */}
-      {!showHelp && !activeDialog && (
-        <Box flexDirection="row" flexWrap="wrap">
-          <ApprovalModeIndicator
-            mode={APPMODE_TO_INDICATOR[snap.appMode ?? 'build'] ?? 'default'}
-            godMode={snap.godMode}
-            cols={cols}
-          />
-          <Box marginLeft={2}>
-            <ContextSummaryDisplay
-              agentsMdCount={contextCounts.agentsMdCount}
-              mcpServerCount={contextCounts.mcpServerCount}
-              skillCount={contextCounts.skillCount}
-              cols={cols}
-            />
-          </Box>
-        </Box>
-      )}
-
       {/* T-090: width={cols} constrains message content so long lines
           wrap correctly instead of causing terminal overflow. */}
       <Box flexDirection="column" width={cols}>
@@ -957,80 +835,67 @@ export function App({ bootstrapMs, initialMode: _initialMode = 'interactive', hi
         )}
       </Box>
 
-      {/* Separator — T-090: clamp to cols so it never overflows on
-          narrow terminals. The -2 accounts for visual padding. */}
-      <Box width={cols}>
-        <Text color={T.border}>{'─'.repeat(Math.max(0, Math.min(cols - 2, cols)))}</Text>
-      </Box>
-      {/* Shortcuts hint above prompt */}
-      {!showHelp && !activeDialog && !snap.pendingPermission && (
-        <ShortcutsHelp cols={cols} alwaysShow />
-      )}
-      {/* Prompt input bordered box */}
-      <Box borderStyle={getBorderStyle() as 'round'} borderColor={modeColor} width={cols}>
-        <PromptInput
-          onSubmit={handleSubmit}
-          onAbort={handleAbort}
-          onQueue={handleQueue}
-          disabled={isBusy}
-          cols={cols - 2}
-          vimEnabled={vimEnabled}
-          reverseSearchActive={reverseSearchActive}
-          onReverseSearchExit={() => setReverseSearchActive(false)}
-          promptValueRef={promptValueRef}
-          setPromptValueRef={setPromptValueRef}
-          compactPasteRef={compactPasteRef}
-          togglePasteExpandRef={togglePasteExpandRef}
-          // P1-25 fix: disable PromptInput's useInput handler when any
-          // dialog/overlay is open so keystrokes go to the dialog, not
-          // the prompt. (Ctrl+C still works via the early-return in
-          // PromptInput's useInput.)
-          inputActive={
-            !snap.pendingPermission &&
-            !showDiffReview &&
-            !showCommandPalette &&
-            !activeDialog &&
-            !showHelp
-          }
-          placeholder={
-            messages.length === 0
-              ? 'what can you help me with? (try /mode god or /tips)'
-              : 'type a message... (Enter to send)'
-          }
-          bordered={false}
-          appMode={snap.appMode ?? 'build'}
-        />
-      </Box>
+      {/* ── Pinned bottom bars (flexShrink=0): never collapse or scroll
+          away as the chat grows. ── */}
+      {/* P2-24: Two separate attached boxes — prompt input + agents bar,
+          each drawing its own round border so they stack flush. */}
+      <Box flexShrink={0} flexDirection="column" width={cols}>
+      <PromptInput
+        onSubmit={handleSubmit}
+        onAbort={handleAbort}
+        onQueue={handleQueue}
+        disabled={isBusy}
+        cols={cols}
+        vimEnabled={vimEnabled}
+        reverseSearchActive={reverseSearchActive}
+        onReverseSearchExit={() => setReverseSearchActive(false)}
+        promptValueRef={promptValueRef}
+        setPromptValueRef={setPromptValueRef}
+        compactPasteRef={compactPasteRef}
+        togglePasteExpandRef={togglePasteExpandRef}
+        inputActive={
+          !snap.pendingPermission &&
+          !showDiffReview &&
+          !showCommandPalette &&
+          !activeDialog &&
+          !showHelp
+        }
+        placeholder={
+          messages.length === 0
+            ? 'what can you help me with? (try /mode god or /tips)'
+            : 'type a message... (Enter to send)'
+        }
+        appMode={snap.appMode ?? 'build'}
+      />
+      <AgentStateBar
+        cols={cols}
+        activeAgents={snap.activeAgents}
+        mode={snap.mode}
+        tier={snap.tier}
+        appMode={snap.appMode ?? undefined}
+        busy={isBusy}
+        phase={agentPhase}
+      />
 
       {/* T-095: Queued messages tray (shows when there are queued messages) */}
       {snap.queuedMessages.length > 0 && (
         <QueuedMessagesTray messages={snap.queuedMessages} cols={cols} />
       )}
 
-      {/* P1-9 fix (verification report deferred item #1): StatusBar —
-          bottom status bar with model/tokens/mode/tier/cwd/cost/branch/
-          elapsed in a responsive layout (full ≥76 cols, compact 52–75,
-          minimal <52). Was previously dead code (defined but never
-          rendered). The StatusBar self-subscribes to useSecsTick for the
-          elapsed timer and renders the TokenBar inline. */}
-      <StatusBar
-        cols={cols}
-        model={snap.model}
-        tokens={snap.tokens}
-        tokenLimit={snap.tokenLimit}
-        // P1-13 fix (remediation plan Phase 13): pass per-type token
-        // counts so StatusBar → TokenBar can render the 3-bar layout.
-        inputTokens={snap.totalInputTokens}
-        outputTokens={snap.totalOutputTokens}
-        thinkingTokens={snap.totalThinkingTokens}
-        mode={snap.mode}
-        tier={snap.tier}
-        appMode={snap.appMode ?? undefined}
-        cost={snap.totalCostUsd > 0 ? snap.totalCostUsd.toFixed(4) : undefined}
-        branch={snap.branch}
-        cwd={snap.workspace}
-        fpsActive={isFpsEnabled()}
-      />
+      {/* Live cost breakdown — pinned to the bottom so usage figures sit
+          directly under the prompt input. */}
+      {(snap.totalInputTokens > 0 || snap.totalOutputTokens > 0 || snap.totalCostUsd > 0) && (
+        <CostBreakdownPanel
+          inputTokens={snap.totalInputTokens}
+          outputTokens={snap.totalOutputTokens}
+          totalCostUsd={snap.totalCostUsd}
+          turnCount={snap.turn}
+          cols={cols}
+          perModelCosts={snap.perModelCosts}
+          perModelTokens={snap.perModelTokens}
+        />
+      )}
+      </Box>
 
     </Box>
   );
