@@ -11,9 +11,9 @@
   },
   "metrics": {
     "core_load_heap_delta_bytes": {
-      "value": 9999064,
+      "value": 10279664,
       "unit": "bytes",
-      "note": "Remeasured 2026-08-06T18:25:29.352Z (9999064 bytes)."
+      "note": "Remeasured 2026-08-06T19:42:02.122Z (10279664 bytes)."
     }
   }
 }

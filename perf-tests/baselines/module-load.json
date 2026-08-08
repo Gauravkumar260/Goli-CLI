@@ -2,7 +2,7 @@
   "_meta": {
     "description": "Module-load performance baseline (T-030). Measures first dynamic import of the @goli-cli/agent-core brain index within a fresh vitest worker.",
     "version": 1,
-    "methodology": "wall-clock ms around a single `await import('@goli-cli/agent-core')` (first load only — module graph is cached on subsequent imports). This metric measures vite-node's COLD esbuild transform of the agent-core source graph, which is inherently noisy (30%+ run-to-run variance); the 50% per-metric tolerance is set accordingly — it is a coarse 'importing the brain got catastrophically heavy' sentinel, NOT a tight budget. Reseeded with `npm run test:perf:update`.",
+    "methodology": "wall-clock ms around a single `await import('@goli-cli/agent-core')` (first load only — module graph is cached on subsequent imports). This metric measures vite-node's COLD esbuild transform of the agent-core source graph, which is inherently noisy (single-shot wall-clock observed 1500-2400ms run-to-run on the same machine, ~50%+ variance); the 100% per-metric tolerance is set accordingly — it is a coarse 'importing the brain got catastrophically heavy' sentinel, NOT a tight budget. The meaningful tight gate is `cold-start` (median of 3). Reseeded with `npm run test:perf:update`.",
     "environment": {
       "node_version": "see `node --version`",
       "os": "win32",
@@ -11,10 +11,10 @@
   },
   "metrics": {
     "core_index_dynamic_import_ms": {
-      "value": 1490.7567,
+      "value": 1718.7643,
       "unit": "ms",
-      "tolerance": 0.5,
-      "note": "Remeasured 2026-08-06T18:25:29.355Z (1490.7567 ms)."
+      "tolerance": 1,
+      "note": "Remeasured 2026-08-06T19:42:02.122Z (1718.7643 ms)."
     }
   }
 }

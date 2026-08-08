@@ -11,9 +11,9 @@
   },
   "metrics": {
     "cli_version_cold_start_ms": {
-      "value": 323.0097,
+      "value": 305.6952,
       "unit": "ms",
-      "note": "Remeasured 2026-08-06T18:25:28.031Z (323.0097 ms)."
+      "note": "Remeasured 2026-08-06T19:42:00.677Z (305.6952 ms)."
     }
   }
 }
