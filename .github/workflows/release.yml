@@ -8,7 +8,8 @@ on:
 permissions:
   contents: write
   packages: write
-
+  id-token: write
+ 
 jobs:
   release:
     name: Build & Publish
@@ -44,7 +45,7 @@ jobs:
           npm publish --workspace packages/plugins --access public
           npm publish --workspace packages/sdk --access public
           npm publish --workspace packages/evals --access public
-          npm publish --workspace apps/cli --access public
+          npm run release:cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
