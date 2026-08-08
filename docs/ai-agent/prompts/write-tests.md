@@ -39,7 +39,7 @@ source in `packages/*/__tests__/` and `apps/*/__tests__/`).
 
 The test file should:
 
-- Import from the **barrel** (`@goli-cli/agent-core` or `@goli/cli`), not via
+- Import from the **barrel** (`@goli-cli/agent-core` or `@goli-cli/cli`), not via
   deep imports.
 - Use `describe` / `it` (Vitest style), not `test()`.
 - Have `describe` blocks that mirror the structure of the unit under

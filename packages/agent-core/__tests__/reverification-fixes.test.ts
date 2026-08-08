@@ -29,8 +29,8 @@ import { AgentLoop, EffortRoutingClient, ProvenanceTracker, ReflexionEngine } fr
 import type { AgentLoopResult } from '@goli-cli/agent-core';
 import { loadConfig } from '@goli-cli/config';
 import { createLogger } from '@goli-cli/shared/utils/logger.js';
-import { CliAgentLoop } from '@goli/cli/services/CliAgentLoop.js';
-import { globalCommands, registerDefaultCommands } from '@goli/cli/tui/lib/CommandRegistry.js';
+import { CliAgentLoop } from '@goli-cli/cli/services/CliAgentLoop.js';
+import { globalCommands, registerDefaultCommands } from '@goli-cli/cli/tui/lib/CommandRegistry.js';
 
 const CORE_LOOP_SRC = resolve(__dirname, '../../agent-core/src/loop.ts');
 const CORE_TYPES_SRC = resolve(__dirname, '../../agent-core/src/types.ts');

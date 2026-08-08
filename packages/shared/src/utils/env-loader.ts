@@ -66,7 +66,7 @@ for (let i = 0; i < 10; i++) {
   if (existsSync(pj)) {
     try {
       const pkg = JSON.parse(readFileSync(pj, 'utf-8'));
-      if (pkg.name === 'goli-cli' || pkg.name === '@goli/cli') {
+      if (pkg.name === 'goli-cli' || pkg.name === '@goli-cli/cli') {
         candidates.push(join(dir, '.env'));
         break;
       }

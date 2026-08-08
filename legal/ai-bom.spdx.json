@@ -71,7 +71,7 @@
     },
     {
       "SPDXID": "SPDXRef-Package-cli",
-      "name": "@goli/cli",
+      "name": "@goli-cli/cli",
       "versionInfo": "0.2.0-phase2",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,

@@ -26,7 +26,7 @@ import {
   listMcpServers,
   scanMcpServers,
   defaultMcpConfigPath,
-} from '@goli/cli/commands/mcp-config.js';
+} from '@goli-cli/cli/commands/mcp-config.js';
 import { REFERENCE_MCP_SERVERS } from '../src/mcp/index.js';
 
 const EXAMPLE_SERVER = resolve(process.cwd(), 'examples/mcp-hello-world/server.js');

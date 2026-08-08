@@ -23,7 +23,7 @@ import {
   calculateIntegrityHash,
   type IntegrityResult,
 } from '../src/integrity.js';
-import { PolicyUpdateDialog } from '@goli/cli/tui/components/PolicyUpdateDialog.js';
+import { PolicyUpdateDialog } from '@goli-cli/cli/tui/components/PolicyUpdateDialog.js';
 
 // ─── calculateIntegrityHash ───────────────────────────────────────────────
 

@@ -6,7 +6,7 @@
 //   * Switched workspaces to glob ["apps/*", "packages/*"] in root package.json.
 //   * Added `@goli-cli/*` aliases so colocated __tests__ in new packages
 //     can resolve their sibling packages.
-//   * Kept legacy `@goli/cli`, `@goli/evals` aliases for compat.
+//   * Kept legacy `@goli/evals` alias for compat.
 
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'node:path';
@@ -55,8 +55,8 @@ export default defineConfig({
   },
   resolve: {
     alias: [
-      { find: /^@goli\/cli$/, replacement: resolve(__dirname, 'apps/cli/src/index.ts') },
-      { find: /^@goli\/cli\/(.+)$/, replacement: resolve(__dirname, 'apps/cli/src/$1') },
+      { find: /^@goli-cli\/cli$/, replacement: resolve(__dirname, 'apps/cli/src/index.ts') },
+      { find: /^@goli-cli\/cli\/(.+)$/, replacement: resolve(__dirname, 'apps/cli/src/$1') },
       { find: /^@goli\/evals$/, replacement: resolve(__dirname, 'packages/evals/src/index.ts') },
       { find: /^@goli\/evals\/(.+)$/, replacement: resolve(__dirname, 'packages/evals/src/$1') },
       // New monorepo convention — sibling packages under @goli-cli/*.

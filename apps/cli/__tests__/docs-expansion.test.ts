@@ -28,7 +28,7 @@ describe('T-011: docs expansion', () => {
       const src = readFileSync(doc, 'utf-8');
       expect(src).toContain('Module Map');
       expect(src).toContain('@goli/core');
-      expect(src).toContain('@goli/cli');
+      expect(src).toContain('@goli-cli/cli');
     });
 
     it('has the 11-agent pipeline', () => {

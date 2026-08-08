@@ -25,14 +25,14 @@ Goli-CLI is an npm workspaces monorepo with 3 apps + 16 `@goli-cli/*` packages:
 | `@goli-cli/i18n`       | `packages/i18n/`        | 5 locales: en, es, zh-CN, ja, de                                                         |
 | `@goli-cli/sdk`        | `packages/sdk/`         | MCP SDK server + gateway (ApiServer, HostProvider)                                       |
 | `@goli-cli/test-utils` | `packages/test-utils/`  | Perf-test harness (source-only, no build)                                                |
-| `@goli/cli`            | `apps/cli/`             | User-facing TUI (Ink/React), command parsing, binary distribution                        |
+| `@goli-cli/cli`        | `apps/cli/`             | User-facing TUI (Ink/React), command parsing, binary distribution                        |
 | `nextjs_tailwind_shadcn_ts` | `apps/studio/`     | Web console ("Goli Studio")                                                             |
 | `goli-vscode`          | `apps/vscode-ext/`     | Standalone VS Code extension (in npm workspaces since ADR-0047)                          |
 
 ## API surface by package
 
 Each `@goli-cli/*` package exposes its public API from its `src/index.ts`
-(`@goli/cli` from `apps/cli/src/index.ts`).
+(`@goli-cli/cli` from `apps/cli/src/index.ts`).
 
 ### `@goli-cli/shared` — utils & types
 
@@ -261,7 +261,7 @@ optional native bindings per ADR-0046).
 
 Plus: `MemoryCurator` (runs at session end), `TrajectoryStore` + `TrajectoryCurator` (training data), `DatasetBuilder` + `computeReward` (GRPO + LoRA fine-tuning pipeline in `services/ml-pipeline/`), `SicaLoop` + `ImmutableSafetyRegistry` + `SafetyOverseer` (recursive self-improvement with veto).
 
-## @goli/cli Public API
+## @goli-cli/cli Public API
 
 The CLI package exports the Ink-based TUI and the command-line entry point.
 Lazy-loaded commands keep cold-start under 200ms (measured: 81ms).
@@ -333,7 +333,7 @@ import {
   getActiveSkin,
   loadSkin,
   NO_COLOR_SKIN,
-} from "@goli/cli/tui/theme/skin-engine";
+} from "@goli-cli/cli/tui/theme/skin-engine";
 
 // List all built-in skin names (25 entries)
 const skinNames = BUILTIN_SKIN_NAMES; // ['default', 'dark', 'high-contrast', 'dracula', ...]
@@ -362,7 +362,7 @@ import {
   vimHandleKey,
   initialVimState,
   vimModeLabel,
-} from "@goli/cli/tui/lib/vimMode";
+} from "@goli-cli/cli/tui/lib/vimMode";
 
 let state = initialVimState(); // INSERT mode
 state = vimHandleKey(state, "Esc", textLines).state; // → NORMAL
@@ -377,7 +377,7 @@ state = vimHandleKey(state, "v", textLines).state; // → VISUAL
 import {
   globalCommands,
   registerDefaultCommands,
-} from "@goli/cli/tui/lib/CommandRegistry";
+} from "@goli-cli/cli/tui/lib/CommandRegistry";
 
 registerDefaultCommands();
 // ~25 built-in commands registered: /help, /godmode, /safemode, /tier,
@@ -405,7 +405,7 @@ and `$ARGUMENTS` / `$WORKSPACE` / `$DATE` substitution (ADR-0041).
 ### Markdown rendering
 
 ```typescript
-import { renderMarkdown } from "@goli/cli/tui/lib/markdown";
+import { renderMarkdown } from "@goli-cli/cli/tui/lib/markdown";
 
 // Returns a React node for Ink
 const node = renderMarkdown("# Title\n\n**bold** and `code`");

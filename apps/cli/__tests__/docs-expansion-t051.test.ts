@@ -40,7 +40,7 @@ describe('T-051: docs/api/README.md (AC #2)', () => {
   it('documents the 4 packages', () => {
     const content = readDoc('docs/api/README.md');
     expect(content).toContain('@goli/core');
-    expect(content).toContain('@goli/cli');
+    expect(content).toContain('@goli-cli/cli');
     expect(content).toContain('@goli-cli/evals');
     expect(content).toContain('vscode-ext');
   });

@@ -22,7 +22,7 @@ PR) — please open an issue if you find a disagreement.
 | Formatter       | Prettier 3.x                                                                         |
 
 Use `tsx` for running TypeScript directly during development
-(`npm run dev`). Production builds use `tsup` for `@goli/cli` and
+(`npm run dev`). Production builds use `tsup` for `@goli-cli/cli` and
 `tsc -b` for `@goli/core`.
 
 ## 2. File and directory layout

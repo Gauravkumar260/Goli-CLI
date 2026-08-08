@@ -1,5 +1,5 @@
 {
-  "name": "@goli/cli",
+  "name": "@goli-cli/cli",
   "version": "0.3.0",
   "description": "GOLI-CLI — user-facing interactive Terminal UI (Ink/React), command parsing, and binary distribution.",
   "type": "module",

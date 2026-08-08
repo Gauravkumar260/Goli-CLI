@@ -39,7 +39,7 @@ goli-cli/
 │   │       ├── tools/         Module 3 — registry + 20 core tools + MCP + hooks
 │   │       ├── types/         Ambient declarations for optional deps
 │   │       └── utils/         Constants, logger, errors, JSON helpers
-│   ├── cli/                   @goli/cli — the TUI + binary
+│   ├── cli/                   @goli-cli/cli — the TUI + binary
 │   │   └── src/
 │   │       ├── commands/      wakeup, doctor, status, audit, usage, commit, init, mcp, cron, profile
 │   │       ├── services/      CliAgentLoop, MockAgentLoop, IAgentLoop

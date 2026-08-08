@@ -9,7 +9,7 @@ Goli-CLI is an npm workspaces monorepo with 3 apps + 16 `@goli-cli/*` packages:
 ```
 goli-cli/
 ├── apps/
-│   ├── cli/          @goli/cli — the TUI + binary
+│   ├── cli/          @goli-cli/cli — the TUI + binary
 │   │   ├── commands/   wakeup, doctor, status, audit, usage, commit, init, mcp, cron, profile, hooks
 │   │   ├── services/   CliAgentLoop, MockAgentLoop, IAgentLoop
 │   │   ├── tui/        25+ Ink components + theme engine (25 skins) + 11 hooks + 25+ lib modules + state store

@@ -1,5 +1,5 @@
 /**
- * @goli/cli — GOLI-CLI binary entry point.
+ * @goli-cli/cli — GOLI-CLI binary entry point.
  *
  * This is the file invoked by `apps/cli/dist/index.js` (the compiled
  * binary). It uses Commander.js to parse subcommands and dispatches to
@@ -28,7 +28,7 @@
  * - `--version` / `-V`       — Print version
  * - `--help` / `-h`          — Print help
  *
- * @module @goli/cli
+ * @module @goli-cli/cli
  */
 
 // ─── Load GOLI_* + allowlisted provider keys from .env FIRST ───────

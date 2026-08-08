@@ -3,7 +3,7 @@
 //
 // This file is what the root `package.json` `bin.goli` points at when the
 // monorepo is installed globally. It forwards to the compiled entry point
-// produced by the `@goli/cli` workspace (see `apps/cli/package.json`).
+// produced by the `@goli-cli/cli` workspace (see `apps/cli/package.json`).
 //
 // The CLI workspace (`apps/cli`) builds `apps/cli/src/index.ts` →
 // `apps/cli/dist/index.js`. We import that file directly so `npx goli`

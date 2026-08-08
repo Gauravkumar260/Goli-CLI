@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import {
   extractGlobalOptions,
   buildCommandContext,
-} from '@goli/cli/commands/types.js';
+} from '@goli-cli/cli/commands/types.js';
 import { DEFAULT_CONFIG } from '../src/schema.js';
 
 describe('extractGlobalOptions', () => {

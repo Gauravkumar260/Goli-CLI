@@ -33,9 +33,9 @@ import { HookEngine } from '@goli-cli/tool-system/hooks/engine.js';
 import type { PostToolUseHookResult, HookContext } from '@goli-cli/tool-system/hooks/types.js';
 import { CompactionEngine } from '@goli-cli/context-engine/compaction/engine.js';
 
-import { MODE_SKILLS, MODE_TOOLS, isToolAllowed } from '@goli/cli/tui/lib/mode-config.js';
-import { CliAgentLoop } from '@goli/cli/services/CliAgentLoop.js';
-import { COMPACT_TOOL_ALLOWLIST, isCompactTool } from '@goli/cli/tui/components/messages/DenseToolMessage.js';
+import { MODE_SKILLS, MODE_TOOLS, isToolAllowed } from '@goli-cli/cli/tui/lib/mode-config.js';
+import { CliAgentLoop } from '@goli-cli/cli/services/CliAgentLoop.js';
+import { COMPACT_TOOL_ALLOWLIST, isCompactTool } from '@goli-cli/cli/tui/components/messages/DenseToolMessage.js';
 
 // ─── W1: SkillLoader wired in production ──────────────────────────
 
