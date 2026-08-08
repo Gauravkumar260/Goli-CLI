@@ -1,6 +1,6 @@
 {
   "name": "@goli-cli/evals",
-  "version": "0.2.0-phase2",
+  "version": "0.3.0",
   "description": "GOLI-CLI evaluation harness and Golden Set benchmark suite (Phase 12).",
   "type": "module",
   "license": "MIT",

@@ -1,6 +1,6 @@
 {
   "name": "goli-cli",
-  "version": "0.3.0-phase2-studio",
+  "version": "0.3.0",
   "description": "GOLI-CLI — a production-grade, multi-agent software engineering tool. An 8-agent swarm (Orchestrator → Data) for complex, autonomous development tasks. Built as an npm workspaces monorepo with TypeScript + Ink, plus an optional Next.js 16 web console (Goli Studio).",
   "type": "module",
   "license": "MIT",

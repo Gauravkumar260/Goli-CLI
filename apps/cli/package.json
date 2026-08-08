@@ -1,6 +1,6 @@
 {
   "name": "@goli/cli",
-  "version": "0.2.0-phase2",
+  "version": "0.3.0",
   "description": "GOLI-CLI — user-facing interactive Terminal UI (Ink/React), command parsing, and binary distribution.",
   "type": "module",
   "license": "MIT",

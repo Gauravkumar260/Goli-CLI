@@ -27,7 +27,7 @@ export const CLI_BINARY_NAME = 'goli';
  * The current released version. Follows semver; pre-1.0 we use phase
  * suffixes.
  */
-export const APP_VERSION = '0.2.0-phase2';
+export const APP_VERSION = '0.3.0';
 
 /**
  * The user-facing tagline shown by `goli --version` and the TUI splash.

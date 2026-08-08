@@ -230,15 +230,17 @@ describe('Provider integration: OllamaProvider construction', () => {
 // ─── .env loading ───────────────────────────────────────────────────
 
 describe('Provider integration: .env loading', () => {
-  it('.env file exists and contains Ollama config', () => {
+  it('.env.example template exists and contains Ollama config', () => {
     const fs = require('node:fs');
     const path = require('node:path');
-    // The .env file is at the project root (3 levels up from tests/unit/).
-    const envPath = path.resolve(__dirname, '..', '..', '..', '.env');
+    // The template file is at the project root (3 levels up from tests/unit/).
+    // The live .env is gitignored (real keys stay local); the template is
+    // the checked-in contract.
+    const envPath = path.resolve(__dirname, '..', '..', '..', '.env.example');
     expect(fs.existsSync(envPath)).toBe(true);
     const content = fs.readFileSync(envPath, 'utf-8');
     expect(content).toContain('OLLAMA_API_KEY=');
     expect(content).toContain('OLLAMA_BASE_URL=https://ollama.com');
-    expect(content).toContain('GOLI_DEFAULT_MODEL=ollama/gpt-oss:120b');
+    expect(content).toContain('GOLI_DEFAULT_MODEL=ollama/gpt-oss:120b-cloud');
   });
 });

@@ -30,6 +30,14 @@ coverage/
 # Skins / user configs.
 skins/*.yaml
 
+# Runtime state written by the CLI at the workspace root (policy integrity cache).
+.goli/
+
+# Local API keys — never commit.
+.env
+.env.local
+.env.*.local
+
 # Loop control.
 .goli-loop/ABORT
 node_modules/

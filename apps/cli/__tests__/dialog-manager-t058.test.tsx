@@ -121,7 +121,7 @@ describe('T-058: AboutDialog — content', () => {
   it('renders the version', () => {
     const { lastFrame } = render(<AboutDialog cols={80} onDismiss={() => {}} />);
     const frame = lastFrame() ?? '';
-    expect(frame).toContain('0.2.0-phase2');
+    expect(frame).toContain('0.3.0');
   });
 
   it('renders the license (MIT)', () => {
@@ -148,7 +148,7 @@ describe('T-058: AboutDialog — content', () => {
   });
 
   it('ABOUT_VERSION matches package version', () => {
-    expect(ABOUT_VERSION).toBe('0.2.0-phase2');
+    expect(ABOUT_VERSION).toBe('0.3.0');
   });
 });
 

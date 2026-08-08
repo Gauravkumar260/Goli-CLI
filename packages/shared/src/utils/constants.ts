@@ -19,6 +19,7 @@ export const CLI_BINARY_NAME = 'goli';
 /**
  * The current released version. Follows semver; pre-1.0 we use phase
  * suffixes (`0.1.0-phase1`, `0.2.0-phase2`, …) until the Phase 13 GA.
+ * Current release: `0.3.0` (plain semver — phase suffix dropped).
  *
  * This is also exposed via the TUI HeaderBar (Phase 3).
  *
@@ -40,13 +41,13 @@ export const APP_VERSION = ((): string => {
     const here = dirname(fileURLToPath(import.meta.url));
     const pkgPath = join(here, '..', '..', 'package.json');
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { version?: string };
-    return pkg.version ?? '0.2.0-phase2';
+    return pkg.version ?? '0.3.0';
   } catch {
     // Fallback: the hardcoded version. This path is taken when the
     // module is bundled (e.g. by esbuild) and package.json is not
     // reachable on disk. The bundler is responsible for injecting
     // the correct version at build time.
-    return '0.2.0-phase2';
+    return '0.3.0';
   }
 })();
 
