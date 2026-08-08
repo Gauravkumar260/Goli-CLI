@@ -267,3 +267,13 @@ change: `npm run build && npm run lint && npm run typecheck && npm test`.
 MIT — see [LICENSE](LICENSE). The default backend is open-weight
 (`ollama/gpt-oss:120b-cloud`). See [AGENTS.md](AGENTS.md) for the
 codebase pattern/gotcha notes and `CODE-MAP.md` for the source map.
+
+## Status Note
+
+Most of the features described above work at least partially, but not all
+of them are complete or reliable yet. Some features are ahead of the current
+implementation. See the [Roadmap](#roadmap-honest) and the known-gap data in
+[`bench/scores.json`](bench/scores.json) for more detail.
+
+I'm actively working through these gaps and rough edges. Expect fixes,
+improvements, and honest corrections as the project evolves.
