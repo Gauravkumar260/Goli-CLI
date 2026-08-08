@@ -133,9 +133,10 @@ export type AgentEventData =
  * Base context fields shared by `SystemPromptContext` (system-prompt.ts).
  *
  * (Historically also shared with `PromptBuildContext` from
- * `prompt-builder.ts`, but that file was deleted in P2-18 / remediation
- * plan Phase 18 as dead code. The base interface is retained because
- * external callers may still extend it for custom assemblers.)
+ * `prompt-builder.ts`. That file is dead in production — not exported
+ * from the agent-core barrel — and is retained on disk only for the
+ * T-021 prompt-caching invariant tests. The base interface is retained
+ * because external callers may still extend it for custom assemblers.)
  *
  * Extracted during dedup loop iteration 7 from the first 10 fields that
  * were duplicated verbatim in both interfaces. Each consumer interface

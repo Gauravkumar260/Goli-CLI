@@ -72,8 +72,8 @@ export type { MemoryCuratorOptions } from './curator/agent.js';
 // found that `memory/index.ts` had the skills exports commented out
 // with a stale note claiming "the skills/ subdirectory is
 // intentionally not included in this build snapshot." That was
-// incorrect — the directory EXISTS with 9 files (loader, catalog,
-// writer, archive, seeds, types, index, seed) implementing the full
+// incorrect — the directory EXISTS with 8 files (loader, catalog,
+// writer, archive, seeds, types, index) implementing the full
 // L1/L2/L3 disclosure system. The exports were commented out,
 // making 22 of 32 skill-system claims NOT FOUND in the audit. We
 // re-enable them here so callers can import the skill subsystem.

@@ -39,7 +39,8 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
+import { readdirSync, statSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 
 import { MidSessionIntegrityChecker } from '@goli-cli/config/integrity.js';
 import { isToolAllowedForMode } from '@goli-cli/config/mode-prompts.js';
@@ -84,6 +85,22 @@ import type { ToolContext } from '@goli-cli/tool-system/index.js';
 import type { MCPServerConfig, MCPTool } from '@goli-cli/tool-system/mcp/index.js';
 import type { McpInputSchema } from '@goli-cli/tool-system/mcp/types.js';
 import type { ToolDefinition, ToolApprovalRequest, ToolApprovalDecision } from '@goli-cli/tool-system/types.js';
+
+// Lazy-cached loader for the ephemeral SessionMemory module. The memory
+// graph is heavy and only needed when a memory curator is configured, so we
+// keep it out of the static import graph and instantiate on first use.
+let sessionMemoryModule:
+  | typeof import('@goli-cli/memory-engine/session/ephemeral.js')
+  | undefined;
+
+async function loadSessionMemory(): Promise<
+  import('@goli-cli/memory-engine/session/ephemeral.js').SessionMemory
+> {
+  if (!sessionMemoryModule) {
+    sessionMemoryModule = await import('@goli-cli/memory-engine/session/ephemeral.js');
+  }
+  return new sessionMemoryModule.SessionMemory();
+}
 
 /**
  * Minimal interface the agent loop needs from a model client.
@@ -649,13 +666,9 @@ export class AgentLoop {
     // to collect within-session learnings. The curator runs at the
     // end of each `run()` to promote learnings to persistent files.
     this.memoryCurator = opts.memoryCurator;
-    if (this.memoryCurator) {
-      // Lazy-import to avoid pulling the memory module graph when
-      // curation is not configured.
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy SessionMemory load
-      const { SessionMemory } = require('@goli-cli/memory-engine/session/ephemeral.js') as typeof import('@goli-cli/memory-engine/session/ephemeral.js');
-      this.sessionMemory = new SessionMemory();
-    }
+    // SessionMemory is instantiated lazily on first `run()` (see
+    // loadSessionMemory) so the memory module graph isn't loaded when
+    // curation is not configured.
     // P2-7: Store the context engine bundle. The retriever is queried
     // at the start of each `run()` to populate `retrievedContext` in
     // the system prompt.
@@ -936,6 +949,12 @@ export class AgentLoop {
     // lastResult at the start of each run so concurrent/overlapping
     // runs don't leak the previous run's result to a stream consumer.
     this.lastResult = null;
+    // P2-6: Lazy-create the SessionMemory on first run — the memory
+    // module graph stays unloaded until a curator is configured AND a
+    // run actually happens.
+    if (this.memoryCurator && !this.sessionMemory) {
+      this.sessionMemory = await loadSessionMemory();
+    }
     // P1-11: reset the compaction summary so a stale entry from a
     // previous run doesn't get surfaced on this run's result.
     this.lastCompactionSummary = undefined;
@@ -1386,6 +1405,15 @@ export class AgentLoop {
         state.outputTokens += response.outputTokens;
         state.thinkingTokens += response.thinkingTokens;
 
+        // Each completed model round-trip counts as one iteration. This
+        // must happen here (before the stop-condition check below): when
+        // StopEngine stops on a final text answer there are no tool calls,
+        // so the iteration counter at the bottom of the loop body is never
+        // reached — the run would report `iterations: 0` despite having
+        // made a real model call.
+        this.budget.recordIteration();
+        state.iterations++;
+
         // ─── 5. Check for parse failures ──────────────────────
         const parseFailures = response.toolCalls.filter((tc) => tc.parseError).length;
         if (parseFailures > 0) {
@@ -1584,9 +1612,6 @@ export class AgentLoop {
           }
         }
 
-        // ─── 9. Record iteration ─────────────────────────────────
-        this.budget.recordIteration();
-        state.iterations++;
         // NOTE: do NOT reset the stall detector on every successful
         // iteration. The detector maintains a sliding window of
         // signatures; resetting on every success means the window
@@ -1635,8 +1660,7 @@ export class AgentLoop {
           }
           // Clear the session memory for the next run so learnings
           // don't get re-curated (the persistent files already have them).
-          // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy SessionMemory reload
-          this.sessionMemory = new (require('@goli-cli/memory-engine/session/ephemeral.js') as typeof import('@goli-cli/memory-engine/session/ephemeral.js')).SessionMemory();
+          this.sessionMemory = await loadSessionMemory();
         }
       } catch (err) {
         this.log.warn('Memory curation failed', {
@@ -2419,10 +2443,6 @@ const INDEX_EXTENSIONS = new Set([
  * @returns Array of absolute file paths.
  */
 function collectSourceFiles(rootDir: string, maxFiles: number = MAX_INDEX_FILES): string[] {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- node:fs/node:path via require to avoid ESM interop issues
-  const { readdirSync, statSync } = require('node:fs') as typeof import('node:fs');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- node:path via require to avoid ESM interop issues
-  const { join } = require('node:path') as typeof import('node:path');
   const results: string[] = [];
   const stack: string[] = [rootDir];
   while (stack.length > 0 && results.length < maxFiles) {

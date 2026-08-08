@@ -36,8 +36,10 @@
  * review, SystemPromptAssembler already had MORE fragments than
  * PromptBuilder (12 vs 8) and included the brief-listed ones
  * PromptBuilder lacked (mode, todo, memory, retrieved-context, skills).
- * P2-18 (remediation plan Phase 18) then deleted `prompt-builder.ts`
+ * P2-18 (remediation plan Phase 18) then deprecated `prompt-builder.ts`
  * entirely as dead code — it was never instantiated in production.
+ * (The file remains on disk only for the T-021 prompt-caching invariant
+ * tests; it is not exported from the agent-core barrel.)
  * SystemPromptAssembler is now the sole canonical assembler (13
  * fragments after the P2-9 recentReadFilesFragment addition).
  *

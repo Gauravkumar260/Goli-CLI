@@ -93,11 +93,14 @@ export { repairJson, parseToolCallArgs } from './json-repair.js';
 
 // Prompt caching (Hermes improvement H2)
 // P2-18 fix (remediation plan Phase 18): `prompt-builder.ts` was dead
-// code (485 lines, never instantiated in production). Deleted along
-// with its tests. The canonical system-prompt assembler is
+// code (485 lines, never instantiated in production) and is not
+// exported from this barrel. The canonical system-prompt assembler is
 // `SystemPromptAssembler` in `./system-prompt.js` (13 fragments).
-// `computeStableHash` is also gone — `ToolsetSnapshot.computeToolNamesHash`
-// covers the per-conversation stability invariant.
+// The file is retained on disk because the T-021 prompt-caching
+// invariant tests (`__tests__/prompt-caching-invariant.test.ts`)
+// import `PromptBuilder` / `computeStableHash` directly from it;
+// `ToolsetSnapshot.computeToolNamesHash` covers per-conversation
+// stability in production.
 /**
  *
  */
@@ -196,9 +199,11 @@ export type {
 
 // P2-18 fix (remediation plan Phase 18): `callback-streaming.ts` (428
 // lines) was unused in production — `AgentLoop` consumes the model
-// client's native async iterator directly. Deleted along with its
-// tests. The `StreamCallback` / `StreamingQueue` abstraction was a
-// Hermes-pattern leftover that never wired into the loop.
+// client's native async iterator directly. The `StreamCallback` /
+// `StreamingQueue` abstraction was a Hermes-pattern leftover that never
+// wired into the loop. The file is retained on disk because
+// `__tests__/callback-streaming.test.ts` exercises it directly; it is
+// not exported from this barrel.
 
 // ─── Experimental / unused-in-loop subsystems ─────────────────────────
 // These modules are fully implemented. Some are consumed by `AgentLoop`

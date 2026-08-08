@@ -20,7 +20,7 @@
  * @module memory/trajectory/store
  */
 
-import { appendFileSync, mkdirSync, existsSync, createReadStream, openSync, closeSync } from 'node:fs';
+import { appendFileSync, mkdirSync, existsSync, createReadStream, openSync, closeSync, readSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -200,8 +200,7 @@ export class TrajectoryStore {
       const buf = Buffer.alloc(CHUNK_SIZE);
       try {
         while (true) {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const bytesRead = require('node:fs').readSync(fd, buf, 0, CHUNK_SIZE, null);
+          const bytesRead = readSync(fd, buf, 0, CHUNK_SIZE, null);
           if (bytesRead === 0) break;
           leftover += buf.subarray(0, bytesRead).toString('utf-8');
           const lines = leftover.split('\n');

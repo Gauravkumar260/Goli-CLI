@@ -28,9 +28,10 @@
  *
  * The `ProvenanceTracker` tags each message. The `tool-guardrails.ts`
  * checks the provenance before allowing sensitive actions. (Historically
- * the tracker was wired through `prompt-builder.ts`; that file was
- * deleted in P2-18 / remediation plan Phase 18 as dead code — the
- * live system-prompt assembler is `system-prompt.ts`'s
+ * the tracker was wired through `prompt-builder.ts`; that file is dead
+ * in production — not exported from the agent-core barrel — and is
+ * retained on disk only for the T-021 prompt-caching invariant tests.
+ * The live system-prompt assembler is `system-prompt.ts`'s
  * `SystemPromptAssembler`, which calls `ProvenanceTracker` directly.)
  *
  * @module agent/provenance
