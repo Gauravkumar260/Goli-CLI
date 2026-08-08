@@ -54,3 +54,6 @@ packages/*/*.tsbuildinfo
 packages/*/__tests__/*.js
 packages/*/__tests__/*.js.map
 packages/*/__tests__/*.d.ts
+
+# npm pack tarballs
+*.tgz
