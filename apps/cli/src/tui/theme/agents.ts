@@ -121,24 +121,6 @@ export const ART = `
 /** Spinner glyphs (braille). */
 export const SPIN = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
-/** Demo responses for --demo mode. */
-export const DEMOS = [
-  'I\'m your multi-agent AI coding assistant. Here\'s what I can do:\n\n' +
-  '  ● Code generation, review & refactoring (any language)\n' +
-  '  ● Bug diagnosis and fixing\n' +
-  '  ● Test generation and test-suite running\n' +
-  '  ● Documentation generation\n' +
-  '  ● Infrastructure and CI/CD management\n\n' +
-  'What are we building today?',
-
-  'Routing your request through the orchestrator → it picks the best agent:\n' +
-  '  → coder for implementation & file ops\n' +
-  '  → reviewer for audits & testing\n' +
-  '  → searcher for research & docs\n' +
-  '  → devops for infra & CI/CD\n\n' +
-  'What are we building today?',
-];
-
 /** Lookup helpers. */
 
 /**

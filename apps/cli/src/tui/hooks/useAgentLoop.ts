@@ -34,9 +34,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { randomUUID } from 'node:crypto';
 import { AppStateStore } from '../state/AppStateStore.js';
 import { LIVE_RENDER_MAX_CHARS, MAX_HISTORY } from '../config/limits.js';
-import { MockAgentLoop } from '../../services/MockAgentLoop.js';
 import { CliAgentLoop } from '../../services/CliAgentLoop.js';
-import { AGENTS, DEMOS } from '../theme/agents.js';
+import { AGENTS } from '../theme/agents.js';
 import { isCliAgentLoop, type IAgentLoop } from '../../services/IAgentLoop.js';
 import type { AgentPhase, Message, PendingPermission, ToolCall } from '../state/types.js';
 
@@ -57,33 +56,11 @@ interface UseAgentLoopResult {
 }
 
 function pickLoop(): IAgentLoop {
-  // GOLI_TUI_AGENT controls which backend the TUI talks to:
-  //   cli   — real @goli/core agent runtime (DEFAULT; requires provider
-  //           env vars: GEMINI_API_KEY / OPENAI_API_KEY /
-  //           ANTHROPIC_API_KEY / OLLAMA_BASE_URL)
-  //   mock  — canned responses (no model required; for UI development)
-  // Singleton-per-process: useAgentLoop mounts once, so creating one
-  // CliAgentLoop here and reusing it across all turns preserves the
-  // expensive session bootstrap (provider, retriever, sandbox).
-  const mode = process.env['GOLI_TUI_AGENT'] ?? 'cli';
-  if (mode === 'cli') {
-    return sharedCliLoop ?? (sharedCliLoop = new CliAgentLoop());
-  }
-  if (mode === 'mock') {
-    return new MockAgentLoop();
-  }
-  if (!warnedUnknownAgentMode) {
-    warnedUnknownAgentMode = true;
-    console.warn(
-      `[goli-tui] Unknown GOLI_TUI_AGENT='${mode}' (expected 'cli' or 'mock'); falling back to cli.`,
-    );
-  }
   return sharedCliLoop ?? (sharedCliLoop = new CliAgentLoop());
 }
 
 // Shared singleton so subsequent turns reuse the bootstrapped session.
 let sharedCliLoop: CliAgentLoop | null = null;
-let warnedUnknownAgentMode = false;
 
 /**
  * P1-3 fix (verification report item #5): expose the shared CliAgentLoop
@@ -527,20 +504,15 @@ export function useAgentLoop(
           const realIn = result?.inputTokens ?? 0;
           const realOut = result?.outputTokens ?? 0;
           const realCost = result?.costUsd ?? 0;
-          let tok = realOut || 200;
+          const tok = realOut || 200;
           setMessages((prev) => {
             const last = prev.find((m) => m.id === agentMsgId);
             if (last && last.type === 'agent' && last.content.length === 0) {
-              // P1-13 fix: was `DEMOS[...] ?? null; tok = resp!.length;` —
-              // if DEMOS is empty, resp is null and `resp!.length` throws.
-              // Now we guard with `.length > 0` and fall back to realOut.
-              const resp = DEMOS.length > 0
-                ? DEMOS[Math.floor(Math.random() * DEMOS.length)]!
-                : null;
-              tok = resp ? resp.length : realOut;
+              // Real loop produced no output — leave the message empty
+              // rather than injecting canned demo content.
               return prev.map((m) =>
                 m.id === agentMsgId && m.type === 'agent'
-                  ? { ...m, content: resp!, streaming: false, tok: tok || realOut }
+                  ? { ...m, content: '', streaming: false, tok: realOut }
                   : { ...m, streaming: false },
               );
             }

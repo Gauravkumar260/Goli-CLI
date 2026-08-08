@@ -78,7 +78,6 @@ function printHelp(): void {
     '  Esc       Abort current operation',
     '',
     'ENVIRONMENT',
-  '  GOLI_TUI_AGENT=cli|mock      Pick agent loop (default: cli).',
   '  GOLI_TUI_FPS=1              Render-time FPS overlay in status bar.',
     '  GOLI_TUI_HYPERLINKS=1       OSC-8 clickable URLs (opt-in, harmless default-off).',
     '  GOLI_TUI_MODE               Set to the active launch alias (e.g. "wakeup").',

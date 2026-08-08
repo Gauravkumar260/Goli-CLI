@@ -34,7 +34,7 @@
 // ─── Load GOLI_* + allowlisted provider keys from .env FIRST ───────
 import '@goli-cli/shared/utils/env-loader.js';
 
-import { readFileSync, existsSync, realpathSync } from 'node:fs';
+import { readFileSync, existsSync, realpathSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from "node:url";
 
@@ -104,29 +104,22 @@ export function createProgram(): Command {
     .option('--resume <id>', 'Resume a previous session by ID (H16)')
     .option('--branch <id>', 'Branch a previous session by ID into a new session (H16)')
     .option('--local-llms', 'Enable local-llms mode: three-axis router across local Ollama workers + cloud tier (sensitivity / complexity / availability)')
-    .option('--demo', 'Launch the TUI with a mock agent (no LLM required). For onboarding, screenshots, and UI testing. (Alias for GOLI_TUI_AGENT=mock goli wakeup -i)')
     .allowUnknownOption(true)
     .action(async () => {
       // Default action (no subcommand given).
       //
       // P0-1 fix: Previously this branch called `program.help()` (which calls
-      // process.exit(0)) whenever --demo was not set, which silently killed
+      // process.exit(0)) when no task was given, which silently killed
       // the process before main() could dispatch headless mode (`-p <prompt>`).
       //
       // We now resolve the launch mode here and dispatch directly so that
-      // `goli -p "..."`, `goli --demo`, and `goli` (no args) all behave:
-      //   - --demo            → runDemo()
+      // `goli -p "..."`, and `goli` (no args) all behave:
       //   - -p / --print      → runHeadless()
       //   - (otherwise)       → show help
       // Returning instead of calling program.help() lets main() see the
       // parsed opts and apply the same dispatch for the top-level flags
       // when no subcommand is provided.
       const opts = program.opts();
-      if (opts['demo']) {
-        const code = await runDemo();
-        process.exitCode = code;
-        return;
-      }
       if (opts['print'] !== undefined) {
         let prompt = opts['print'] as string;
         if (prompt === '-') {
@@ -153,7 +146,7 @@ export function createProgram(): Command {
         process.exitCode = exitCode;
         return;
       }
-      // No subcommand, no --demo, no -p: show help and exit 0.
+      // No subcommand, no -p: show help and exit 0.
       program.help();
     });
 
@@ -347,7 +340,7 @@ async function main(): Promise<void> {
   const program = createProgram();
   await program.parseAsync(process.argv);
 
-  // P0-1 fix: All top-level flag dispatch (--demo, -p/--print) is now
+  // P0-1 fix: All top-level flag dispatch (-p/--print) is now
   // handled inside the default `.action()` registered in `createProgram()`.
   // When a subcommand is given (e.g. `goli wakeup`), Commander invokes
   // that subcommand's action instead of the top-level one and `main()`
@@ -406,9 +399,9 @@ function readStdin(): Promise<string> {
  * `TypeScriptLspClient` (e.g. older build) — the agent runs without
  * LSP tools (they'll throw "LSP client not configured" if called).
  */
-function createLspClient(logger: { info: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void }): unknown {
+async function createLspClient(logger: { info: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void }): Promise<unknown> {
   try {
-    const core = require('@goli-cli/tool-system') as typeof import('@goli-cli/tool-system');
+    const core = await import('@goli-cli/tool-system');
     if (typeof core.TypeScriptLspClient !== 'function') return undefined;
     const rootUri = `file://${process.cwd()}`;
     const client = new core.TypeScriptLspClient({
@@ -442,9 +435,9 @@ function createLspClient(logger: { info: (msg: string, ctx?: Record<string, unkn
  * @goli/core isn't fully loaded) — the agent runs without retrieved
  * context.
  */
-function createContextEngineBundle(logger: { info: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void }): unknown {
+async function createContextEngineBundle(logger: { info: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void }): Promise<unknown> {
   try {
-    const core = require('@goli-cli/context-engine') as typeof import('@goli-cli/context-engine');
+    const core = await import('@goli-cli/context-engine');
     if (typeof core.createContextEngine !== 'function') return undefined;
     const bundle = core.createContextEngine({
       workspaceRoot: process.cwd(),
@@ -473,10 +466,10 @@ function createContextEngineBundle(logger: { info: (msg: string, ctx?: Record<st
  * Returns `undefined` if the curator can't be constructed (e.g.
  * @goli/core isn't fully loaded) — the agent runs without curation.
  */
-function createMemoryCurator(logger: { info: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void }): unknown {
+async function createMemoryCurator(logger: { info: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void }): Promise<unknown> {
   try {
     // Lazy-load so `goli --version` doesn't pull in the memory module graph.
-    const core = require('@goli-cli/memory-engine') as typeof import('@goli-cli/memory-engine');
+    const core = await import('@goli-cli/memory-engine');
     if (!core.MemoryCurator || !core.PersistentMemory) return undefined;
     const persistent = new core.PersistentMemory({
       projectRoot: process.cwd(),
@@ -506,10 +499,10 @@ function createMemoryCurator(logger: { info: (msg: string, ctx?: Record<string, 
  * @param logger - Used to log how many servers were found.
  * @returns Array of MCP server configs (possibly empty).
  */
-function loadMcpServerConfigs(logger: { info: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void }): unknown[] {
+async function loadMcpServerConfigs(logger: { info: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void }): Promise<unknown[]> {
   try {
     // Lazy-load so `goli --version` doesn't pull in the MCP config module.
-    const { loadMcpServers, defaultMcpConfigPath } = require('./commands/mcp-config.js');
+    const { loadMcpServers, defaultMcpConfigPath } = await import('./commands/mcp-config.js');
     const configs = loadMcpServers(defaultMcpConfigPath()) as Array<{ name?: string }>;
     if (configs.length > 0) {
       logger.info('MCP servers loaded from config', { count: configs.length, names: configs.map((c) => c?.name ?? '?') });
@@ -548,8 +541,8 @@ function loadMcpServerConfigs(logger: { info: (msg: string, ctx?: Record<string,
  */
 /**
  * P1-7 fix (verification report item #3): exported so the TUI launch
- * path (`runWakeup` in `commands/wakeup.ts` and `runDemo` in this
- * file) can call the same integrity check that `runHeadless` uses.
+ * path (`runWakeup` in `commands/wakeup.ts`) can call the same
+ * integrity check that `runHeadless` uses.
  * Previously this function was only called from `runHeadless`, so TUI
  * sessions had no integrity check — a tampered safety layer would go
  * undetected until the next headless run.
@@ -564,7 +557,7 @@ export function verifyPolicyIntegrityAtStartup(
   // passes the real Logger instance; we cast here to access .info/.warn.
   logger: unknown,
 ): { message: string } | null {
-  const log = logger as { info: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void };
+  const log = logger as { info: (msg: string, ctx?: Record<string, unknown>) => void; debug: (msg: string, ctx?: Record<string, unknown>) => void; warn: (msg: string, ctx?: Record<string, unknown>) => void };
   // Resolve the workspace root. In headless mode this is process.cwd().
   // We hash the safety-critical source directories of the canonical
   // `@goli-cli/*` packages (approval, sandbox, hooks, SICA, skills,
@@ -573,8 +566,6 @@ export function verifyPolicyIntegrityAtStartup(
   // monorepo worktree, it'll find the source. Either way, the hash is
   // stable across runs unless the files actually change.
   const workspaceRoot = process.cwd();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fs: any = require('node:fs');
   // The policy dirs are the ones the audit flagged as
   // safety-critical: approval engine, sandbox, hooks, SICA, mode
   // config. We hash the SOURCE directories so a tamper attempt
@@ -603,7 +594,7 @@ export function verifyPolicyIntegrityAtStartup(
   const resolveDir = (candidates: string[]): string | undefined => {
     for (const c of candidates) {
       const p = join(workspaceRoot, c);
-      try { if (fs.existsSync(p) && fs.statSync(p).isDirectory()) return p; } catch { /* skip */ }
+      try { if (existsSync(p) && statSync(p).isDirectory()) return p; } catch { /* skip */ }
     }
     return undefined;
   };
@@ -630,14 +621,14 @@ export function verifyPolicyIntegrityAtStartup(
   for (const dir of policyDirs) {
     const result = manager.checkIntegrity(scope, identifier + ':' + dir, dir);
     if (result.status === IntegrityStatus.MATCH) {
-      log.info('PolicyIntegrityManager: integrity OK', { dir, fileCount: result.fileCount });
+      log.debug('PolicyIntegrityManager: integrity OK', { dir, fileCount: result.fileCount });
     } else if (result.status === IntegrityStatus.NEW) {
       // First run — accept and persist the current hash.
       const ok = manager.acceptIntegrity(scope, identifier + ':' + dir, result.hash);
       if (!ok) {
         log.warn('PolicyIntegrityManager: failed to persist initial hash', { dir });
       } else {
-        log.info('PolicyIntegrityManager: first run — accepted current hash', { dir, fileCount: result.fileCount });
+        log.debug('PolicyIntegrityManager: first run — accepted current hash', { dir, fileCount: result.fileCount });
       }
     } else if (result.status === IntegrityStatus.MISMATCH) {
       return {
@@ -769,13 +760,13 @@ async function runHeadless(
       // tools as virtual T1 tools in the registry. Previously the
       // `goli mcp add` command wrote configs but no agent ever read
       // them — MCP was config-only.
-      mcpServers: loadMcpServerConfigs(logger) as never,
+      mcpServers: await loadMcpServerConfigs(logger) as never,
       // P2-6: instantiate a MemoryCurator so within-session learnings
       // (read_file / grep / web_search results) are promoted to
       // MEMORY.md / USER.md / PROJECT.md at the end of each run.
       // Previously the curator was exported but never called — the
       // 3-tier memory was actually 2 disconnected tiers.
-      memoryCurator: createMemoryCurator(logger) as never,
+      memoryCurator: await createMemoryCurator(logger) as never,
       // P2-7: instantiate a context engine (tree-sitter indexer +
       // symbol graph + hybrid retriever). The loop queries the
       // retriever at the start of each run and injects the top-k
@@ -783,14 +774,14 @@ async function runHeadless(
       // Previously createContextEngine was exported but never called
       // — the agent had no symbol graph, no caller/definition lookup,
       // no semantic search. It was just an LLM with file-read/write.
-      contextEngine: createContextEngineBundle(logger) as never,
+      contextEngine: await createContextEngineBundle(logger) as never,
       // P3-4: instantiate a TypeScript LSP client so the 4 LSP tools
       // (lsp_hover, lsp_goto_definition, lsp_references, lsp_diagnostics)
       // are functional. Previously they always threw "LSP client not
       // configured". The client spawns `typescript-language-server
       // --stdio` lazily on the first LSP tool call — if the binary
       // isn't installed, the tool returns a clear install instruction.
-      lspClient: createLspClient(logger) as never,
+      lspClient: await createLspClient(logger) as never,
       // Round-2 verification item #2 (SkillLoader dead in production):
       // wire a SkillLoader so `loop.ts:1740` can call
       // `formatL1ForPrompt()` and the L1 skills fragment is non-empty
@@ -830,101 +821,7 @@ async function runHeadless(
       }
     }
 
-    return result.ok ? 0 : 1;
-  } catch (err) {
-    process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
-    return 1;
-  }
-}
-
-/**
- * Run the agent in demo mode (--demo flag).
- *
- * Runs MockAgentLoop and prints the scripted event sequence to stdout.
- * No LLM API key or endpoint required. The mock agent yields:
- *   INIT → PLAN → TOOL (read_file) → GEN → DONE
- *
- * This is for:
- *   - New-user onboarding (see the agent flow without setup)
- *   - Screenshot testing (deterministic output)
- *   - CI smoke testing (verifies the event pipeline)
- *
- * @returns Exit code (0 = success, non-zero = failure).
- */
-async function runDemo(): Promise<number> {
-  // P1-2 fix (verification report item #2): the --demo flag's help text
-  // promises "Launch the TUI with a mock agent", but the previous
-  // implementation was headless — it printed mock agent events to stdout
-  // and never started the Ink TUI. Users running `goli --demo` saw a
-  // stream of text instead of the interactive UI they were promised.
-  //
-  // We now honor the help text by setting GOLI_TUI_AGENT=mock and
-  // launching the actual TUI via launchTui(['wakeup', '-i']). The mock
-  // agent loop (MockAgentLoop) is selected by useAgentLoop.ts when
-  // GOLI_TUI_AGENT=mock, so no LLM credentials are required.
-  //
-  // If launchTui() fails (e.g., no TTY available — common in CI), we
-  // fall back to the original headless demo so `goli --demo` still
-  // produces useful output for screenshots and smoke tests.
-  try {
-    if (!process.env['GOLI_TUI_AGENT']) {
-      process.env['GOLI_TUI_AGENT'] = 'mock';
-    }
-    process.stderr.write('🎮 Goli-CLI demo mode — launching TUI with MockAgentLoop (no LLM required)\n');
-    process.stderr.write('   Press Ctrl+C to exit.\n\n');
-
-    // Prefer the interactive TUI when a TTY is available.
-    if (process.stdout.isTTY) {
-      const { launchTui } = await import('./tui/launcher.js');
-      return await launchTui(['wakeup', '-i']);
-    }
-
-    // Headless fallback (CI, piped stdout, no TTY).
-    const { MockAgentLoop } = await import('./services/MockAgentLoop.js');
-    const agent = new MockAgentLoop();
-
-    let phaseCount = 0;
-    let toolCount = 0;
-    let textChars = 0;
-
-    for await (const ev of agent.run({ prompt: 'Welcome to Goli-CLI! This is a demo with mock responses.', messageId: 'demo', godMode: false })) {
-      switch (ev.kind) {
-        case 'phase':
-          phaseCount++;
-          process.stdout.write(`\n┌─ ${ev.phase} ─────────────────────────┐\n`);
-          break;
-        case 'text':
-          process.stdout.write(ev.text);
-          textChars += ev.text.length;
-          break;
-        case 'tool': {
-          toolCount++;
-          const t = ev.tool;
-          const status = t.status === 'running' ? '⚡' : '✓';
-          process.stdout.write(`\n  ${status} ${t.name} (${t.tier}) → ${t.arg}\n`);
-          if (t.status === 'success' && t.durationMs) {
-            process.stdout.write(`     completed in ${t.durationMs}ms — ${t.meta ?? ''}\n`);
-          }
-          break;
-        }
-        case 'done':
-          process.stdout.write('\n\n└─ DONE ────────────────────────────┘\n');
-          break;
-      }
-    }
-
-    const result = agent.getLastResult();
-    process.stderr.write('\n────────────────────────────────────\n');
-    process.stderr.write(`Demo complete (headless fallback — no TTY detected):\n`);
-    process.stderr.write(`  Phases: ${phaseCount} (INIT, PLAN, TOOL, GEN, DONE)\n`);
-    process.stderr.write(`  Tool calls: ${toolCount}\n`);
-    process.stderr.write(`  Text output: ${textChars} chars\n`);
-    if (result) {
-      process.stderr.write(`  Tokens: ${result.inputTokens} input, ${result.outputTokens} output\n`);
-    }
-    process.stderr.write('────────────────────────────────────\n');
-
-    return 0;
+return result.ok ? 0 : 1;
   } catch (err) {
     process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
     return 1;

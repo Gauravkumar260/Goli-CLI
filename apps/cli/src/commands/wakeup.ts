@@ -27,7 +27,7 @@ import { AgentLoop } from '@goli-cli/agent-core';
 import { loadConfig } from '@goli-cli/config';
 import { SkillLoader } from '@goli-cli/memory-engine';
 import { APP_VERSION } from '@goli-cli/shared/utils/constants.js';
-import { createLogger, configureLogger, defaultLifecycleLogPath } from '@goli-cli/shared/utils/logger.js';
+import { configureLogger, defaultLifecycleLogPath, logger } from '@goli-cli/shared/utils/logger.js';
 
 import { extractGlobalOptions, buildCommandContext, type CommandContext } from './types.js';
 
@@ -63,7 +63,7 @@ export async function runWakeup(opts: WakeupOptions): Promise<number> {
   });
 
   const ctx: CommandContext = buildCommandContext(globalOptions, config);
-  const log = createLogger({ level: 'info', defaultContext: { module: 'goli.wakeup' } });
+  const log = logger.child({ module: 'goli.wakeup' });
 
   // P1-7 fix (verification report item #3): wire PolicyIntegrityManager
   // into the TUI launch path. Previously this check only ran in
@@ -261,7 +261,7 @@ function parseGlobalOptsFromArgv(): Record<string, unknown> {
   // Boolean flags (no value).
   const BOOL_FLAGS = new Set([
     '--debug', '--god', '--auto', '--local-llms', '--spec-mode', '--diff-review',
-    '--demo', '--interactive', '-i',
+    '--interactive', '-i',
   ]);
   // Value-taking flags → key they populate.
   const VALUE_FLAGS: Record<string, string> = {
@@ -295,7 +295,6 @@ function parseGlobalOptsFromArgv(): Record<string, unknown> {
         '--local-llms': 'localLlms',
         '--spec-mode': 'specMode',
         '--diff-review': 'diffReview',
-        '--demo': 'demo',
         '--interactive': 'interactive',
         '-i': 'interactive',
       };
