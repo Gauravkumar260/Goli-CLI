@@ -16,6 +16,9 @@
  * @module commands/index
  */
 
+import { readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { createContextEngine } from '@goli-cli/context-engine';
 import { createLogger, configureLogger, defaultLifecycleLogPath } from '@goli-cli/shared/utils/logger.js';
 
@@ -103,8 +106,6 @@ const INDEX_EXTENSIONS = new Set([
 ]);
 
 function collectSourceFiles(rootDir: string, maxFiles: number): string[] {
-  const { readdirSync, statSync } = require('node:fs') as typeof import('node:fs');
-  const { join } = require('node:path') as typeof import('node:path');
   const results: string[] = [];
   const stack: string[] = [rootDir];
   while (stack.length > 0 && results.length < maxFiles) {
