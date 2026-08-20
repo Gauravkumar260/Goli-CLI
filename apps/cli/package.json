@@ -40,6 +40,7 @@
     "@goli-cli/sandbox": "*",
     "@goli-cli/shared": "*",
     "@goli-cli/tool-system": "*",
+    "@goli-cli/orchestration": "*",
     "@types/node": "^22.10.2",
     "@types/react": "18.3.31",
     "commander": "^12.1.0",

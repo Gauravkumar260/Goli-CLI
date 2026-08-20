@@ -605,7 +605,7 @@ export function registerDefaultCommands(force?: boolean): void {
           'License: MIT',
           'Homepage: https://github.com/goli-cli/goli-cli',
           '',
-          '8-agent swarm (Orchestrator → Data) for complex, autonomous dev tasks.',
+          '11-agent swarm (Scout → Documenter) for complex, autonomous dev tasks.',
           'Built as an npm workspaces monorepo with TypeScript + Ink.',
         ].join('\n'),
         'info',

@@ -98,7 +98,7 @@ export const TIPS: readonly Tip[] = [
   { text: 'Tool calls show duration and cost badges when available', category: 'feature' },
   { text: 'Paste placeholders collapse large pastes ([Pasted Text: N lines])', category: 'feature' },
   { text: 'Unicode-safe cursor handles emoji and CJK correctly', category: 'feature' },
-  { text: 'The 8-agent swarm routes tasks: orchestrator, coder, reviewer, searcher, devops, designer, security, data', category: 'feature' },
+  { text: 'The 11-agent swarm routes tasks: scout, researcher, architect, planner, implementer, debugger, qa-tester, security-auditor, reviewer, orchestrator, documenter', category: 'feature' },
   { text: 'MCP (Model Context Protocol) servers extend the agent with custom tools', category: 'feature' },
   { text: 'Sandbox mode isolates tool execution (docker or local)', category: 'feature' },
   { text: 'Policy engine enforces tool-tier permissions (T0-T3, BLK)', category: 'feature' },

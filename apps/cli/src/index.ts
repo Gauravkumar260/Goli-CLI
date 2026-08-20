@@ -153,7 +153,7 @@ export function createProgram(): Command {
   // ─── wakeup ────────────────────────────────────────────────────
   program
     .command('wakeup [prompt]')
-    .description('Wake up the 8-agent swarm to perform a task\n(e.g. "goli wakeup \\"refactor the auth module to use JWT\\")')
+    .description('Wake up the 11-agent swarm to perform a task\n(e.g. "goli wakeup \\"refactor the auth module to use JWT\\")')
     .option('-i, --interactive', 'Start the full Ink TUI for real-time chat (Phase 3)')
     .action(async (prompt: string | undefined, opts: { interactive?: boolean }) => {
       const { runWakeup } = await import('./commands/wakeup.js');

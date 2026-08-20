@@ -1,9 +1,8 @@
 /**
- * `goli wakeup [prompt]` — Wake up the 8-agent swarm.
+ * `goli wakeup [prompt]` — Wake up the 11-agent swarm.
  *
  * This is the primary command. It kicks off the Scout-Plan-Execute-Verify
- * lifecycle. The TUI surfaces 8 agent display roles (orchestrator, coder,
- * reviewer, searcher, devops, designer, security, data); the underlying
+ * lifecycle. The TUI surfaces 11 agent display roles; the underlying
  * `AgentRole` enum in `@goli/core` has 11 values (scout, researcher,
  * architect, planner, implementer, debugger, qa-tester, security-auditor,
  * reviewer, orchestrator, documenter) used by the orchestration pipeline.
@@ -153,9 +152,9 @@ export async function runWakeup(opts: WakeupOptions): Promise<number> {
     return code;
   }
 
-  // Run the agent loop
+  // Run the agent swarm
   try {
-    log.info('Starting agent run', {
+    log.info('Starting swarm run', {
       prompt: (opts.prompt ?? '').slice(0, 100),
       model: config.model.modelId,
       effort: globalOptions.effort ?? config.model.defaultEffort,
@@ -163,39 +162,51 @@ export async function runWakeup(opts: WakeupOptions): Promise<number> {
       autoMode: ctx.autoMode,
     });
 
-    const loop = new AgentLoop({
-      config,
+    const { SwarmPipeline } = await import('@goli-cli/orchestration');
+    const pipeline = new SwarmPipeline({
       logger: log,
-      godMode: ctx.godMode,
-      autoMode: ctx.autoMode,
-      effortOverride: globalOptions.effort,
-      modelOverride: globalOptions.model,
-      // Round-2 verification item #2 (SkillLoader dead in production):
-      // wire a SkillLoader so the L1 skills fragment is non-empty in
-      // real headless sessions (when `<cwd>/.goli/skills` exists).
-      skillLoader: new SkillLoader({
-        skillsDir: join(process.cwd(), '.goli', 'skills'),
-      }),
+      workspaceRoot: process.cwd(),
+      useWorktrees: false, // Start simple for now
+      runAgent: async (role, description, workspaceRoot) => {
+        log.info(`Swarm pipeline running agent ${role}`);
+        const loop = new AgentLoop({
+          config,
+          logger: log,
+          godMode: ctx.godMode,
+          autoMode: ctx.autoMode,
+          effortOverride: globalOptions.effort,
+          modelOverride: globalOptions.model,
+          skillLoader: new SkillLoader({
+            skillsDir: join(process.cwd(), '.goli', 'skills'),
+          }),
+        });
+        const result = await loop.run({ prompt: description });
+        return {
+          ok: result.ok,
+          output: result.content ?? '',
+          durationMs: result.durationMs,
+        };
+      },
     });
 
-    const result = await loop.run({ prompt: opts.prompt ?? '' });
+    const result = await pipeline.wakeup(opts.prompt ?? '');
 
     // Print result
-    if (result.content) {
-      process.stdout.write('\n' + result.content + '\n');
+    if (result.result?.finalOutput) {
+      process.stdout.write('\n' + result.result.finalOutput + '\n');
     }
 
     // Print summary
     process.stdout.write('\n');
     process.stdout.write('─'.repeat(60) + '\n');
     process.stdout.write(`Status:      ${result.ok ? '✓ completed' : '✗ failed'}\n`);
-    process.stdout.write(`Stop reason: ${result.stopReason ?? 'unknown'}\n`);
-    process.stdout.write(`Iterations:  ${result.iterations}\n`);
-    process.stdout.write(`Tokens:      ${result.totalTokens.toLocaleString()}\n`);
-    if (result.totalCostUsd > 0) {
-      process.stdout.write(`Cost:        $${result.totalCostUsd.toFixed(4)}\n`);
+    process.stdout.write(`Pattern:     ${result.pattern}\n`);
+    process.stdout.write(`Stages:      ${result.pipelineStages.filter(s => s.completed).length}/${result.pipelineStages.length} completed\n`);
+    process.stdout.write(`Tokens:      ${(result.result?.totalTokens ?? 0).toLocaleString()}\n`);
+    if (result.result?.totalCostUsd && result.result.totalCostUsd > 0) {
+      process.stdout.write(`Cost:        $${result.result.totalCostUsd.toFixed(4)}\n`);
     }
-    process.stdout.write(`Duration:    ${(result.durationMs / 1000).toFixed(1)}s\n`);
+    process.stdout.write(`Duration:    ${((result.result?.totalDurationMs ?? 0) / 1000).toFixed(1)}s\n`);
     process.stdout.write('─'.repeat(60) + '\n');
 
     return result.ok ? 0 : 1;

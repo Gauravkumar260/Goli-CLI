@@ -60,7 +60,7 @@ export function AboutDialog({ cols, onDismiss: _onDismiss }: Props): React.React
         </Text>
       </Box>
       <Box width={innerW} marginTop={1}>
-        <Text color={T.gray}>8-agent swarm (Orchestrator → Data) for complex, autonomous dev tasks.</Text>
+        <Text color={T.gray}>11-agent swarm (Scout → Documenter) for complex, autonomous dev tasks.</Text>
       </Box>
       <Box width={innerW} marginTop={1}>
         <Text color={T.gray}>Built with TypeScript + Ink (React for terminals).</Text>

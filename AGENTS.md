@@ -4,9 +4,14 @@
 
 ## Project layout (quick reference)
 
-- `packages/core` — the "Brain": agent loop, providers, tools, safety, context, memory, evals, observability, orchestration (8-agent swarm), plugins, sandbox, i18n, API server, gateway — 208+ source files
+- `packages/agent-core` — Agent loop, ReAct execution, system prompt assembly
+- `packages/orchestration` — The "Brain": swarm pipeline, routing, patterns (11-agent swarm)
+- `packages/tool-system` — Core tools, footprint ladder, tool dispatching
+- `packages/context-engine` — Context retrieval, hybrid search
+- `packages/llm-providers` — Model provider adapters
+- `packages/memory-engine` — Memory curation and storage
+- `packages/shared`, `packages/approval`, `packages/config`, `packages/evals`, `packages/i18n`, `packages/observability`, `packages/plugins`, `packages/sandbox`, `packages/sdk`, `packages/test-utils` — modularized subsystems
 - `packages/cli` — user-facing TUI (Ink/React), 25+ components, 11 hooks, 25+ lib modules, theme engine (20 built-in skins), state store, command parsing, binary distribution
-- `packages/evals` — evaluation harness stub (Phase 12 evals live in `packages/core/src/evals/`)
 - `packages/vscode-ext` — standalone VS Code extension (NOT in npm workspaces — see ADR-0010)
 - `tests/` — root-level tests (vitest) — 70+ files, **3,053 test cases** (unit + integration + e2e)
 - `infra/` — infrastructure (Docker Compose + k8s manifests + LiteLLM router config)
